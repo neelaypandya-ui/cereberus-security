@@ -1,0 +1,146 @@
+/* Cereberus — War Room Dark Theme */
+
+:root {
+  /* Core dark palette */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-card: #161616;
+  --bg-elevated: #1e1e1e;
+  --bg-hover: #252525;
+
+  /* Borders */
+  --border-default: #2d2d2d;
+  --border-active: #3d3d3d;
+
+  /* Text */
+  --text-primary: #e8e8e8;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+
+  /* Accent colors */
+  --red-dark: #8b0000;
+  --red-primary: #dc2626;
+  --red-bright: #ff4500;
+  --red-ember: #ff6b35;
+  --red-glow: rgba(220, 38, 38, 0.3);
+
+  /* Severity colors */
+  --severity-critical: #ff1744;
+  --severity-high: #ff5722;
+  --severity-medium: #ff9800;
+  --severity-low: #ffc107;
+  --severity-info: #2196f3;
+
+  /* Status colors */
+  --status-online: #4caf50;
+  --status-offline: #f44336;
+  --status-warning: #ff9800;
+
+  /* Font */
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Sizing */
+  --sidebar-width: 240px;
+  --header-height: 56px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-active);
+}
+
+/* Utility classes */
+.mono {
+  font-family: var(--font-mono);
+}
+
+.text-red {
+  color: var(--red-primary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* CSS-only particle background for login */
+.particle-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 50%, #1a0a0a 0%, #0a0a0a 70%);
+}
+
+.particle-bg::before,
+.particle-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.15;
+  animation: float 8s ease-in-out infinite;
+}
+
+.particle-bg::before {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, var(--red-dark) 0%, transparent 70%);
+  top: 20%;
+  left: 30%;
+  animation-delay: 0s;
+}
+
+.particle-bg::after {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--red-bright) 0%, transparent 70%);
+  bottom: 20%;
+  right: 20%;
+  animation-delay: -4s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* Glow effect for active elements */
+.glow-red {
+  box-shadow: 0 0 15px var(--red-glow), 0 0 30px rgba(139, 0, 0, 0.15);
+}

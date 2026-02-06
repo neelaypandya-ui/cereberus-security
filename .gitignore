@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+
+# ML Models (large files)
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.pkl
+
+# Logs
+logs/
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Redis
+dump.rdb
+
+# Certs/Keys
+*.pem
+*.key
+*.crt
+!*.example.*

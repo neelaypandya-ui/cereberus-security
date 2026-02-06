@@ -1,0 +1,29 @@
+"""Alert model."""
+
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from .base import Base
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False, index=True
+    )
+    severity: Mapped[str] = mapped_column(
+        String(20), nullable=False, index=True
+    )  # critical, high, medium, low, info
+    module_source: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vpn_status_at_event: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    interface_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
