@@ -1,5 +1,7 @@
 """Alert management routes."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, update
@@ -88,4 +90,40 @@ async def get_alert(
         "interface_name": alert.interface_name,
         "acknowledged": alert.acknowledged,
         "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+        "feedback": alert.feedback,
+        "feedback_at": alert.feedback_at.isoformat() if alert.feedback_at else None,
+        "feedback_by": alert.feedback_by,
+    }
+
+
+class FeedbackRequest(BaseModel):
+    feedback: str  # "true_positive" or "false_positive"
+
+
+@router.patch("/{alert_id}/feedback")
+async def submit_alert_feedback(
+    alert_id: int,
+    body: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Submit feedback (true_positive/false_positive) for an alert."""
+    if body.feedback not in ("true_positive", "false_positive"):
+        raise HTTPException(status_code=400, detail="feedback must be 'true_positive' or 'false_positive'")
+
+    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    alert.feedback = body.feedback
+    alert.feedback_at = datetime.now(timezone.utc)
+    alert.feedback_by = current_user.get("sub", "unknown")
+    await db.commit()
+
+    return {
+        "id": alert.id,
+        "feedback": alert.feedback,
+        "feedback_at": alert.feedback_at.isoformat(),
+        "feedback_by": alert.feedback_by,
     }

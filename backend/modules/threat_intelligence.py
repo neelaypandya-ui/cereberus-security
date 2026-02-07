@@ -113,6 +113,22 @@ class ThreatIntelligence(BaseModule):
             except Exception:
                 pass
 
+            # Collect anomaly results
+            try:
+                anomaly = ns.get_anomaly_result() if hasattr(ns, "get_anomaly_result") else None
+                if anomaly and anomaly.get("is_anomaly"):
+                    events.append({
+                        "event_type": "anomaly_detected",
+                        "source_module": "network_sentinel",
+                        "severity": "high",
+                        "details": {
+                            "anomaly_score": anomaly.get("anomaly_score"),
+                            "threshold": anomaly.get("threshold"),
+                        },
+                    })
+            except Exception:
+                pass
+
         # Collect from Brute Force Shield
         bfs = self._module_refs.get("brute_force_shield")
         if bfs:
@@ -154,6 +170,55 @@ class ThreatIntelligence(BaseModule):
                         "source_module": "process_analyzer",
                         "severity": "high",
                         "details": proc,
+                    })
+            except Exception:
+                pass
+
+        # Collect from Vulnerability Scanner
+        vs = self._module_refs.get("vuln_scanner")
+        if vs:
+            try:
+                vulns = vs.get_vulnerabilities() if hasattr(vs, "get_vulnerabilities") else []
+                for vuln in vulns:
+                    if vuln.get("severity") in ("critical", "high"):
+                        events.append({
+                            "event_type": "vulnerability_found",
+                            "source_module": "vuln_scanner",
+                            "severity": vuln.get("severity", "high"),
+                            "details": {
+                                "title": vuln.get("title"),
+                                "category": vuln.get("category"),
+                            },
+                        })
+            except Exception:
+                pass
+
+        # Collect from Persistence Scanner
+        ps = self._module_refs.get("persistence_scanner")
+        if ps:
+            try:
+                changes = ps.get_changes() if hasattr(ps, "get_changes") else []
+                for change in changes:
+                    events.append({
+                        "event_type": "persistence_change",
+                        "source_module": "persistence_scanner",
+                        "severity": "high" if change.get("status") == "added" else "medium",
+                        "details": change if isinstance(change, dict) else {"entry": str(change)},
+                    })
+            except Exception:
+                pass
+
+        # Collect from Resource Monitor
+        rm = self._module_refs.get("resource_monitor")
+        if rm:
+            try:
+                alerts = rm.get_alerts() if hasattr(rm, "get_alerts") else []
+                for alert in alerts[-5:]:  # Only recent threshold alerts
+                    events.append({
+                        "event_type": "resource_spike",
+                        "source_module": "resource_monitor",
+                        "severity": "medium",
+                        "details": alert if isinstance(alert, dict) else {"info": str(alert)},
                     })
             except Exception:
                 pass

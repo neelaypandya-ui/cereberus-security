@@ -15,6 +15,11 @@ from .settings import (
     ModuleStatus,
     Settings,
 )
+from .resource_snapshot import ResourceSnapshot
+from .audit_log import AuditLog
+from .ai_model_registry import AIModelRegistry
+from .anomaly_event import AnomalyEvent
+from .behavioral_baseline import BehavioralBaseline
 
 __all__ = [
     "Base",
@@ -30,4 +35,9 @@ __all__ = [
     "Vulnerability",
     "ModuleStatus",
     "Settings",
+    "ResourceSnapshot",
+    "AuditLog",
+    "AIModelRegistry",
+    "AnomalyEvent",
+    "BehavioralBaseline",
 ]

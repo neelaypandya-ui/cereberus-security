@@ -213,3 +213,17 @@ class FileIntegrity(BaseModule):
     def get_last_scan(self) -> Optional[dict]:
         """Return the result of the last scan."""
         return self._last_scan
+
+    def get_changes(self) -> list[dict]:
+        """Return detected file changes from the last scan."""
+        if not self._last_scan or self._last_scan.get("type") == "baseline":
+            return []
+        changes = self._last_scan.get("changes", {})
+        result = []
+        for path in changes.get("modified", []):
+            result.append({"path": path, "status": "modified"})
+        for path in changes.get("added", []):
+            result.append({"path": path, "status": "added"})
+        for path in changes.get("deleted", []):
+            result.append({"path": path, "status": "deleted"})
+        return result

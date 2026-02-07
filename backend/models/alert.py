@@ -27,3 +27,6 @@ class Alert(Base):
     interface_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    feedback: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # true_positive, false_positive
+    feedback_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    feedback_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

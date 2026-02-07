@@ -22,9 +22,16 @@ _process_analyzer = None
 _vuln_scanner = None
 _email_analyzer = None
 _threat_intelligence = None
+_resource_monitor = None
+_persistence_scanner = None
 _anomaly_detector = None
 _nlp_analyzer = None
 _threat_correlator = None
+_isolation_forest_detector = None
+_zscore_detector = None
+_ensemble_detector = None
+_behavioral_baseline = None
+_threat_forecaster = None
 
 
 def get_app_config() -> CereberusConfig:
@@ -183,6 +190,33 @@ def get_threat_intelligence():
     return _threat_intelligence
 
 
+def get_resource_monitor():
+    """Get the Resource Monitor module singleton."""
+    global _resource_monitor
+    if _resource_monitor is None:
+        from .modules.resource_monitor import ResourceMonitor
+        config = get_app_config()
+        _resource_monitor = ResourceMonitor(config={
+            "poll_interval": config.resource_poll_interval,
+            "cpu_threshold": config.resource_cpu_threshold,
+            "memory_threshold": config.resource_memory_threshold,
+            "disk_threshold": config.resource_disk_threshold,
+        })
+    return _resource_monitor
+
+
+def get_persistence_scanner():
+    """Get the Persistence Scanner module singleton."""
+    global _persistence_scanner
+    if _persistence_scanner is None:
+        from .modules.persistence_scanner import PersistenceScanner
+        config = get_app_config()
+        _persistence_scanner = PersistenceScanner(config={
+            "scan_interval": config.persistence_scan_interval,
+        })
+    return _persistence_scanner
+
+
 def get_anomaly_detector():
     """Get the Anomaly Detector AI singleton."""
     global _anomaly_detector
@@ -216,3 +250,64 @@ def get_threat_correlator():
             max_age_hours=config.threat_correlation_window,
         )
     return _threat_correlator
+
+
+def get_isolation_forest_detector():
+    """Get the Isolation Forest Detector singleton."""
+    global _isolation_forest_detector
+    if _isolation_forest_detector is None:
+        from .ai.isolation_forest_detector import IsolationForestDetector
+        config = get_app_config()
+        _isolation_forest_detector = IsolationForestDetector(
+            model_dir=config.ai_model_dir,
+        )
+    return _isolation_forest_detector
+
+
+def get_zscore_detector():
+    """Get the Z-Score Detector singleton."""
+    global _zscore_detector
+    if _zscore_detector is None:
+        from .ai.zscore_detector import ZScoreDetector
+        config = get_app_config()
+        _zscore_detector = ZScoreDetector(
+            model_dir=config.ai_model_dir,
+        )
+    return _zscore_detector
+
+
+def get_ensemble_detector():
+    """Get the Ensemble Detector singleton."""
+    global _ensemble_detector
+    if _ensemble_detector is None:
+        from .ai.ensemble_detector import EnsembleDetector
+        config = get_app_config()
+        _ensemble_detector = EnsembleDetector(
+            autoencoder=get_anomaly_detector(),
+            isolation_forest=get_isolation_forest_detector(),
+            zscore=get_zscore_detector(),
+            weights=config.ai_ensemble_weights,
+            consensus_threshold=config.ai_consensus_threshold,
+        )
+    return _ensemble_detector
+
+
+def get_behavioral_baseline():
+    """Get the Behavioral Baseline Engine singleton."""
+    global _behavioral_baseline
+    if _behavioral_baseline is None:
+        from .ai.behavioral_baseline import BehavioralBaselineEngine
+        _behavioral_baseline = BehavioralBaselineEngine()
+    return _behavioral_baseline
+
+
+def get_threat_forecaster():
+    """Get the Threat Forecaster singleton."""
+    global _threat_forecaster
+    if _threat_forecaster is None:
+        from .ai.threat_forecaster import ThreatForecaster
+        config = get_app_config()
+        _threat_forecaster = ThreatForecaster(
+            model_dir=config.ai_model_dir,
+        )
+    return _threat_forecaster

@@ -5,6 +5,7 @@ flags suspicious ports, and provides stats for the API/dashboard.
 """
 
 import asyncio
+from collections import deque
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -38,6 +39,18 @@ class NetworkSentinel(BaseModule):
         self._stats: dict = {}
         self._scan_task: Optional[asyncio.Task] = None
         self._last_scan: Optional[datetime] = None
+
+        # Anomaly detection integration
+        self._anomaly_detector = None
+        self._ensemble_detector = None
+        self._last_anomaly_result: Optional[dict] = None
+        self._anomaly_events: deque[dict] = deque(maxlen=200)
+
+        # Behavioral baseline integration
+        self._behavioral_baseline = None
+
+        # DB session factory for persisting anomaly events
+        self._db_session_factory = None
 
     async def start(self) -> None:
         """Start the connection monitoring loop."""
@@ -137,6 +150,92 @@ class NetworkSentinel(BaseModule):
         self._flagged = flagged
         self._stats = stats
         self._last_scan = datetime.now(timezone.utc)
+
+        # Feed behavioral baseline engine with connection counts
+        if self._behavioral_baseline:
+            try:
+                ts = self._last_scan
+                await self._behavioral_baseline.update("total_connections", float(stats["total"]), ts)
+                await self._behavioral_baseline.update("established_connections", float(stats["established"]), ts)
+                await self._behavioral_baseline.update("suspicious_connections", float(stats["suspicious"]), ts)
+            except Exception as e:
+                self.logger.error("baseline_update_error", error=str(e))
+
+        # Run ensemble anomaly detection if available, else fallback to single detector
+        if self._ensemble_detector:
+            try:
+                from ..ai.anomaly_detector import AnomalyDetector
+                # Use autoencoder feature extraction
+                detector = self._anomaly_detector or (
+                    self._ensemble_detector._autoencoder
+                    if hasattr(self._ensemble_detector, '_autoencoder') else None
+                )
+                if detector and hasattr(detector, 'extract_features'):
+                    features = detector.extract_features(connections)
+                    result = await self._ensemble_detector.predict(features)
+                    result["timestamp"] = self._last_scan.isoformat()
+                    result["stats_snapshot"] = {
+                        "total": stats["total"],
+                        "suspicious": stats["suspicious"],
+                        "established": stats["established"],
+                    }
+                    self._last_anomaly_result = result
+                    if result.get("is_anomaly"):
+                        import json
+                        event = {
+                            "timestamp": self._last_scan.isoformat(),
+                            "anomaly_score": result.get("ensemble_score", 0),
+                            "threshold": 0.5,
+                            "detector_scores": result.get("detector_scores", {}),
+                            "agreeing_detectors": result.get("agreeing_detectors", []),
+                            "confidence": result.get("confidence", 0),
+                            "explanation": result.get("explanation", ""),
+                            "feature_attribution": result.get("feature_attribution", {}),
+                            "stats": result["stats_snapshot"],
+                        }
+                        self._anomaly_events.append(event)
+
+                        # Persist to DB if session factory available
+                        if self._db_session_factory:
+                            try:
+                                await self._persist_anomaly_event(event, features)
+                            except Exception as pe:
+                                self.logger.error("anomaly_persist_error", error=str(pe))
+
+                        self.logger.warning(
+                            "ensemble_anomaly_detected",
+                            score=result.get("ensemble_score", 0),
+                            agreeing=result.get("agreeing_detectors", []),
+                        )
+            except Exception as e:
+                self.logger.error("ensemble_detection_error", error=str(e))
+        elif self._anomaly_detector and self._anomaly_detector.initialized:
+            try:
+                features = self._anomaly_detector.extract_features(connections)
+                result = await self._anomaly_detector.predict(features)
+                result["timestamp"] = self._last_scan.isoformat()
+                result["stats_snapshot"] = {
+                    "total": stats["total"],
+                    "suspicious": stats["suspicious"],
+                    "established": stats["established"],
+                }
+                self._last_anomaly_result = result
+                if result.get("is_anomaly"):
+                    event = {
+                        "timestamp": self._last_scan.isoformat(),
+                        "anomaly_score": result["anomaly_score"],
+                        "threshold": result["threshold"],
+                        "stats": result["stats_snapshot"],
+                    }
+                    self._anomaly_events.append(event)
+                    self.logger.warning(
+                        "anomaly_detected",
+                        score=result["anomaly_score"],
+                        threshold=result["threshold"],
+                    )
+            except Exception as e:
+                self.logger.error("anomaly_detection_error", error=str(e))
+
         self.heartbeat()
 
     def _parse_connection(self, conn) -> dict:
@@ -177,6 +276,58 @@ class NetworkSentinel(BaseModule):
         if remote_port and remote_port in self._suspicious_ports:
             return True
         return False
+
+    async def _persist_anomaly_event(self, event: dict, features=None) -> None:
+        """Persist an anomaly event to the database."""
+        import json
+        from ..models.anomaly_event import AnomalyEvent
+
+        async with self._db_session_factory() as session:
+            record = AnomalyEvent(
+                detector_type="ensemble",
+                anomaly_score=event.get("anomaly_score", 0.0),
+                threshold=event.get("threshold", 0.5),
+                is_anomaly=True,
+                feature_vector_json=json.dumps(features.tolist() if features is not None else []),
+                feature_attribution_json=json.dumps(event.get("feature_attribution", {})),
+                explanation=event.get("explanation", ""),
+                confidence=event.get("confidence", 0.0),
+                detector_scores_json=json.dumps(event.get("detector_scores", {})),
+                context_json=json.dumps(event.get("stats", {})),
+            )
+            session.add(record)
+            await session.commit()
+
+    # --- Anomaly detector integration ---
+
+    def set_anomaly_detector(self, detector) -> None:
+        """Attach an AnomalyDetector instance for live prediction."""
+        self._anomaly_detector = detector
+        self.logger.info("anomaly_detector_attached")
+
+    def set_ensemble_detector(self, detector) -> None:
+        """Attach an EnsembleDetector for multi-model prediction."""
+        self._ensemble_detector = detector
+        self.logger.info("ensemble_detector_attached")
+
+    def set_behavioral_baseline(self, engine) -> None:
+        """Attach the behavioral baseline engine."""
+        self._behavioral_baseline = engine
+        self.logger.info("behavioral_baseline_attached")
+
+    def set_db_session_factory(self, factory) -> None:
+        """Attach a DB session factory for anomaly event persistence."""
+        self._db_session_factory = factory
+        self.logger.info("db_session_factory_attached")
+
+    def get_anomaly_result(self) -> Optional[dict]:
+        """Return the most recent anomaly detection result."""
+        return self._last_anomaly_result
+
+    def get_anomaly_events(self, limit: int = 50) -> list[dict]:
+        """Return recent anomaly events (where is_anomaly=True)."""
+        events = list(self._anomaly_events)
+        return events[-limit:]
 
     # --- Public API methods ---
 

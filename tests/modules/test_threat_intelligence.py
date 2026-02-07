@@ -36,6 +36,8 @@ class TestThreatIntelligence:
         mock_ns.get_flagged_connections.return_value = [
             {"remote_addr": "10.0.0.1", "remote_port": 4444, "suspicious": True},
         ]
+        # Prevent anomaly collection from also adding an event
+        mock_ns.get_anomaly_result.return_value = None
         ti.set_module_refs({"network_sentinel": mock_ns})
         ti._ensure_correlator()
 

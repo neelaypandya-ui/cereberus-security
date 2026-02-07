@@ -8,7 +8,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ...dependencies import (
     get_alert_manager,
+    get_behavioral_baseline,
+    get_ensemble_detector,
     get_network_sentinel,
+    get_resource_monitor,
+    get_threat_forecaster,
     get_threat_intelligence,
     get_vpn_guardian,
 )
@@ -92,6 +96,32 @@ async def websocket_events(websocket: WebSocket):
             except Exception:
                 pass
 
+            # Send anomaly alert if detected
+            try:
+                sentinel = get_network_sentinel()
+                anomaly = sentinel.get_anomaly_result()
+                if anomaly and anomaly.get("is_anomaly"):
+                    await websocket.send_text(json.dumps({
+                        "type": "anomaly_alert",
+                        "data": anomaly,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+            except Exception:
+                pass
+
+            # Send resource stats
+            try:
+                rm = get_resource_monitor()
+                current = rm.get_current()
+                if current:
+                    await websocket.send_text(json.dumps({
+                        "type": "resource_stats",
+                        "data": current,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+            except Exception:
+                pass
+
             # Send threat level
             try:
                 ti = get_threat_intelligence()
@@ -101,6 +131,45 @@ async def websocket_events(websocket: WebSocket):
                     "data": {"level": threat_level},
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }))
+            except Exception:
+                pass
+
+            # Send AI status (ensemble health, baseline progress, drift)
+            try:
+                ensemble = get_ensemble_detector()
+                baseline = get_behavioral_baseline()
+                last_result = ensemble.get_last_result()
+                await websocket.send_text(json.dumps({
+                    "type": "ai_status",
+                    "data": {
+                        "ensemble_score": last_result.get("ensemble_score") if last_result else None,
+                        "is_anomaly": last_result.get("is_anomaly") if last_result else None,
+                        "drift_score": ensemble.get_drift_score(),
+                        "baseline_progress": baseline.get_learning_progress(),
+                        "detector_scores": last_result.get("detector_scores") if last_result else {},
+                    },
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }))
+            except Exception:
+                pass
+
+            # Send prediction update
+            try:
+                forecaster = get_threat_forecaster()
+                if forecaster.initialized and forecaster.model is not None:
+                    rm = get_resource_monitor()
+                    history = rm.get_history(limit=60)
+                    if len(history) >= 30:
+                        trend = await forecaster.predict_trend(history, steps=6)
+                        alerts = forecaster.check_forecast_alerts(trend)
+                        await websocket.send_text(json.dumps({
+                            "type": "prediction_update",
+                            "data": {
+                                "predictions": trend,
+                                "forecast_alerts": alerts,
+                            },
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }))
             except Exception:
                 pass
 

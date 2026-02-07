@@ -1,5 +1,3 @@
-import { useRef, useEffect } from 'react';
-
 interface SparklineProps {
   data: number[];
   width?: number;

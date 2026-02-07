@@ -89,6 +89,17 @@ class CereberusConfig(BaseSettings):
     vuln_check_weak_configs: bool = True
     vuln_check_software: bool = True
 
+    # Resource Monitor
+    module_resource_monitor: bool = True
+    resource_poll_interval: int = 10
+    resource_cpu_threshold: float = 90.0
+    resource_memory_threshold: float = 85.0
+    resource_disk_threshold: float = 90.0
+
+    # Persistence Scanner
+    module_persistence_scanner: bool = True
+    persistence_scan_interval: int = 600
+
     # Threat Intelligence
     threat_feed_max_events: int = 1000
     threat_correlation_window: float = 1.0  # hours
@@ -96,6 +107,12 @@ class CereberusConfig(BaseSettings):
     # AI
     ai_anomaly_threshold: float = 0.5
     ai_model_dir: str = "models"
+    ai_ensemble_weights: list[float] = [0.4, 0.35, 0.25]
+    ai_consensus_threshold: int = 2
+    ai_baseline_learning_hours: int = 24
+    ai_auto_retrain_interval_hours: int = 24
+    ai_forecast_horizon_minutes: int = 60
+    ai_drift_threshold: float = 0.3
 
     # Alerting
     alert_desktop_notifications: bool = True

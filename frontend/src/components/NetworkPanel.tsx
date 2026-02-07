@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { IntelCard } from './ui/IntelCard';
 
 interface Connection {
   local_addr: string;
@@ -44,92 +45,89 @@ export function NetworkPanel() {
     return () => clearInterval(interval);
   }, [showFlaggedOnly]);
 
+  const lastScanUtc = stats?.last_scan
+    ? new Date(stats.last_scan).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })
+    : '--:--:--';
+
   return (
-    <div>
-      {/* Stats Bar */}
+    <IntelCard title="SIGNALS INTELLIGENCE" classification="TOP SECRET//SI" status={stats && stats.suspicious > 0 ? 'warning' : 'active'}>
+      {/* Instrument Readouts Bar */}
       {stats && (
-        <div style={{
-          display: 'flex',
-          gap: '16px',
-          flexWrap: 'wrap',
-          marginBottom: '20px',
-          padding: '16px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-default)',
-          borderRadius: '8px',
-        }}>
-          <MiniStat label="Total" value={stats.total} />
-          <MiniStat label="Established" value={stats.established} />
-          <MiniStat label="Listening" value={stats.listening} />
-          <MiniStat label="TCP" value={stats.tcp} />
-          <MiniStat label="UDP" value={stats.udp} />
-          <MiniStat label="Suspicious" value={stats.suspicious} color="var(--severity-critical)" />
-          {stats.last_scan && (
-            <div style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', alignSelf: 'center' }}>
-              Last scan: {new Date(stats.last_scan).toLocaleTimeString()}
-            </div>
-          )}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <Readout label="TOTAL" value={stats.total} />
+          <Readout label="ESTAB" value={stats.established} />
+          <Readout label="LISTEN" value={stats.listening} />
+          <Readout label="TCP" value={stats.tcp} />
+          <Readout label="UDP" value={stats.udp} />
+          <Readout label="FLAGGED" value={stats.suspicious} color="var(--severity-critical)" />
+          <div style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '10px',
+            color: 'var(--text-muted)',
+            letterSpacing: '1px',
+          }}>
+            LAST SWEEP: {lastScanUtc} UTC
+          </div>
         </div>
       )}
 
       {/* Filter Toggle */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
         <button
           onClick={() => setShowFlaggedOnly(false)}
-          style={{
-            padding: '6px 14px',
-            fontSize: '12px',
-            background: !showFlaggedOnly ? 'var(--red-primary)' : 'var(--bg-tertiary)',
-            color: !showFlaggedOnly ? '#fff' : 'var(--text-secondary)',
-            border: '1px solid var(--border-default)',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
+          style={filterBtnStyle(!showFlaggedOnly)}
         >
-          All
+          ALL INTERCEPTS
         </button>
         <button
           onClick={() => setShowFlaggedOnly(true)}
-          style={{
-            padding: '6px 14px',
-            fontSize: '12px',
-            background: showFlaggedOnly ? 'var(--red-primary)' : 'var(--bg-tertiary)',
-            color: showFlaggedOnly ? '#fff' : 'var(--text-secondary)',
-            border: '1px solid var(--border-default)',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
+          style={filterBtnStyle(showFlaggedOnly)}
         >
-          Flagged Only
+          FLAGGED ONLY
         </button>
+      </div>
+
+      {/* INTERCEPT LOG Header */}
+      <div style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: '9px',
+        letterSpacing: '2px',
+        color: 'var(--text-muted)',
+        marginBottom: '8px',
+      }}>
+        INTERCEPT LOG — {connections.length} RECORDS
       </div>
 
       {/* Connections Table */}
       <div style={{
-        background: 'var(--bg-card)',
         border: '1px solid var(--border-default)',
-        borderRadius: '8px',
+        borderRadius: '2px',
         overflow: 'auto',
-        maxHeight: 'calc(100vh - 340px)',
+        maxHeight: 'calc(100vh - 400px)',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-default)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
-              <Th>Proto</Th>
-              <Th>Local Address</Th>
-              <Th>Remote Address</Th>
-              <Th>Status</Th>
+              <Th>PROTO</Th>
+              <Th>LOCAL ADDRESS</Th>
+              <Th>REMOTE ADDRESS</Th>
+              <Th>STATUS</Th>
               <Th>PID</Th>
-              <Th>Flag</Th>
+              <Th>FLAG</Th>
             </tr>
           </thead>
           <tbody>
             {connections.map((c, i) => (
               <tr
                 key={i}
+                className={c.suspicious ? 'alert-pulse' : ''}
                 style={{
                   borderBottom: '1px solid var(--border-default)',
-                  background: c.suspicious ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
+                  borderLeft: c.suspicious ? '3px solid var(--severity-critical)' : '3px solid transparent',
+                  background: c.suspicious ? 'rgba(239, 68, 68, 0.06)' : 'transparent',
                 }}
               >
                 <Td>{c.protocol.toUpperCase()}</Td>
@@ -139,34 +137,30 @@ export function NetworkPanel() {
                 <Td>{c.pid ?? '--'}</Td>
                 <Td>
                   {c.suspicious && (
-                    <span style={{ color: 'var(--severity-critical)', fontWeight: 700 }}>!</span>
+                    <span className="stamp-badge stamp-hostile">FLAGGED</span>
                   )}
                 </Td>
               </tr>
             ))}
             {connections.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No connections
+                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                  No intercepts
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-    </div>
+    </IntelCard>
   );
 }
 
-function MiniStat({ label, value, color }: { label: string; value: number; color?: string }) {
+function Readout({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.5px', marginBottom: '2px' }}>
-        {label.toUpperCase()}
-      </div>
-      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: color || 'var(--text-primary)' }}>
-        {value}
-      </div>
+    <div className="instrument-readout">
+      <span className="readout-label">{label}</span>
+      <span className="readout-value" style={{ color: color || 'var(--text-primary)' }}>{value}</span>
     </div>
   );
 }
@@ -174,12 +168,13 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
 function Th({ children }: { children: React.ReactNode }) {
   return (
     <th style={{
-      padding: '10px 12px',
+      padding: '8px 10px',
       textAlign: 'left',
-      fontSize: '10px',
+      fontSize: '9px',
       color: 'var(--text-muted)',
-      letterSpacing: '0.5px',
+      letterSpacing: '1px',
       fontWeight: 600,
+      textTransform: 'uppercase',
     }}>
       {children}
     </th>
@@ -188,11 +183,23 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return (
-    <td style={{
-      padding: '8px 12px',
-      color: 'var(--text-secondary)',
-    }}>
+    <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>
       {children}
     </td>
   );
+}
+
+function filterBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '5px 12px',
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '1px',
+    background: active ? 'var(--red-dark)' : 'var(--bg-tertiary)',
+    color: active ? '#fff' : 'var(--text-secondary)',
+    border: `1px solid ${active ? 'var(--red-primary)' : 'var(--border-default)'}`,
+    borderRadius: '2px',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+  };
 }

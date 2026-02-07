@@ -92,3 +92,23 @@ async def get_flagged_connections(
     """Get flagged (suspicious) connections."""
     sentinel = get_network_sentinel()
     return sentinel.get_flagged_connections()
+
+
+@router.get("/anomaly")
+async def get_anomaly_result(
+    current_user: dict = Depends(get_current_user),
+):
+    """Get the most recent anomaly detection result."""
+    sentinel = get_network_sentinel()
+    result = sentinel.get_anomaly_result()
+    return result or {"anomaly_score": 0, "is_anomaly": False, "threshold": 0.5}
+
+
+@router.get("/anomaly/history")
+async def get_anomaly_history(
+    limit: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get anomaly event history (only anomalous events)."""
+    sentinel = get_network_sentinel()
+    return sentinel.get_anomaly_events(limit=limit)

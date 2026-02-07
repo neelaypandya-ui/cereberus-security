@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { IntelCard } from './ui/IntelCard';
 
 interface ProcessInfo {
   pid: number;
@@ -56,47 +57,47 @@ export function ProcessesPanel() {
   const displayList = view === 'suspicious' ? suspicious : processes.slice(0, 100);
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+    <IntelCard title="ASSET TRACKER" classification="SECRET//NOFORN" status={suspicious.length > 0 ? 'warning' : 'active'}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button onClick={() => setView('suspicious')} style={tabStyle(view === 'suspicious')}>
-          Suspicious ({suspicious.length})
+          HOSTILE ({suspicious.length})
         </button>
         <button onClick={() => setView('all')} style={tabStyle(view === 'all')}>
-          All Processes ({processes.length})
+          ALL ASSETS ({processes.length})
         </button>
       </div>
 
       {suspicious.length > 0 && view === 'suspicious' && (
-        <div style={{
-          padding: '12px 16px',
-          background: 'rgba(255, 23, 68, 0.08)',
+        <div className="critical-pulse" style={{
+          padding: '10px 14px',
+          background: 'rgba(255, 23, 68, 0.06)',
           border: '1px solid var(--severity-critical)',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          fontSize: '12px',
-          color: 'var(--severity-critical)',
+          borderRadius: '2px',
+          marginBottom: '12px',
+          fontSize: '11px',
           fontFamily: 'var(--font-mono)',
+          letterSpacing: '1px',
+          color: 'var(--severity-critical)',
         }}>
-          {suspicious.length} suspicious process(es) detected
+          {suspicious.length} HOSTILE ASSET(S) DETECTED
         </div>
       )}
 
       <div style={{
-        background: 'var(--bg-card)',
         border: '1px solid var(--border-default)',
-        borderRadius: '8px',
+        borderRadius: '2px',
         overflow: 'hidden',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-default)' }}>
               <th style={thStyle}>PID</th>
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>User</th>
+              <th style={thStyle}>NAME</th>
+              <th style={thStyle}>USER</th>
               <th style={thStyle}>CPU%</th>
               <th style={thStyle}>MEM%</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Flags</th>
+              <th style={thStyle}>STATUS</th>
+              <th style={thStyle}>CLASS</th>
             </tr>
           </thead>
           <tbody>
@@ -111,44 +112,43 @@ export function ProcessesPanel() {
                 }}
               >
                 <td style={tdStyle}><span className="mono">{p.pid}</span></td>
-                <td style={{ ...tdStyle, color: p.suspicious ? 'var(--severity-critical)' : 'var(--text-primary)' }}>
-                  {p.name}
-                </td>
+                <td style={{ ...tdStyle, color: 'var(--text-primary)' }}>{p.name}</td>
                 <td style={{ ...tdStyle, color: 'var(--text-secondary)' }}>{p.username}</td>
                 <td style={tdStyle}>
-                  <span style={{ color: p.cpu_percent > 80 ? 'var(--severity-critical)' : 'var(--text-secondary)' }}>
-                    {p.cpu_percent.toFixed(1)}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: p.cpu_percent > 80 ? 'var(--severity-critical)' : 'var(--text-secondary)', minWidth: '30px' }}>
+                      {p.cpu_percent.toFixed(1)}
+                    </span>
+                    <MiniBar percent={p.cpu_percent} color={p.cpu_percent > 80 ? 'var(--severity-critical)' : 'var(--cyan-primary)'} />
+                  </div>
                 </td>
                 <td style={tdStyle}>
-                  <span style={{ color: p.memory_percent > 50 ? 'var(--severity-high)' : 'var(--text-secondary)' }}>
-                    {p.memory_percent.toFixed(1)}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: p.memory_percent > 50 ? 'var(--severity-high)' : 'var(--text-secondary)', minWidth: '30px' }}>
+                      {p.memory_percent.toFixed(1)}
+                    </span>
+                    <MiniBar percent={p.memory_percent} color={p.memory_percent > 50 ? 'var(--severity-high)' : 'var(--cyan-primary)'} />
+                  </div>
                 </td>
                 <td style={tdStyle}>
                   <span style={{
-                    fontSize: '10px',
+                    fontSize: '9px',
                     padding: '2px 6px',
-                    borderRadius: '3px',
+                    borderRadius: '2px',
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '1px',
                     background: p.status === 'running' ? 'rgba(76, 175, 80, 0.1)' : 'var(--bg-tertiary)',
                     color: p.status === 'running' ? 'var(--status-online)' : 'var(--text-muted)',
                   }}>
-                    {p.status}
+                    {p.status.toUpperCase()}
                   </span>
                 </td>
                 <td style={tdStyle}>
-                  {p.suspicious_reasons.map((r, i) => (
-                    <span key={i} style={{
-                      fontSize: '9px',
-                      padding: '1px 4px',
-                      marginRight: '4px',
-                      borderRadius: '2px',
-                      background: 'rgba(255, 87, 34, 0.15)',
-                      color: 'var(--severity-high)',
-                    }}>
-                      {r}
-                    </span>
-                  ))}
+                  {p.suspicious ? (
+                    <span className="stamp-badge stamp-hostile">HOSTILE</span>
+                  ) : (
+                    <span className="stamp-badge stamp-cleared">CLEARED</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -158,18 +158,29 @@ export function ProcessesPanel() {
 
       {expandedPid && processTree && (
         <div style={{
-          marginTop: '16px',
-          padding: '16px',
-          background: 'var(--bg-card)',
+          marginTop: '12px',
+          padding: '14px',
+          background: 'var(--bg-tertiary)',
           border: '1px solid var(--border-default)',
-          borderRadius: '8px',
+          borderRadius: '2px',
         }}>
-          <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', letterSpacing: '1px' }}>
-            PROCESS TREE — PID {expandedPid}
-          </h4>
+          <div style={{
+            fontSize: '10px', fontFamily: 'var(--font-mono)',
+            letterSpacing: '2px', color: 'var(--text-muted)', marginBottom: '10px',
+          }}>
+            PROCESS TREE &#x2014; PID {expandedPid}
+          </div>
           <TreeNode node={processTree} depth={0} />
         </div>
       )}
+    </IntelCard>
+  );
+}
+
+function MiniBar({ percent, color }: { percent: number; color: string }) {
+  return (
+    <div style={{ width: '40px', height: '4px', background: 'var(--bg-tertiary)', borderRadius: '1px', overflow: 'hidden' }}>
+      <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: color, borderRadius: '1px' }} />
     </div>
   );
 }
@@ -180,14 +191,15 @@ function TreeNode({ node, depth }: { node: ProcessInfo; depth: number }) {
       <div style={{
         display: 'flex',
         gap: '8px',
-        padding: '4px 8px',
+        padding: '3px 8px',
         fontFamily: 'var(--font-mono)',
         fontSize: '11px',
         color: node.suspicious ? 'var(--severity-critical)' : 'var(--text-primary)',
+        borderLeft: depth > 0 ? '1px dashed var(--border-default)' : 'none',
       }}>
         <span style={{ color: 'var(--text-muted)' }}>{node.pid}</span>
         <span>{node.name}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{node.exe}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{node.exe}</span>
       </div>
       {node.children?.map((child) => (
         <TreeNode key={child.pid} node={child} depth={depth + 1} />
@@ -198,29 +210,32 @@ function TreeNode({ node, depth }: { node: ProcessInfo; depth: number }) {
 
 const thStyle: React.CSSProperties = {
   textAlign: 'left',
-  padding: '10px 12px',
-  fontSize: '10px',
+  padding: '8px 10px',
+  fontSize: '9px',
   fontWeight: 600,
+  fontFamily: 'var(--font-mono)',
   color: 'var(--text-muted)',
   letterSpacing: '1px',
   textTransform: 'uppercase',
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: '8px 12px',
+  padding: '6px 10px',
   fontFamily: 'var(--font-mono)',
   fontSize: '11px',
 };
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
-    padding: '8px 16px',
+    padding: '6px 14px',
     background: active ? 'var(--bg-elevated)' : 'transparent',
     border: `1px solid ${active ? 'var(--border-active)' : 'var(--border-default)'}`,
-    borderRadius: '6px',
+    borderRadius: '2px',
     color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-    fontSize: '12px',
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '1px',
     cursor: 'pointer',
-    fontFamily: 'var(--font-sans)',
+    textTransform: 'uppercase',
   };
 }

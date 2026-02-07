@@ -105,6 +105,11 @@ export const api = {
   getConnections: () => request('/network/connections'),
   getNetworkStats: () => request('/network/stats'),
   getFlaggedConnections: () => request('/network/flagged'),
+  getAnomalyResult: () => request('/network/anomaly'),
+  getAnomalyHistory: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/network/anomaly/history${query}`);
+  },
 
   // Brute Force Shield
   getBruteForceEvents: (limit?: number) => {
@@ -141,6 +146,60 @@ export const api = {
     return request(`/email/recent${query}`);
   },
 
+  // Resource Monitor
+  getResourceCurrent: () => request('/resources/current'),
+  getResourceHistory: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/resources/history${query}`);
+  },
+  getResourceAlerts: () => request('/resources/alerts'),
+
+  // Persistence Scanner
+  getPersistenceEntries: () => request('/persistence/entries'),
+  getPersistenceChanges: () => request('/persistence/changes'),
+  triggerPersistenceScan: () => request('/persistence/scan', { method: 'POST' }),
+  getPersistenceStatus: () => request('/persistence/status'),
+
+  // Analytics
+  getAlertTrend: (hours?: number) => {
+    const query = hours ? `?hours=${hours}` : '';
+    return request(`/analytics/alert-trend${query}`);
+  },
+  getSeverityDistribution: () => request('/analytics/severity-distribution'),
+  getModuleActivity: () => request('/analytics/module-activity'),
+  getThreatHistory: (hours?: number) => {
+    const query = hours ? `?hours=${hours}` : '';
+    return request(`/analytics/threat-history${query}`);
+  },
+
+  // Reports
+  generateReport: async () => {
+    const response = await fetch(`${API_BASE}/reports/generate`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Report generation failed');
+    return response.blob();
+  },
+
+  // Audit Log
+  getAuditLogs: (params?: { limit?: number; username?: string; action?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.username) searchParams.set('username', params.username);
+    if (params?.action) searchParams.set('action', params.action);
+    const query = searchParams.toString();
+    return request(`/audit/logs${query ? '?' + query : ''}`);
+  },
+  getAuditLog: (id: number) => request(`/audit/logs/${id}`),
+
+  // Search
+  search: (query: string, limit?: number) => {
+    const searchParams = new URLSearchParams({ q: query });
+    if (limit) searchParams.set('limit', String(limit));
+    return request(`/search?${searchParams.toString()}`);
+  },
+
   // Threat Intelligence
   getThreatLevel: () => request('/threats/level'),
   getThreatFeed: (limit?: number) => {
@@ -148,4 +207,36 @@ export const api = {
     return request(`/threats/feed${query}`);
   },
   getCorrelations: () => request('/threats/correlations'),
+
+  // AI Operations
+  getAiStatus: () => request('/ai/status'),
+  trainAnomalyModels: (epochs?: number) => {
+    const query = epochs ? `?epochs=${epochs}` : '';
+    return request(`/ai/train/anomaly${query}`, { method: 'POST' });
+  },
+  trainResourceForecaster: (epochs?: number) => {
+    const query = epochs ? `?epochs=${epochs}` : '';
+    return request(`/ai/train/resource${query}`, { method: 'POST' });
+  },
+  trainBaseline: () => request('/ai/train/baseline', { method: 'POST' }),
+  getAiModels: () => request('/ai/models'),
+  rollbackModel: (modelName: string, version: number) =>
+    request(`/ai/models/${modelName}/rollback/${version}`, { method: 'POST' }),
+  getAnomalyEvents: (params?: { limit?: number; detector_type?: string; is_anomaly_only?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.detector_type) searchParams.set('detector_type', params.detector_type);
+    if (params?.is_anomaly_only) searchParams.set('is_anomaly_only', 'true');
+    const query = searchParams.toString();
+    return request(`/ai/anomaly-events${query ? '?' + query : ''}`);
+  },
+  getAiPredictions: () => request('/ai/predictions'),
+  getAiBaselines: () => request('/ai/baselines'),
+  getAiDrift: () => request('/ai/drift'),
+  getFeedbackStats: () => request('/ai/feedback-stats'),
+  submitAlertFeedback: (alertId: number, feedback: 'true_positive' | 'false_positive') =>
+    request(`/alerts/${alertId}/feedback`, {
+      method: 'PATCH',
+      body: JSON.stringify({ feedback }),
+    }),
 };

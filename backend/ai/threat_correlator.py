@@ -77,6 +77,46 @@ ATTACK_PATTERNS = [
         threat_level="medium",
         description="Network scanning and enumeration activity detected",
     ),
+    AttackPattern(
+        name="anomaly_with_suspicious_connection",
+        required_events=["anomaly_detected", "suspicious_connection"],
+        time_window=timedelta(minutes=15),
+        min_events=2,
+        threat_level="high",
+        description="AI-detected network anomaly combined with suspicious connections",
+    ),
+    AttackPattern(
+        name="anomaly_brute_force_compromise",
+        required_events=["anomaly_detected", "brute_force_detected", "file_change"],
+        time_window=timedelta(minutes=30),
+        min_events=3,
+        threat_level="critical",
+        description="Network anomaly with brute force and file modifications indicating active compromise",
+    ),
+    AttackPattern(
+        name="persistence_after_compromise",
+        required_events=["persistence_change", "brute_force_detected", "suspicious_connection"],
+        time_window=timedelta(minutes=60),
+        min_events=3,
+        threat_level="critical",
+        description="New persistence mechanism installed after brute force and suspicious network activity",
+    ),
+    AttackPattern(
+        name="resource_abuse_attack",
+        required_events=["resource_spike", "suspicious_connection", "anomaly_detected"],
+        time_window=timedelta(minutes=15),
+        min_events=2,
+        threat_level="high",
+        description="Resource spike combined with suspicious network activity suggesting cryptominer or DDoS",
+    ),
+    AttackPattern(
+        name="vulnerability_exploitation",
+        required_events=["vulnerability_found", "suspicious_connection", "file_change"],
+        time_window=timedelta(minutes=60),
+        min_events=2,
+        threat_level="critical",
+        description="Known vulnerability exploited through network connection with file system changes",
+    ),
 ]
 
 
