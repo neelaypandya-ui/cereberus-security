@@ -18,9 +18,13 @@ from .database import close_engine, create_tables, get_session_factory
 from .dependencies import (
     get_alert_manager,
     get_brute_force_shield,
+    get_email_analyzer,
     get_file_integrity,
     get_network_sentinel,
+    get_process_analyzer,
+    get_threat_intelligence,
     get_vpn_guardian,
+    get_vuln_scanner,
 )
 from .models.user import User
 from .utils.logging import get_logger, setup_logging
@@ -103,6 +107,62 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("file_integrity_launch_failed", error=str(e))
 
+    # Start Process Analyzer
+    process_analyzer = None
+    if config.module_process_analyzer:
+        process_analyzer = get_process_analyzer()
+        try:
+            task = asyncio.create_task(process_analyzer.start())
+            _module_tasks.append(task)
+            logger.info("process_analyzer_launched")
+        except Exception as e:
+            logger.error("process_analyzer_launch_failed", error=str(e))
+
+    # Start Vulnerability Scanner
+    vuln_scanner = None
+    if config.module_vuln_scanner:
+        vuln_scanner = get_vuln_scanner()
+        try:
+            task = asyncio.create_task(vuln_scanner.start())
+            _module_tasks.append(task)
+            logger.info("vuln_scanner_launched")
+        except Exception as e:
+            logger.error("vuln_scanner_launch_failed", error=str(e))
+
+    # Start Email Analyzer
+    email_analyzer = None
+    if config.module_email_analyzer:
+        email_analyzer = get_email_analyzer()
+        try:
+            task = asyncio.create_task(email_analyzer.start())
+            _module_tasks.append(task)
+            logger.info("email_analyzer_launched")
+        except Exception as e:
+            logger.error("email_analyzer_launch_failed", error=str(e))
+
+    # Start Threat Intelligence (LAST — needs refs to other modules)
+    threat_intelligence = None
+    if config.module_threat_intelligence:
+        threat_intelligence = get_threat_intelligence()
+        # Provide references to other modules for event collection
+        module_refs = {}
+        if network_sentinel:
+            module_refs["network_sentinel"] = network_sentinel
+        if brute_force_shield:
+            module_refs["brute_force_shield"] = brute_force_shield
+        if file_integrity:
+            module_refs["file_integrity"] = file_integrity
+        if process_analyzer:
+            module_refs["process_analyzer"] = process_analyzer
+        threat_intelligence.set_module_refs(module_refs)
+
+        try:
+            task = asyncio.create_task(threat_intelligence.start())
+            _module_tasks.append(task)
+            logger.info("threat_intelligence_launched")
+        except Exception as e:
+            logger.error("threat_intelligence_launch_failed", error=str(e))
+
     logger.info("cereberus_started", app=config.app_name)
 
     yield
@@ -116,6 +176,10 @@ async def lifespan(app: FastAPI):
         (network_sentinel, "network_sentinel"),
         (brute_force_shield, "brute_force_shield"),
         (file_integrity, "file_integrity"),
+        (process_analyzer, "process_analyzer"),
+        (vuln_scanner, "vuln_scanner"),
+        (email_analyzer, "email_analyzer"),
+        (threat_intelligence, "threat_intelligence"),
     ]:
         if module is not None:
             try:
@@ -135,7 +199,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CEREBERUS",
     description="AI-Powered Cybersecurity Defense System",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -162,7 +226,7 @@ async def root():
     """Root endpoint — health check."""
     return {
         "name": config.app_name,
-        "version": "0.1.0",
+        "version": "0.2.0",
         "status": "operational",
     }
 
@@ -186,6 +250,22 @@ async def health():
     if config.module_file_integrity:
         fi = get_file_integrity()
         modules["file_integrity"] = await fi.health_check()
+
+    if config.module_process_analyzer:
+        pa = get_process_analyzer()
+        modules["process_analyzer"] = await pa.health_check()
+
+    if config.module_vuln_scanner:
+        vs = get_vuln_scanner()
+        modules["vuln_scanner"] = await vs.health_check()
+
+    if config.module_email_analyzer:
+        ea = get_email_analyzer()
+        modules["email_analyzer"] = await ea.health_check()
+
+    if config.module_threat_intelligence:
+        ti = get_threat_intelligence()
+        modules["threat_intelligence"] = await ti.health_check()
 
     return {
         "status": "healthy",

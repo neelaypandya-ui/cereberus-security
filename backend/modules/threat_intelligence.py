@@ -1,24 +1,184 @@
-"""Threat Intelligence Module — stub for Phase 1.
+"""Threat Intelligence Module — aggregates and correlates security events.
 
-Will aggregate and correlate threat data from multiple sources.
+Meta-module that collects events from all other running modules and feeds
+them into the ThreatCorrelator for pattern matching and threat level assessment.
 """
+
+import asyncio
+from datetime import datetime, timezone
+from typing import Optional
 
 from .base_module import BaseModule
 
 
 class ThreatIntelligence(BaseModule):
+    """Aggregates security events from all modules and correlates threats."""
+
     def __init__(self, config: dict | None = None):
         super().__init__(name="threat_intelligence", config=config)
+
+        cfg = config or {}
+        self._poll_interval: int = cfg.get("poll_interval", 15)
+        self._feed_max: int = cfg.get("feed_max_events", 1000)
+        self._correlation_window: float = cfg.get("correlation_window", 1.0)
+
+        self._correlator = None
+        self._module_refs: dict = {}
+        self._threat_level: str = "none"
+        self._threat_feed: list[dict] = []
+        self._correlations: list[dict] = []
+        self._poll_task: Optional[asyncio.Task] = None
+        self._last_poll: Optional[datetime] = None
+
+    def set_module_refs(self, refs: dict) -> None:
+        """Set references to other running modules.
+
+        Args:
+            refs: Dict mapping module names to module instances, e.g.:
+                {"network_sentinel": ns, "brute_force_shield": bfs, ...}
+        """
+        self._module_refs = refs
+        self.logger.info("threat_intel_module_refs_set", modules=list(refs.keys()))
+
+    def _ensure_correlator(self):
+        if self._correlator is None:
+            from ..ai.threat_correlator import ThreatCorrelator
+            self._correlator = ThreatCorrelator(
+                max_events=self._feed_max,
+                max_age_hours=self._correlation_window,
+            )
 
     async def start(self) -> None:
         self.running = True
         self.health_status = "running"
-        self.logger.info("threat_intelligence_started_stub")
+        self._ensure_correlator()
+        self.logger.info("threat_intelligence_starting")
+
+        self._poll_task = asyncio.create_task(self._poll_loop())
+        self.heartbeat()
+        self.logger.info("threat_intelligence_started")
 
     async def stop(self) -> None:
         self.running = False
+        if self._poll_task and not self._poll_task.done():
+            self._poll_task.cancel()
+            try:
+                await self._poll_task
+            except asyncio.CancelledError:
+                pass
         self.health_status = "stopped"
+        self.logger.info("threat_intelligence_stopped")
 
     async def health_check(self) -> dict:
         self.heartbeat()
-        return {"status": self.health_status, "details": {"stub": True}}
+        return {
+            "status": self.health_status,
+            "details": {
+                "threat_level": self._threat_level,
+                "event_count": len(self._threat_feed),
+                "correlation_count": len(self._correlations),
+                "last_poll": self._last_poll.isoformat() if self._last_poll else None,
+            },
+        }
+
+    async def _poll_loop(self) -> None:
+        while self.running:
+            try:
+                await asyncio.sleep(self._poll_interval)
+                if self.running:
+                    await self._collect_and_correlate()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("threat_intel_poll_error", error=str(e))
+                await asyncio.sleep(self._poll_interval)
+
+    async def _collect_and_correlate(self) -> None:
+        """Collect events from all modules and run correlation."""
+        self._ensure_correlator()
+        events = []
+
+        # Collect from Network Sentinel
+        ns = self._module_refs.get("network_sentinel")
+        if ns:
+            try:
+                flagged = ns.get_flagged_connections()
+                for conn in flagged:
+                    events.append({
+                        "event_type": "suspicious_connection",
+                        "source_module": "network_sentinel",
+                        "severity": "high",
+                        "details": conn,
+                    })
+            except Exception:
+                pass
+
+        # Collect from Brute Force Shield
+        bfs = self._module_refs.get("brute_force_shield")
+        if bfs:
+            try:
+                blocked = bfs.get_blocked_ips() if hasattr(bfs, "get_blocked_ips") else []
+                for ip_info in blocked:
+                    events.append({
+                        "event_type": "brute_force_detected",
+                        "source_module": "brute_force_shield",
+                        "severity": "high",
+                        "details": ip_info if isinstance(ip_info, dict) else {"ip": str(ip_info)},
+                    })
+            except Exception:
+                pass
+
+        # Collect from File Integrity
+        fi = self._module_refs.get("file_integrity")
+        if fi:
+            try:
+                changes = fi.get_changes() if hasattr(fi, "get_changes") else []
+                for change in changes:
+                    events.append({
+                        "event_type": "file_change",
+                        "source_module": "file_integrity",
+                        "severity": "medium",
+                        "details": change if isinstance(change, dict) else {"path": str(change)},
+                    })
+            except Exception:
+                pass
+
+        # Collect from Process Analyzer
+        pa = self._module_refs.get("process_analyzer")
+        if pa:
+            try:
+                suspicious = pa.get_suspicious()
+                for proc in suspicious:
+                    events.append({
+                        "event_type": "new_process_suspicious",
+                        "source_module": "process_analyzer",
+                        "severity": "high",
+                        "details": proc,
+                    })
+            except Exception:
+                pass
+
+        # Feed events to correlator
+        if events:
+            result = await self._correlator.correlate(events)
+            self._threat_level = result["threat_level"]
+            self._correlations = result["correlations"]
+
+            # Append to feed (trim to max)
+            for e in events:
+                e["timestamp"] = datetime.now(timezone.utc).isoformat()
+            self._threat_feed = (events + self._threat_feed)[:self._feed_max]
+
+        self._last_poll = datetime.now(timezone.utc)
+        self.heartbeat()
+
+    # --- Public API ---
+
+    def get_threat_level(self) -> str:
+        return self._threat_level
+
+    def get_threat_feed(self, limit: int = 100) -> list[dict]:
+        return self._threat_feed[:limit]
+
+    def get_correlations(self) -> list[dict]:
+        return self._correlations

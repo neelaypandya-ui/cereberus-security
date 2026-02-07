@@ -9,6 +9,9 @@ import { AlertsPanel } from '../components/AlertsPanel';
 import { VpnDetailPanel } from '../components/VpnDetailPanel';
 import { ModulesPanel } from '../components/ModulesPanel';
 import { SettingsPanel } from '../components/SettingsPanel';
+import { ProcessesPanel } from '../components/ProcessesPanel';
+import { VulnerabilityPanel } from '../components/VulnerabilityPanel';
+import { ThreatIntelPanel } from '../components/ThreatIntelPanel';
 
 interface DashboardSummary {
   alerts: Record<string, number>;
@@ -24,25 +27,38 @@ interface DashboardSummary {
 }
 
 const NAV_ITEMS = [
-  { id: 'overview', label: 'Overview', icon: '>' },
-  { id: 'network', label: 'Network', icon: '>' },
-  { id: 'alerts', label: 'Alerts', icon: '>' },
-  { id: 'vpn', label: 'VPN', icon: '>' },
-  { id: 'modules', label: 'Modules', icon: '>' },
-  { id: 'settings', label: 'Settings', icon: '>' },
+  { id: 'overview', label: 'Overview', icon: '\u25C6' },
+  { id: 'network', label: 'Network', icon: '\u26A1' },
+  { id: 'processes', label: 'Processes', icon: '\u2699' },
+  { id: 'vulnerabilities', label: 'Vulnerabilities', icon: '\u26A0' },
+  { id: 'threats', label: 'Threats', icon: '\u2620' },
+  { id: 'alerts', label: 'Alerts', icon: '\u26A1' },
+  { id: 'vpn', label: 'VPN', icon: '\u2693' },
+  { id: 'modules', label: 'Modules', icon: '\u2630' },
+  { id: 'settings', label: 'Settings', icon: '\u2699' },
 ];
 
 function Dashboard() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('overview');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const { vpnStatus, networkStats } = useWebSocket();
+  const { vpnStatus, networkStats, threatLevel } = useWebSocket();
 
   useEffect(() => {
     loadSummary();
     const interval = setInterval(loadSummary, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Toggle body class for threat-active styling
+  useEffect(() => {
+    if (threatLevel === 'high' || threatLevel === 'critical') {
+      document.body.classList.add('threat-active');
+    } else {
+      document.body.classList.remove('threat-active');
+    }
+    return () => document.body.classList.remove('threat-active');
+  }, [threatLevel]);
 
   const loadSummary = async () => {
     try {
@@ -60,6 +76,10 @@ function Dashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      {/* Scan-line + Grid overlays */}
+      <div className="scan-line-overlay" />
+      <div className="grid-overlay" />
+
       {/* Sidebar */}
       <aside style={{
         width: 'var(--sidebar-width)',
@@ -68,6 +88,7 @@ function Dashboard() {
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
+        zIndex: 10,
       }}>
         {/* Logo */}
         <div style={{
@@ -75,24 +96,36 @@ function Dashboard() {
           borderBottom: '1px solid var(--border-default)',
           textAlign: 'center',
         }}>
-          <img
-            src="/logo.jpg"
-            alt="CEREBERUS"
-            style={{ width: '40px', borderRadius: '4px', marginBottom: '8px' }}
-          />
+          <div style={{ display: 'inline-block' }} className="logo-ring">
+            <img
+              src="/logo.jpg"
+              alt="CEREBERUS"
+              style={{ width: '44px', borderRadius: '50%' }}
+            />
+          </div>
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '13px',
+            fontSize: '14px',
             fontWeight: 700,
             letterSpacing: '4px',
             color: 'var(--red-primary)',
+            marginTop: '8px',
           }}>
             CEREBERUS
+          </div>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '8px',
+            letterSpacing: '3px',
+            color: 'var(--text-muted)',
+            marginTop: '2px',
+          }}>
+            THE GUARDIAN SENTINEL
           </div>
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '12px 8px' }}>
+        <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
@@ -105,7 +138,7 @@ function Dashboard() {
                 padding: '10px 12px',
                 background: activeNav === item.id ? 'var(--bg-hover)' : 'transparent',
                 border: 'none',
-                borderLeft: activeNav === item.id ? '2px solid var(--red-primary)' : '2px solid transparent',
+                borderLeft: activeNav === item.id ? '2px solid var(--cyan-primary)' : '2px solid transparent',
                 color: activeNav === item.id ? 'var(--text-primary)' : 'var(--text-secondary)',
                 fontSize: '13px',
                 fontFamily: 'var(--font-sans)',
@@ -115,7 +148,7 @@ function Dashboard() {
                 transition: 'all 0.15s ease',
               }}
             >
-              <span className="mono" style={{ color: 'var(--red-dark)', fontSize: '11px' }}>{item.icon}</span>
+              <span style={{ fontSize: '13px', width: '18px', textAlign: 'center' }}>{item.icon}</span>
               {item.label}
             </button>
           ))}
@@ -142,7 +175,7 @@ function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 10 }}>
         {/* Header */}
         <header style={{
           height: 'var(--header-height)',
@@ -174,9 +207,13 @@ function Dashboard() {
               eventsToday={summary.events_today}
               modules={summary.modules}
               networkStats={networkStats}
+              threatLevel={threatLevel}
             />
           )}
           {activeNav === 'network' && <NetworkPanel />}
+          {activeNav === 'processes' && <ProcessesPanel />}
+          {activeNav === 'vulnerabilities' && <VulnerabilityPanel />}
+          {activeNav === 'threats' && <ThreatIntelPanel />}
           {activeNav === 'alerts' && <AlertsPanel />}
           {activeNav === 'vpn' && <VpnDetailPanel />}
           {activeNav === 'modules' && <ModulesPanel />}

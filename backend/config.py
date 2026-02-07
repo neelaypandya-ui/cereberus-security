@@ -74,6 +74,29 @@ class CereberusConfig(BaseSettings):
     brute_force_block_duration: int = 3600  # auto-unblock after N seconds
     brute_force_whitelist_ips: list[str] = ["127.0.0.1", "::1"]
 
+    # Process Analyzer
+    process_poll_interval: int = 10  # seconds between process scans
+    process_suspicious_names: list[str] = [
+        "mimikatz", "lazagne", "procdump", "sharphound", "bloodhound",
+        "cobaltstrike", "beacon", "meterpreter", "netcat", "ncat",
+        "psexec", "wce", "pwdump", "fgdump", "gsecdump",
+    ]
+
+    # Vulnerability Scanner
+    vuln_scan_interval: int = 3600  # seconds between auto-scans
+    vuln_check_windows_updates: bool = True
+    vuln_check_open_ports: bool = True
+    vuln_check_weak_configs: bool = True
+    vuln_check_software: bool = True
+
+    # Threat Intelligence
+    threat_feed_max_events: int = 1000
+    threat_correlation_window: float = 1.0  # hours
+
+    # AI
+    ai_anomaly_threshold: float = 0.5
+    ai_model_dir: str = "models"
+
     # Alerting
     alert_desktop_notifications: bool = True
     alert_webhook_url: Optional[str] = None

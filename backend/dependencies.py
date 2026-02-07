@@ -18,6 +18,13 @@ _vpn_guardian = None
 _network_sentinel = None
 _brute_force_shield = None
 _file_integrity = None
+_process_analyzer = None
+_vuln_scanner = None
+_email_analyzer = None
+_threat_intelligence = None
+_anomaly_detector = None
+_nlp_analyzer = None
+_threat_correlator = None
 
 
 def get_app_config() -> CereberusConfig:
@@ -123,3 +130,89 @@ def get_file_integrity():
             "max_file_size": config.file_integrity_max_file_size,
         })
     return _file_integrity
+
+
+def get_process_analyzer():
+    """Get the Process Analyzer module singleton."""
+    global _process_analyzer
+    if _process_analyzer is None:
+        from .modules.process_analyzer import ProcessAnalyzer
+        config = get_app_config()
+        _process_analyzer = ProcessAnalyzer(config={
+            "poll_interval": config.process_poll_interval,
+            "suspicious_names": config.process_suspicious_names,
+        })
+    return _process_analyzer
+
+
+def get_vuln_scanner():
+    """Get the Vulnerability Scanner module singleton."""
+    global _vuln_scanner
+    if _vuln_scanner is None:
+        from .modules.vuln_scanner import VulnScanner
+        config = get_app_config()
+        _vuln_scanner = VulnScanner(config={
+            "scan_interval": config.vuln_scan_interval,
+            "check_windows_updates": config.vuln_check_windows_updates,
+            "check_open_ports": config.vuln_check_open_ports,
+            "check_weak_configs": config.vuln_check_weak_configs,
+            "check_software": config.vuln_check_software,
+        })
+    return _vuln_scanner
+
+
+def get_email_analyzer():
+    """Get the Email Analyzer module singleton."""
+    global _email_analyzer
+    if _email_analyzer is None:
+        from .modules.email_analyzer import EmailAnalyzer
+        _email_analyzer = EmailAnalyzer()
+    return _email_analyzer
+
+
+def get_threat_intelligence():
+    """Get the Threat Intelligence module singleton."""
+    global _threat_intelligence
+    if _threat_intelligence is None:
+        from .modules.threat_intelligence import ThreatIntelligence
+        config = get_app_config()
+        _threat_intelligence = ThreatIntelligence(config={
+            "feed_max_events": config.threat_feed_max_events,
+            "correlation_window": config.threat_correlation_window,
+        })
+    return _threat_intelligence
+
+
+def get_anomaly_detector():
+    """Get the Anomaly Detector AI singleton."""
+    global _anomaly_detector
+    if _anomaly_detector is None:
+        from .ai.anomaly_detector import AnomalyDetector
+        config = get_app_config()
+        _anomaly_detector = AnomalyDetector(
+            model_dir=config.ai_model_dir,
+            threshold=config.ai_anomaly_threshold,
+        )
+    return _anomaly_detector
+
+
+def get_nlp_analyzer():
+    """Get the NLP Analyzer AI singleton."""
+    global _nlp_analyzer
+    if _nlp_analyzer is None:
+        from .ai.nlp_analyzer import NLPAnalyzer
+        _nlp_analyzer = NLPAnalyzer()
+    return _nlp_analyzer
+
+
+def get_threat_correlator():
+    """Get the Threat Correlator AI singleton."""
+    global _threat_correlator
+    if _threat_correlator is None:
+        from .ai.threat_correlator import ThreatCorrelator
+        config = get_app_config()
+        _threat_correlator = ThreatCorrelator(
+            max_events=config.threat_feed_max_events,
+            max_age_hours=config.threat_correlation_window,
+        )
+    return _threat_correlator

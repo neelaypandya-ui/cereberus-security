@@ -133,3 +133,30 @@ def temp_watched_dir():
         (subdir / "nested.txt").write_text("nested content")
 
         yield tmpdir
+
+
+# --- Process Analyzer fixtures ---
+
+@pytest.fixture
+def mock_process_list():
+    """Create a mock list of process_iter results."""
+    def _make_proc(pid, name, exe="", cpu=0.0, mem=0.0, status="running", ppid=0):
+        proc = MagicMock()
+        proc.info = {
+            "pid": pid,
+            "name": name,
+            "exe": exe,
+            "username": "test_user",
+            "cpu_percent": cpu,
+            "memory_percent": mem,
+            "status": status,
+            "create_time": 1700000000.0,
+            "ppid": ppid,
+        }
+        return proc
+
+    return [
+        _make_proc(100, "chrome.exe", r"C:\Program Files\Google\Chrome\chrome.exe"),
+        _make_proc(200, "explorer.exe", r"C:\Windows\explorer.exe"),
+        _make_proc(300, "mimikatz.exe", r"C:\temp\mimikatz.exe"),
+    ]

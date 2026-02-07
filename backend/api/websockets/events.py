@@ -6,7 +6,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ...dependencies import get_alert_manager, get_network_sentinel, get_vpn_guardian
+from ...dependencies import (
+    get_alert_manager,
+    get_network_sentinel,
+    get_threat_intelligence,
+    get_vpn_guardian,
+)
 from ...utils.logging import get_logger
 
 logger = get_logger("websocket.events")
@@ -52,7 +57,7 @@ async def websocket_events(websocket: WebSocket):
 
     Sends events in JSON format:
     {
-        "type": "alert" | "vpn_status" | "event" | "heartbeat",
+        "type": "alert" | "vpn_status" | "event" | "heartbeat" | "network_stats" | "threat_level",
         "data": { ... },
         "timestamp": "ISO 8601"
     }
@@ -82,6 +87,18 @@ async def websocket_events(websocket: WebSocket):
                 await websocket.send_text(json.dumps({
                     "type": "network_stats",
                     "data": net_stats,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }))
+            except Exception:
+                pass
+
+            # Send threat level
+            try:
+                ti = get_threat_intelligence()
+                threat_level = ti.get_threat_level()
+                await websocket.send_text(json.dumps({
+                    "type": "threat_level",
+                    "data": {"level": threat_level},
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }))
             except Exception:

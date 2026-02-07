@@ -22,11 +22,17 @@ class AlertManager:
         self,
         desktop_notifications: bool = True,
         webhook_url: Optional[str] = None,
+        db_session_factory=None,
     ):
         self._desktop_notifications = desktop_notifications
         self._webhook_url = webhook_url
+        self._db_session_factory = db_session_factory
         self._ws_connections: list = []  # WebSocket connections for broadcasting
         self._alert_history: list[dict] = []
+
+    def set_db_session_factory(self, factory) -> None:
+        """Set the async session factory for database persistence."""
+        self._db_session_factory = factory
 
     def register_ws(self, ws) -> None:
         """Register a WebSocket connection for alert broadcasting."""
@@ -78,12 +84,39 @@ class AlertManager:
             title=title,
         )
 
+        # Persist to database
+        await self._persist_to_db(alert)
+
         # Dispatch to all channels
         await self._broadcast_ws(alert)
         await self._send_desktop_notification(alert)
         await self._send_webhook(alert)
 
         return alert
+
+    async def _persist_to_db(self, alert: dict) -> None:
+        """Write alert to the database."""
+        if not self._db_session_factory:
+            return
+
+        try:
+            from ..models.alert import Alert
+
+            async with self._db_session_factory() as session:
+                db_alert = Alert(
+                    severity=alert["severity"],
+                    module_source=alert["module_source"],
+                    title=alert["title"],
+                    description=alert["description"],
+                    details_json=json.dumps(alert.get("details")) if alert.get("details") else None,
+                    vpn_status_at_event=alert.get("vpn_status"),
+                    interface_name=alert.get("interface_name"),
+                    acknowledged=False,
+                )
+                session.add(db_alert)
+                await session.commit()
+        except Exception as e:
+            logger.error("alert_db_persist_failed", error=str(e))
 
     async def _broadcast_ws(self, alert: dict) -> None:
         """Broadcast alert to all connected WebSocket clients."""

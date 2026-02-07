@@ -119,4 +119,33 @@ export const api = {
   getIntegrityBaselines: () => request('/integrity/baselines'),
   triggerIntegrityScan: () => request('/integrity/scan', { method: 'POST' }),
   getIntegrityChanges: () => request('/integrity/changes'),
+
+  // Process Analyzer
+  getProcesses: () => request('/processes/'),
+  getSuspiciousProcesses: () => request('/processes/suspicious'),
+  getProcessTree: (pid: number) => request(`/processes/${pid}/tree`),
+
+  // Vulnerability Scanner
+  getVulnerabilities: () => request('/vulnerabilities/'),
+  triggerVulnerabilityScan: () => request('/vulnerabilities/scan', { method: 'POST' }),
+  getVulnerabilityReport: () => request('/vulnerabilities/report'),
+
+  // Email Analyzer
+  analyzeEmail: (text: string, urls: string[] = []) =>
+    request('/email/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ text, urls }),
+    }),
+  getRecentEmailAnalyses: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/email/recent${query}`);
+  },
+
+  // Threat Intelligence
+  getThreatLevel: () => request('/threats/level'),
+  getThreatFeed: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/threats/feed${query}`);
+  },
+  getCorrelations: () => request('/threats/correlations'),
 };

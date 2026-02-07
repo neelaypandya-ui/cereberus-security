@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
+import { ThreatLevelBanner } from './ThreatLevelBanner';
+import { Sparkline } from './Sparkline';
 
 interface OverviewPanelProps {
   alerts: Record<string, number>;
@@ -10,13 +12,20 @@ interface OverviewPanelProps {
     established: number;
     suspicious: number;
   } | null;
+  threatLevel?: string;
 }
 
-export function OverviewPanel({ alerts, eventsToday, modules, networkStats }: OverviewPanelProps) {
+export function OverviewPanel({ alerts, eventsToday, modules, networkStats, threatLevel = 'none' }: OverviewPanelProps) {
   const alertTotal = Object.values(alerts).reduce((a, b) => a + b, 0);
   const [recentAlerts, setRecentAlerts] = useState<Array<{
     id: number; severity: string; title: string; timestamp: string; module_source: string;
   }>>([]);
+
+  // Track connection counts for sparkline (last 60 samples = ~5 min at 5s intervals)
+  const connectionHistory = useRef<number[]>([]);
+  if (networkStats) {
+    connectionHistory.current = [...connectionHistory.current, networkStats.total].slice(-60);
+  }
 
   useEffect(() => {
     api.getAlerts({ limit: 5 }).then((data: unknown) => {
@@ -37,16 +46,21 @@ export function OverviewPanel({ alerts, eventsToday, modules, networkStats }: Ov
 
   return (
     <div>
+      {/* Threat Level Banner */}
+      <ThreatLevelBanner level={threatLevel} />
+
       {/* Stat Cards Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-        <StatCard label="Unacked Alerts" value={alertTotal} color="var(--red-primary)" />
-        <StatCard label="Critical" value={alerts.critical ?? 0} color="var(--severity-critical)" />
-        <StatCard label="High" value={alerts.high ?? 0} color="var(--severity-high)" />
-        <StatCard label="Events Today" value={eventsToday} color="var(--severity-info)" />
+        <GlowStatCard label="Unacked Alerts" value={alertTotal} color="var(--red-primary)" />
+        <GlowStatCard label="Critical" value={alerts.critical ?? 0} color="var(--severity-critical)" />
+        <GlowStatCard label="High" value={alerts.high ?? 0} color="var(--severity-high)" />
+        <GlowStatCard label="Events Today" value={eventsToday} color="var(--severity-info)" />
         {networkStats && (
           <>
-            <StatCard label="Connections" value={networkStats.total} color="var(--text-primary)" />
-            <StatCard label="Suspicious" value={networkStats.suspicious} color="var(--severity-critical)" />
+            <GlowStatCard label="Connections" value={networkStats.total} color="var(--cyan-primary)">
+              <Sparkline data={connectionHistory.current} width={140} height={30} />
+            </GlowStatCard>
+            <GlowStatCard label="Suspicious" value={networkStats.suspicious} color="var(--severity-critical)" />
           </>
         )}
       </div>
@@ -69,16 +83,31 @@ export function OverviewPanel({ alerts, eventsToday, modules, networkStats }: Ov
               background: 'var(--bg-tertiary)',
               borderRadius: '6px',
               border: '1px solid var(--border-default)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
             }}>
-              <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                {m.name}
-              </div>
-              <div style={{
-                fontSize: '11px',
-                marginTop: '4px',
-                color: m.health === 'running' ? 'var(--status-online)' : 'var(--text-muted)',
-              }}>
-                {m.enabled ? m.health : 'disabled'}
+              <div
+                className={m.health === 'running' ? 'breathing' : ''}
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: m.health === 'running' ? 'var(--cyan-primary)' : 'var(--text-muted)',
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                  {m.name}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  marginTop: '2px',
+                  color: m.health === 'running' ? 'var(--status-online)' : 'var(--text-muted)',
+                }}>
+                  {m.enabled ? m.health : 'disabled'}
+                </div>
               </div>
             </div>
           ))}
@@ -136,20 +165,18 @@ export function OverviewPanel({ alerts, eventsToday, modules, networkStats }: Ov
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function GlowStatCard({ label, value, color, children }: {
+  label: string; value: number; color: string; children?: React.ReactNode;
+}) {
   return (
-    <div style={{
-      background: 'var(--bg-card)',
-      border: '1px solid var(--border-default)',
-      borderRadius: '8px',
-      padding: '20px',
-    }}>
+    <div className="glow-card">
       <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '8px' }}>
         {label.toUpperCase()}
       </div>
       <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--font-mono)', color }}>
         {value}
       </div>
+      {children && <div style={{ marginTop: '8px' }}>{children}</div>}
     </div>
   );
 }

@@ -1,24 +1,75 @@
-"""Email Analyzer Module — stub for Phase 1.
+"""Email Analyzer Module — on-demand phishing/threat content analysis.
 
-Will analyze emails for phishing, malware attachments, and social engineering.
+Delegates to the NLP Analyzer AI layer for text and URL analysis.
+Keeps a history of recent analyses in memory.
 """
+
+from collections import deque
+from datetime import datetime, timezone
 
 from .base_module import BaseModule
 
 
 class EmailAnalyzer(BaseModule):
+    """Analyzes email/text content for phishing and threats on demand."""
+
     def __init__(self, config: dict | None = None):
         super().__init__(name="email_analyzer", config=config)
+        self._nlp_analyzer = None
+        self._recent_analyses: deque[dict] = deque(maxlen=100)
 
     async def start(self) -> None:
         self.running = True
         self.health_status = "running"
-        self.logger.info("email_analyzer_started_stub")
+        self._ensure_nlp()
+        self.logger.info("email_analyzer_started")
 
     async def stop(self) -> None:
         self.running = False
         self.health_status = "stopped"
+        self.logger.info("email_analyzer_stopped")
 
     async def health_check(self) -> dict:
         self.heartbeat()
-        return {"status": self.health_status, "details": {"stub": True}}
+        return {
+            "status": self.health_status,
+            "details": {
+                "total_analyses": len(self._recent_analyses),
+            },
+        }
+
+    def _ensure_nlp(self):
+        """Lazy-load the NLP analyzer."""
+        if self._nlp_analyzer is None:
+            from ..ai.nlp_analyzer import NLPAnalyzer
+            self._nlp_analyzer = NLPAnalyzer()
+
+    def analyze_content(self, text: str, urls: list[str] | None = None) -> dict:
+        """Analyze text content (email body, message, etc.) for threats.
+
+        Args:
+            text: The text content to analyze.
+            urls: Optional list of URLs found in the content.
+
+        Returns:
+            Analysis result dict with threat_score, verdict, indicators.
+        """
+        self._ensure_nlp()
+
+        result = self._nlp_analyzer.analyze_content(text, urls)
+
+        analysis = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "text_preview": text[:200] + "..." if len(text) > 200 else text,
+            "url_count": len(urls) if urls else 0,
+            **result,
+        }
+
+        self._recent_analyses.appendleft(analysis)
+        self.heartbeat()
+
+        return analysis
+
+    def get_recent_analyses(self, limit: int = 50) -> list[dict]:
+        """Get recent analysis results."""
+        return list(self._recent_analyses)[:limit]

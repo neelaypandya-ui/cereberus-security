@@ -40,6 +40,7 @@ export function useWebSocket() {
   const [vpnStatus, setVpnStatus] = useState<VpnStatus | null>(null);
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
+  const [threatLevel, setThreatLevel] = useState<string>('none');
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WsMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -67,6 +68,9 @@ export function useWebSocket() {
           setNetworkStats(msg.data as NetworkStats);
         } else if (msg.type === 'alert') {
           setAlerts((prev) => [msg.data as AlertData, ...prev].slice(0, 100));
+        } else if (msg.type === 'threat_level') {
+          const data = msg.data as { level: string };
+          setThreatLevel(data.level || 'none');
         }
       } catch {
         // ignore parse errors
@@ -97,5 +101,5 @@ export function useWebSocket() {
     };
   }, [connect]);
 
-  return { vpnStatus, networkStats, alerts, connected, lastMessage };
+  return { vpnStatus, networkStats, alerts, threatLevel, connected, lastMessage };
 }
