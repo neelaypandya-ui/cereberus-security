@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBERUS - System Documentation &amp; User Guide</title>
+<style>
+/* =============== BASE RESET =============== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-card: #161616;
+  --border: #2d2d2d;
+  --border-active: #3d3d3d;
+  --text: #e8e8e8;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+  --red-dark: #8b0000;
+  --red: #dc2626;
+  --cyan: #00e5ff;
+  --cyan-dark: #00838f;
+  --amber: #ffab00;
+  --green: #4caf50;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.8;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =============== LAYOUT =============== */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 280px;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  z-index: 100;
+  transition: transform 0.3s ease;
+}
+
+.sidebar.collapsed { transform: translateX(-280px); }
+
+.sidebar-toggle {
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 200;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  width: 36px; height: 36px;
+  cursor: pointer;
+  font-size: 18px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.main-content {
+  margin-left: 280px;
+  flex: 1;
+  max-width: 1000px;
+  padding: 48px 48px 120px 48px;
+}
+
+/* =============== SCROLLBAR =============== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+/* =============== SIDEBAR NAV =============== */
+.sidebar-brand {
+  text-align: center;
+  padding: 0 20px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.sidebar-brand h1 {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  letter-spacing: 6px;
+  color: var(--red);
+  margin-bottom: 4px;
+}
+
+.sidebar-brand .version {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+}
+
+.nav-section { padding: 0 16px; margin-bottom: 8px; }
+
+.nav-section-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 12px 8px 4px;
+}
+
+.nav-link {
+  display: block;
+  padding: 6px 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 2px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: rgba(0,229,255,0.05);
+  border-left-color: var(--cyan-dark);
+}
+
+.nav-link.active {
+  color: var(--cyan);
+  background: rgba(0,229,255,0.08);
+  border-left-color: var(--cyan);
+}
+
+/* =============== TYPOGRAPHY =============== */
+h1 { font-size: 36px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+h2 {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-top: 64px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 36px;
+  margin-bottom: 12px;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 16px; color: var(--text-secondary); }
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+ul, ol { margin-bottom: 16px; padding-left: 24px; color: var(--text-secondary); }
+li { margin-bottom: 6px; }
+strong { color: var(--text); }
+
+/* =============== CODE =============== */
+code {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: var(--cyan);
+}
+
+pre {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+pre code { background: none; padding: 0; font-size: 14px; }
+
+/* =============== TABLES =============== */
+table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }
+th {
+  text-align: left; padding: 10px 12px; background: var(--bg-tertiary);
+  border: 1px solid var(--border); font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--cyan);
+}
+td { padding: 8px 12px; border: 1px solid var(--border); color: var(--text-secondary); font-size: 14px; }
+tr:nth-child(even) td { background: rgba(26,26,26,0.5); }
+tr:hover td { background: rgba(0,229,255,0.03); }
+td code { font-size: 13px; }
+
+/* =============== CARDS =============== */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 2px; padding: 20px 24px; margin-bottom: 20px;
+}
+
+.card-header {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px;
+  color: var(--red); text-transform: uppercase; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+
+.callsign {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+  color: var(--text-muted); background: var(--bg-tertiary);
+  padding: 2px 8px; border-radius: 2px; border: 1px solid var(--border);
+}
+
+/* =============== NEW: BEGINNER-FRIENDLY BOXES =============== */
+.tip-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan); padding: 16px 20px;
+  margin: 16px 0; border-radius: 2px;
+}
+.tip-box::before {
+  content: 'PLAIN ENGLISH';
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--cyan); display: block; margin-bottom: 8px;
+}
+
+.analogy-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--amber); padding: 16px 20px;
+  margin: 16px 0; border-radius: 2px;
+}
+.analogy-box::before {
+  content: 'REAL-WORLD ANALOGY';
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--amber); display: block; margin-bottom: 8px;
+}
+
+.warning-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--red); padding: 16px 20px;
+  margin: 16px 0; border-radius: 2px;
+}
+.warning-box::before {
+  content: 'WHEN TO WORRY';
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--red); display: block; margin-bottom: 8px;
+}
+
+.action-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--green); padding: 16px 20px;
+  margin: 16px 0; border-radius: 2px;
+}
+.action-box::before {
+  content: 'WHAT YOU CAN DO';
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--green); display: block; margin-bottom: 8px;
+}
+
+.panel-header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.panel-header .panel-code {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
+  color: var(--text-muted); background: var(--bg-tertiary);
+  padding: 3px 10px; border-radius: 2px; border: 1px solid var(--border);
+}
+.panel-header .panel-label {
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: 2px;
+  color: var(--red);
+}
+.panel-header .panel-name {
+  font-size: 20px; font-weight: 600; color: var(--text);
+}
+
+.concept-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0;
+}
+.concept-grid .concept {
+  background: var(--bg-card); border: 1px solid var(--border);
+  padding: 12px 16px; border-radius: 2px;
+}
+.concept-grid .concept strong {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px;
+  color: var(--cyan); display: block; margin-bottom: 4px;
+}
+.concept-grid .concept span { font-size: 14px; color: var(--text-secondary); }
+
+.method-badge {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px;
+  font-weight: 700; letter-spacing: 1px; padding: 2px 8px;
+  border-radius: 2px; min-width: 60px; text-align: center;
+}
+.method-get { background: rgba(0,229,255,0.15); color: var(--cyan); border: 1px solid rgba(0,229,255,0.3); }
+.method-post { background: rgba(76,175,80,0.15); color: var(--green); border: 1px solid rgba(76,175,80,0.3); }
+.method-put { background: rgba(255,171,0,0.15); color: var(--amber); border: 1px solid rgba(255,171,0,0.3); }
+.method-patch { background: rgba(255,171,0,0.15); color: var(--amber); border: 1px solid rgba(255,171,0,0.3); }
+.method-delete { background: rgba(220,38,38,0.15); color: var(--red); border: 1px solid rgba(220,38,38,0.3); }
+
+.module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.module-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-top: 2px solid var(--cyan-dark); padding: 16px; border-radius: 2px;
+}
+.module-card h4 { margin-top: 0; color: var(--text); font-family: var(--font-sans); font-size: 16px; text-transform: none; letter-spacing: 0; }
+.module-card .module-callsign { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--cyan-dark); margin-bottom: 8px; }
+.module-card p { font-size: 14px; margin-bottom: 0; }
+
+.title-page { text-align: center; padding: 80px 0 60px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+.title-page .logo { font-family: var(--font-mono); font-size: 48px; letter-spacing: 12px; color: var(--red); margin-bottom: 8px; font-weight: 700; }
+.title-page .subtitle { font-family: var(--font-mono); font-size: 14px; letter-spacing: 4px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+.title-page .ver { font-family: var(--font-mono); font-size: 12px; color: var(--cyan-dark); letter-spacing: 2px; }
+
+.classification-top {
+  text-align: center; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 4px; color: var(--red); padding: 6px;
+  background: linear-gradient(90deg, transparent, rgba(220,38,38,0.1), transparent);
+  border-top: 1px solid rgba(220,38,38,0.3); border-bottom: 1px solid rgba(220,38,38,0.3);
+  margin-bottom: 20px;
+}
+
+.severity-table td:first-child { font-family: var(--font-mono); font-weight: 700; letter-spacing: 1px; }
+
+/* =============== RESPONSIVE =============== */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-280px); }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle { display: flex; }
+  .main-content { margin-left: 0; padding: 48px 24px 120px; }
+  .module-grid, .concept-grid { grid-template-columns: 1fr; }
+}
+
+/* =============== PRINT =============== */
+@media print {
+  .sidebar, .sidebar-toggle { display: none; }
+  .main-content { margin-left: 0; max-width: 100%; padding: 20px; }
+  body { background: #fff; color: #111; font-size: 12pt; }
+  h2 { color: #111; border-bottom: 1px solid #ccc; }
+  h3 { color: #222; }
+  code { background: #f0f0f0; color: #333; }
+  pre { background: #f5f5f5; border: 1px solid #ddd; }
+  th { background: #e0e0e0; color: #111; }
+  td { color: #333; }
+  .card, .tip-box, .analogy-box, .warning-box, .action-box { border: 1px solid #ccc; }
+  a { color: #0066cc; }
+  .classification-top { display: none; }
+  .title-page .logo { color: #8b0000; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar Toggle -->
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle navigation">&#9776;</button>
+
+<!-- ======================== SIDEBAR ======================== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <h1>CEREBERUS</h1>
+    <div class="version">VERSION 0.9.0</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Getting Started</div>
+    <a href="#welcome" class="nav-link">Welcome</a>
+    <a href="#getting-started" class="nav-link">Getting Started</a>
+    <a href="#alert-severity" class="nav-link">Alert Severity Levels</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Dashboard Panels</div>
+    <a href="#cmd-center" class="nav-link">CMD CENTER</a>
+    <a href="#sigint" class="nav-link">SIGINT</a>
+    <a href="#asset-trkr" class="nav-link">ASSET TRKR</a>
+    <a href="#threat-asmt" class="nav-link">THREAT ASMT</a>
+    <a href="#fusion-ctr" class="nav-link">FUSION CTR</a>
+    <a href="#sys-diag" class="nav-link">SYS DIAG</a>
+    <a href="#watchlist" class="nav-link">WATCHLIST</a>
+    <a href="#intel-brief" class="nav-link">INTEL BRIEF</a>
+    <a href="#comint" class="nav-link">COMINT</a>
+    <a href="#threat-board" class="nav-link">THREAT BOARD</a>
+    <a href="#ops-log" class="nav-link">OPS LOG</a>
+    <a href="#sec-comms" class="nav-link">SEC COMMS</a>
+    <a href="#ai-ops" class="nav-link">AI OPS</a>
+    <a href="#incident-cmd" class="nav-link">INCIDENT CMD</a>
+    <a href="#def-protocol" class="nav-link">DEF PROTOCOL</a>
+    <a href="#signal-relay" class="nav-link">SIGNAL RELAY</a>
+    <a href="#personnel" class="nav-link">PERSONNEL</a>
+    <a href="#ops-board" class="nav-link">OPS BOARD</a>
+    <a href="#sys-config" class="nav-link">SYS CONFIG</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Understanding the System</div>
+    <a href="#how-ai-works" class="nav-link">How the AI Works</a>
+    <a href="#taking-action" class="nav-link">Taking Action</a>
+    <a href="#roles" class="nav-link">User Roles</a>
+    <a href="#glossary" class="nav-link">Glossary</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Reference</div>
+    <a href="#api-ref" class="nav-link">API Reference</a>
+    <a href="#deployment" class="nav-link">Deployment</a>
+  </div>
+</nav>
+
+<!-- ======================== MAIN CONTENT ======================== -->
+<div class="layout">
+<div class="main-content">
+
+<!-- TITLE PAGE -->
+<div class="title-page" id="top">
+  <div class="classification-top">TOP SECRET // CEREBERUS // NOFORN</div>
+  <div class="logo">CEREBERUS</div>
+  <div class="subtitle">AI-Powered Cybersecurity Defense System</div>
+  <div class="ver">v0.9.0 &mdash; System Documentation &amp; User Guide</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- WELCOME -->
+<!-- ============================================================ -->
+<section id="welcome">
+<h2>Welcome to Cereberus</h2>
+
+<p>Cereberus is a cybersecurity defense system that protects your Windows computer in real time. It watches your network traffic, monitors running programs, checks for security weaknesses, and can automatically fix problems when it finds them &mdash; all from a single dashboard.</p>
+
+<div class="analogy-box">
+  <p style="margin:0">Think of Cereberus as a <strong>24/7 security guard for your computer</strong>. It watches every door and window (network ports), checks the ID of everyone who enters (processes), keeps an eye out for known troublemakers (threat feeds), and can lock the doors automatically if it spots danger (remediation).</p>
+</div>
+
+<h3>What does Cereberus protect you from?</h3>
+<ul>
+  <li><strong>Network intrusions</strong> &mdash; Unauthorized connections to or from your computer</li>
+  <li><strong>Brute force attacks</strong> &mdash; Attackers trying thousands of passwords to break into your accounts</li>
+  <li><strong>Malware persistence</strong> &mdash; Malicious programs that try to survive reboots by hiding in startup locations</li>
+  <li><strong>Open vulnerabilities</strong> &mdash; Exposed services (like file sharing or remote desktop) that attackers can exploit</li>
+  <li><strong>Phishing emails</strong> &mdash; Fake emails designed to steal your credentials or trick you into downloading malware</li>
+  <li><strong>VPN leaks</strong> &mdash; Gaps in your encrypted tunnel that could expose your real IP address</li>
+  <li><strong>File tampering</strong> &mdash; Unauthorized changes to critical system files</li>
+  <li><strong>Suspicious processes</strong> &mdash; Programs behaving in unusual or potentially dangerous ways</li>
+</ul>
+
+<h3>Tech stack (for developers)</h3>
+<ul>
+  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (30 database tables)</li>
+  <li><strong>Frontend:</strong> React 18 + TypeScript, Recharts for visualization</li>
+  <li><strong>AI/ML:</strong> PyTorch (Autoencoder, LSTM), scikit-learn (Isolation Forest), Z-Score statistics</li>
+  <li><strong>Real-time:</strong> WebSocket for live updates across all panels</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<!-- GETTING STARTED -->
+<!-- ============================================================ -->
+<section id="getting-started">
+<h2>Getting Started</h2>
+
+<h3>Logging In</h3>
+<p>Open your browser to Cereberus (typically <code>http://localhost:5173</code>) and log in with your credentials. The default administrator account is:</p>
+<ul>
+  <li><strong>Username:</strong> <code>admin</code></li>
+  <li><strong>Password:</strong> <code>admin</code></li>
+</ul>
+
+<div class="warning-box">
+  <p style="margin:0">Change the default password immediately after your first login. Anyone who knows these defaults can access your entire security system.</p>
+</div>
+
+<h3>Dashboard Layout</h3>
+<p>Once logged in, you'll see the Cereberus dashboard with these key areas:</p>
+<ul>
+  <li><strong>Left Sidebar</strong> &mdash; Navigation menu with 19 panels. Each panel has a green, amber, or red dot showing its health status. Click any item to switch panels.</li>
+  <li><strong>Top Bar</strong> &mdash; Shows the current panel name, a search bar, a UTC clock, system uptime counter, and the notification bell.</li>
+  <li><strong>Main Area</strong> &mdash; The content of whichever panel you've selected.</li>
+  <li><strong>Bottom Ticker</strong> &mdash; A scrolling feed of the most recent security events.</li>
+  <li><strong>VPN Status</strong> &mdash; A small indicator in the top-right showing whether your VPN is connected.</li>
+</ul>
+
+<h3>Understanding DEFCON Levels</h3>
+<p>The Command Center uses a DEFCON (Defense Condition) scale to show the overall threat level. This is calculated automatically by combining data from all modules:</p>
+
+<table>
+  <tr><th>Level</th><th>Name</th><th>What it means</th></tr>
+  <tr><td style="color:var(--cyan)"><strong>DEFCON 5</strong></td><td>NORMAL</td><td>Everything is fine. No threats detected.</td></tr>
+  <tr><td style="color:var(--green)"><strong>DEFCON 4</strong></td><td>ELEVATED</td><td>Minor activity detected. Nothing to worry about yet.</td></tr>
+  <tr><td style="color:var(--amber)"><strong>DEFCON 3</strong></td><td>INCREASED</td><td>Suspicious activity found. Worth keeping an eye on.</td></tr>
+  <tr><td style="color:#ff6600"><strong>DEFCON 2</strong></td><td>HIGH</td><td>Serious threats detected. You should investigate.</td></tr>
+  <tr><td style="color:var(--red)"><strong>DEFCON 1</strong></td><td>CRITICAL</td><td>Active compromise or critical vulnerability. Immediate action needed.</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<!-- ALERT SEVERITY -->
+<!-- ============================================================ -->
+<section id="alert-severity">
+<h2>Understanding Alert Severity</h2>
+
+<p>Throughout Cereberus, alerts are labeled with priority stamps that tell you how urgent they are:</p>
+
+<table class="severity-table">
+  <tr><th>Stamp</th><th>Severity</th><th>What it means</th><th>What to do</th></tr>
+  <tr><td style="color:var(--red)">FLASH</td><td>Critical</td><td>Immediate danger. Your system may be actively compromised.</td><td>Drop everything and investigate immediately.</td></tr>
+  <tr><td style="color:#ff6600">IMMEDIATE</td><td>High</td><td>A serious threat has been detected that needs attention soon.</td><td>Investigate within minutes.</td></tr>
+  <tr><td style="color:var(--amber)">PRIORITY</td><td>Medium</td><td>Something suspicious that could become a problem.</td><td>Look into it when you can.</td></tr>
+  <tr><td style="color:var(--cyan)">ROUTINE</td><td>Low</td><td>A minor finding, mostly informational.</td><td>Review during normal operations.</td></tr>
+  <tr><td style="color:var(--text-muted)">ADVISORY</td><td>Info</td><td>Just letting you know something happened. Not a threat.</td><td>No action needed.</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<!-- DASHBOARD PANELS -->
+<!-- ============================================================ -->
+<h2 style="margin-top:80px" id="panels-intro">Dashboard Panels</h2>
+<p>Cereberus has 19 panels, each focused on a specific aspect of your security. Below is a detailed guide to every panel &mdash; what it shows, what it means, and what you can do.</p>
+
+<!-- ==================== CMD CENTER ==================== -->
+<section id="cmd-center">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">SEC-01</span>
+    <span class="panel-label">CMD CENTER</span>
+    <span class="panel-name">Command Center</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This is your main overview screen. It gives you a bird's-eye view of your entire security posture in one glance, just like the main screen in a military command center.</p>
+
+  <div class="analogy-box"><p style="margin:0">Imagine the big screen at the front of a security headquarters. You can see everything at once &mdash; how many cameras are online, where the guards are, whether any alarms are going off.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>DEFCON Banner</strong> &mdash; The overall threat level (DEFCON 5 through DEFCON 1)</li>
+    <li><strong>Threat Radar</strong> &mdash; A radar sweep visualization. Blips represent flagged threats. More blips = more threats.</li>
+    <li><strong>SITREP Cards</strong> &mdash; Four summary cards:
+      <ul>
+        <li><em>Active Connections</em> &mdash; How many network connections your computer currently has</li>
+        <li><em>Flagged Threats</em> &mdash; Number of suspicious network connections detected</li>
+        <li><em>Modules Online</em> &mdash; How many of the 10 security modules are running</li>
+        <li><em>Open Alerts</em> &mdash; How many unacknowledged security alerts exist</li>
+      </ul>
+    </li>
+    <li><strong>Station Status</strong> &mdash; A grid showing all 10 security modules with colored health dots (green = running, red = error, gray = offline)</li>
+    <li><strong>SIGINT Feed</strong> &mdash; The 8 most recent security alerts with priority stamps</li>
+  </ul>
+
+  <div class="warning-box"><p style="margin:0">If the DEFCON level is at 2 (HIGH) or 1 (CRITICAL), or if flagged threats are above zero, click through to the specific panels to investigate.</p></div>
+</div>
+</section>
+
+<!-- ==================== SIGINT ==================== -->
+<section id="sigint">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">SIG-02</span>
+    <span class="panel-label">SIGINT</span>
+    <span class="panel-name">Signals Intelligence</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel monitors every network connection your computer makes. It shows who your computer is talking to, on which ports, and flags anything suspicious.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a phone tap room that monitors every phone call being made from your building. It logs who you're calling, when, and flags any calls to known bad numbers.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Connection Stats</strong> &mdash; Total connections, Established, Listening, Time-Wait, Suspicious, TCP count, UDP count</li>
+    <li><strong>Intercept Log</strong> &mdash; A table of every active network connection showing:
+      <ul>
+        <li><em>Proto</em> &mdash; TCP or UDP (the two ways computers communicate over networks)</li>
+        <li><em>Local Address</em> &mdash; Your computer's IP and port</li>
+        <li><em>Remote Address</em> &mdash; The other computer's IP and port</li>
+        <li><em>Status</em> &mdash; Connection state (ESTABLISHED = actively talking, LISTEN = waiting for connections, TIME_WAIT = closing)</li>
+        <li><em>PID</em> &mdash; Process ID (which program made this connection)</li>
+        <li><em>Flag</em> &mdash; Shows "FLAGGED" in red if the connection is suspicious</li>
+      </ul>
+    </li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0">A <strong>port</strong> is like an apartment number in a building. Your computer's IP address is the building, and ports are the individual doors. Port 443 is typically for secure web traffic (HTTPS), port 80 is regular web traffic, port 445 is Windows file sharing (SMB), etc.</p></div>
+
+  <div class="action-box"><p style="margin:0">Toggle between "ALL INTERCEPTS" and "FLAGGED ONLY" to focus on suspicious connections. The panel refreshes every 5 seconds automatically.</p></div>
+
+  <div class="warning-box"><p style="margin:0">If you see connections flagged as suspicious to unknown remote IPs, especially on dangerous ports (445, 135, 3389), investigate immediately. These could indicate an active intrusion.</p></div>
+</div>
+</section>
+
+<!-- ==================== ASSET TRKR ==================== -->
+<section id="asset-trkr">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">AST-03</span>
+    <span class="panel-label">ASSET TRKR</span>
+    <span class="panel-name">Asset Tracker</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel shows every program currently running on your computer and flags any that are behaving suspiciously.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a personnel roster for everyone inside your building. You can see who they are, what department they work for, and anyone who doesn't have a proper badge gets flagged.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Two tabs:</strong> "HOSTILE" (suspicious processes only) and "ALL ASSETS" (everything)</li>
+    <li><strong>Process table</strong> showing PID, Name, User, CPU%, Memory%, Status, and Classification (HOSTILE or CLEARED)</li>
+    <li><strong>Process Tree</strong> &mdash; Click any row to see the parent-child relationship of that process (what program launched it)</li>
+  </ul>
+
+  <div class="warning-box"><p style="margin:0">If you see processes classified as HOSTILE, click on them to view the process tree. Check if they were launched by a legitimate parent program. Malware often hides under normal-looking names but has suspicious parent processes.</p></div>
+</div>
+</section>
+
+<!-- ==================== THREAT ASMT ==================== -->
+<section id="threat-asmt">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">THR-04</span>
+    <span class="panel-label">THREAT ASMT</span>
+    <span class="panel-name">Threat Assessment</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel scans your computer for security weaknesses (vulnerabilities) and lets you fix them with one click. It checks for exposed network ports, weak configurations, and missing security settings.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a home security inspector who checks all your doors, windows, and locks. If they find a window left open, they can close and lock it for you on the spot.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Severity Summary</strong> &mdash; Counters showing how many Critical, High, Medium, and Low findings were detected</li>
+    <li><strong>Vulnerability List</strong> &mdash; Each finding shows its severity stamp, title, description, and recommended action</li>
+    <li><strong>NEUTRALIZE THREAT button</strong> &mdash; For fixable vulnerabilities, this button appears below the finding</li>
+  </ul>
+
+  <h4>Types of vulnerabilities detected</h4>
+  <ul>
+    <li><strong>Open Ports</strong> &mdash; Network services that are exposed and could be attacked (e.g., SMB on port 445, RDP on port 3389, RPC on port 135)</li>
+    <li><strong>Guest Account Enabled</strong> &mdash; The Windows guest account allows anyone to log in without a password</li>
+    <li><strong>Firewall Disabled</strong> &mdash; Your Windows Firewall isn't blocking incoming traffic</li>
+    <li><strong>Auto-Login Enabled</strong> &mdash; Your password is stored in the registry so the computer logs in automatically (anyone with physical access gets full access)</li>
+    <li><strong>Windows Updates Missing</strong> &mdash; Security patches haven't been installed (requires manual fix)</li>
+  </ul>
+
+  <h4>How the "Neutralize Threat" process works</h4>
+  <ol>
+    <li>Click <strong>NEUTRALIZE THREAT</strong> on a vulnerability</li>
+    <li>An <strong>Operational Briefing</strong> expands showing: threat designation, attack vector, risk assessment, proposed action, and whether it's reversible</li>
+    <li>Read the briefing, then click <strong>AUTHORIZE ACTION</strong> to proceed or <strong>STAND DOWN</strong> to cancel</li>
+    <li>Cereberus executes the fix (e.g., creates a firewall rule to block a port)</li>
+    <li>The system automatically re-scans to verify the fix worked</li>
+    <li>If the vulnerability is gone, you'll see <strong>THREAT NEUTRALIZED</strong> in green</li>
+  </ol>
+
+  <div class="tip-box"><p style="margin:0">All remediations are <strong>reversible</strong>. If you accidentally block a port you need, you can undo it from the remediation action log. Cereberus never makes permanent changes without telling you.</p></div>
+
+  <div class="action-box"><p style="margin:0">Click <strong>INITIATE THREAT SCAN</strong> to run a fresh scan at any time.</p></div>
+</div>
+</section>
+
+<!-- ==================== FUSION CTR ==================== -->
+<section id="fusion-ctr">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">FUS-05</span>
+    <span class="panel-label">FUSION CTR</span>
+    <span class="panel-name">Fusion Center</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This is the intelligence hub. It takes events from all 10 security modules and connects the dots to identify complex attack patterns that no single module could detect alone. It also manages your Indicator of Compromise (IOC) database and external threat feeds.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a detective's evidence board with strings connecting clues from different crime scenes. One clue alone means nothing, but when you connect three clues together, you see the whole picture.</p></div>
+
+  <h4>Three tabs</h4>
+  <ul>
+    <li><strong>CORRELATIONS</strong> &mdash; Shows the overall threat level, active correlation patterns, and the raw event feed from all modules. A "correlation" means Cereberus noticed related events across different modules (e.g., a brute force attack followed by a new process spawning).</li>
+    <li><strong>IOC DATABASE</strong> &mdash; A searchable database of known-bad indicators: malicious IP addresses, dangerous file hashes, phishing URLs, etc. You can add your own IOCs manually.</li>
+    <li><strong>FEED STATUS</strong> &mdash; Shows the health of your external threat data feeds (VirusTotal, AbuseIPDB, URLhaus). These feeds keep your IOC database updated with the latest known threats.</li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0">An <strong>IOC (Indicator of Compromise)</strong> is like a "wanted poster" for cyber threats. It could be a known-bad IP address, the fingerprint (hash) of a malware file, or a phishing URL. When Cereberus sees any of these in your live data, it raises an alert.</p></div>
+</div>
+</section>
+
+<!-- ==================== SYS DIAG ==================== -->
+<section id="sys-diag">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">DIA-06</span>
+    <span class="panel-label">SYS DIAG</span>
+    <span class="panel-name">Systems Diagnostics</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel monitors your computer's resource usage &mdash; how hard your CPU, memory, disk, and network are working. It alerts you when things spike abnormally.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like your car's dashboard gauges (speedometer, temperature, fuel). If the engine temperature suddenly spikes, something is wrong. Same idea &mdash; if CPU usage suddenly hits 100%, something might be running that shouldn't be.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Three gauge dials</strong> &mdash; CPU, Memory, and Disk usage (0-100%). Green = healthy, amber = elevated, red = critical.</li>
+    <li><strong>Network I/O cards</strong> &mdash; How much data has been sent and received</li>
+    <li><strong>Threshold Breach Log</strong> &mdash; A history of times when any resource exceeded its configured limit</li>
+  </ul>
+
+  <div class="warning-box"><p style="margin:0">Sudden unexplained spikes in CPU or network usage could indicate malware (cryptominers use CPU, data exfiltration uses network). Cross-reference with the ASSET TRKR panel to see which process is consuming resources.</p></div>
+</div>
+</section>
+
+<!-- ==================== WATCHLIST ==================== -->
+<section id="watchlist">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">WCH-07</span>
+    <span class="panel-label">WATCHLIST</span>
+    <span class="panel-name">Watchlist</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel monitors "persistence mechanisms" &mdash; the places where programs register themselves to start automatically when your computer boots up. Malware commonly hides in these locations to survive restarts.</p>
+
+  <div class="analogy-box"><p style="margin:0">Imagine you've kicked an intruder out of your house, but they hid a spare key under the doormat so they can come back tomorrow. This panel checks under every doormat, flower pot, and fake rock for hidden keys.</p></div>
+
+  <h4>Three locations monitored</h4>
+  <ul>
+    <li><strong>Registry Run Keys</strong> &mdash; Windows registry entries that tell the OS to launch programs at startup</li>
+    <li><strong>Startup Folder</strong> &mdash; A special folder where shortcuts are auto-launched on login</li>
+    <li><strong>Scheduled Tasks</strong> &mdash; Timed jobs that Windows runs automatically</li>
+  </ul>
+
+  <h4>Two tabs</h4>
+  <ul>
+    <li><strong>MONITORED SUBJECTS</strong> &mdash; All known startup entries (the baseline)</li>
+    <li><strong>WATCHLIST ALERTS</strong> &mdash; New, removed, or changed entries since the last scan</li>
+  </ul>
+
+  <div class="warning-box"><p style="margin:0">A pulsing red banner means a <strong>new persistence entry</strong> was detected. If you didn't install anything recently, this could be malware establishing persistence. Investigate immediately.</p></div>
+
+  <div class="action-box"><p style="margin:0">Click <strong>SCAN NOW</strong> to trigger an immediate persistence scan.</p></div>
+</div>
+</section>
+
+<!-- ==================== INTEL BRIEF ==================== -->
+<section id="intel-brief">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">INT-08</span>
+    <span class="panel-label">INTEL BRIEF</span>
+    <span class="panel-name">Intelligence Briefing</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel provides charts and trend analysis of your security data over time, so you can spot patterns.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a daily intelligence briefing that summarizes "here's what happened this week, here are the trends, and here's what to watch out for."</p></div>
+
+  <h4>Three chart sections</h4>
+  <ul>
+    <li><strong>Alert Trend Analysis</strong> &mdash; A timeline chart showing alert volume over the last 24 hours. Spikes mean bursts of activity.</li>
+    <li><strong>Severity Distribution</strong> &mdash; A donut chart showing the breakdown of alerts by severity. Ideally, most should be low/info.</li>
+    <li><strong>Source Activity</strong> &mdash; A bar chart showing which modules are generating the most activity. If one module is spiking, something in that area needs attention.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ==================== COMINT ==================== -->
+<section id="comint">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">COM-09</span>
+    <span class="panel-label">COMINT</span>
+    <span class="panel-name">COMINT Analysis</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel analyzes emails and messages for phishing &mdash; fake communications designed to trick you into clicking malicious links or revealing your password.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a mail inspector who opens every letter, checks for forged return addresses, tests any enclosed links, and gives you a threat score before you read it.</p></div>
+
+  <h4>How to use it</h4>
+  <ol>
+    <li>Paste the suspicious email text into the <strong>Intercept Input</strong> area</li>
+    <li>Optionally add any URLs from the email into the URL field</li>
+    <li>Click <strong>ANALYZE INTERCEPT</strong></li>
+    <li>Review the results: a threat score (0-100), a verdict (HOSTILE / SUSPECT / CLEARED), and specific evidence markers</li>
+  </ol>
+
+  <h4>What the results mean</h4>
+  <ul>
+    <li><strong>Threat Score &ge; 70</strong> (red) &mdash; Almost certainly phishing. Do not click any links or reply.</li>
+    <li><strong>Threat Score 40-69</strong> (orange) &mdash; Suspicious. Verify the sender through a different channel before acting.</li>
+    <li><strong>Threat Score &lt; 40</strong> (green) &mdash; Likely safe, but always be cautious.</li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0"><strong>Phishing</strong> is when someone sends a fake email pretending to be your bank, your boss, or a service you use. They want you to click a link that leads to a fake login page where they steal your password. If an email creates urgency ("Your account will be closed!") or asks you to click a link, analyze it here first.</p></div>
+</div>
+</section>
+
+<!-- ==================== THREAT BOARD ==================== -->
+<section id="threat-board">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">ALT-10</span>
+    <span class="panel-label">THREAT BOARD</span>
+    <span class="panel-name">Threat Board</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This is the complete history of every security alert Cereberus has generated. It's where you go to review, filter, and acknowledge alerts.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like an alarm panel that logs every time a sensor was triggered, with timestamps and urgency levels. You can filter by alarm type and mark them as "seen."</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Severity filters</strong> &mdash; Click FLASH, IMMEDIATE, PRIORITY, ROUTINE, or ADVISORY to filter</li>
+    <li><strong>Alert cards</strong> &mdash; Each alert shows its severity stamp, title, source module, timestamp, and an ACKNOWLEDGE button</li>
+    <li><strong>Expandable details</strong> &mdash; Click an alert to see the full description and any additional context</li>
+  </ul>
+
+  <div class="action-box"><p style="margin:0">Click <strong>ACKNOWLEDGE</strong> on individual alerts, or <strong>ACKNOWLEDGE ALL VISIBLE</strong> to clear them in bulk. Acknowledging doesn't delete the alert &mdash; it just marks it as "reviewed."</p></div>
+</div>
+</section>
+
+<!-- ==================== OPS LOG ==================== -->
+<section id="ops-log">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">OPS-11</span>
+    <span class="panel-label">OPS LOG</span>
+    <span class="panel-name">Operations Log</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>A complete audit trail of everything that has happened in the system &mdash; who logged in, who changed a setting, who executed a remediation action, and when.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a security camera log that records every person who walked through the building, which doors they opened, and when. You can't tamper with it &mdash; it's a permanent record.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Log table</strong> with columns: Log#, Timestamp, Operator (who), Action (what), Endpoint (where), Status (HTTP code), IP (from where)</li>
+    <li><strong>Filter controls</strong> &mdash; Filter by action type (CREATE, UPDATE, DELETE) or by operator username</li>
+    <li><strong>Expandable rows</strong> &mdash; Click any row to see the full JSON payload of what was sent</li>
+  </ul>
+</div>
+</section>
+
+<!-- ==================== SEC COMMS ==================== -->
+<section id="sec-comms">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">VPN-12</span>
+    <span class="panel-label">SEC COMMS</span>
+    <span class="panel-name">Secure Communications</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel manages your VPN (Virtual Private Network) &mdash; the encrypted tunnel that protects your internet traffic from being spied on. It monitors your VPN connection, checks for leaks, and provides an emergency kill switch.</p>
+
+  <div class="analogy-box"><p style="margin:0">Imagine you're sending a secret letter. A VPN is like putting that letter inside an armored truck instead of handing it to a random person on the street. This panel checks that the armored truck is actually locked, the driver is legit, and nobody drilled a hole in the side.</p></div>
+
+  <h4>Key features</h4>
+  <ul>
+    <li><strong>Tunnel Status</strong> &mdash; Shows if VPN is connected, which protocol (WireGuard, OpenVPN, etc.), the provider, and your VPN IP address</li>
+    <li><strong>Kill Switch</strong> &mdash; An emergency cutoff that blocks ALL internet traffic if your VPN disconnects. Three modes:
+      <ul>
+        <li><em>Alert Only</em> &mdash; Just warns you if VPN drops</li>
+        <li><em>App Specific</em> &mdash; Blocks specific apps if VPN drops</li>
+        <li><em>Full</em> &mdash; Blocks ALL internet traffic until VPN reconnects</li>
+      </ul>
+    </li>
+    <li><strong>Seal Integrity Check</strong> &mdash; Tests for three types of leaks:
+      <ul>
+        <li><em>IP Seal</em> &mdash; Is your real IP address hidden?</li>
+        <li><em>DNS Seal</em> &mdash; Are your website lookups going through the VPN?</li>
+        <li><em>IPv6 Seal</em> &mdash; Is IPv6 traffic leaking outside the tunnel?</li>
+      </ul>
+    </li>
+    <li><strong>Config Audit</strong> &mdash; Checks your VPN configuration for security weaknesses</li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0">A <strong>VPN</strong> encrypts all your internet traffic so that your ISP, hackers on public WiFi, and other snoopers can't see what you're doing online. A <strong>DNS leak</strong> is when your website lookups (like visiting google.com) bypass the VPN and go through your normal internet provider, potentially revealing your browsing habits.</p></div>
+</div>
+</section>
+
+<!-- ==================== AI OPS ==================== -->
+<section id="ai-ops">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">AIO-15</span>
+    <span class="panel-label">AI OPS</span>
+    <span class="panel-name">AI Operations Center</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This is the brain of Cereberus. It shows the status of all AI models, lets you train them, view anomaly detection events, and see threat predictions.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a control room for three security guards (AI models) who each watch your network in different ways. This panel shows you how well each guard is performing, lets you retrain them, and shows their predictions.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Model Status Matrix</strong> &mdash; Shows the health of all 4 AI models (Autoencoder, Isolation Forest, Z-Score, LSTM Forecaster) with ONLINE/OFFLINE status</li>
+    <li><strong>Detector Weights</strong> &mdash; How much each detector's opinion counts in the final vote (Autoencoder: 40%, Isolation Forest: 35%, Z-Score: 25%)</li>
+    <li><strong>Drift Monitor</strong> &mdash; Shows if the AI models are becoming less accurate over time and need retraining</li>
+    <li><strong>Training Command</strong> &mdash; Buttons to retrain each model type</li>
+    <li><strong>Predictive Threat Forecast</strong> &mdash; A chart showing actual vs predicted resource usage, with alerts if a threshold breach is predicted</li>
+    <li><strong>Anomaly Event Log</strong> &mdash; A history of every anomaly the AI has detected, with scores and confidence levels</li>
+  </ul>
+
+  <div class="action-box"><p style="margin:0">Click the training buttons to retrain models with the latest data. This is useful after your computer's normal usage patterns have changed (e.g., new software installed, new work schedule).</p></div>
+</div>
+</section>
+
+<!-- ==================== INCIDENT CMD ==================== -->
+<section id="incident-cmd">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">INC-16</span>
+    <span class="panel-label">INCIDENT CMD</span>
+    <span class="panel-name">Incident Command</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>When something serious happens, this is where you track and manage the response. An "incident" is a confirmed or suspected security event that requires investigation and action.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a war room during a crisis. There's a board tracking each incident &mdash; what happened, who's investigating, what actions have been taken, and what's the current status.</p></div>
+
+  <h4>Incident lifecycle</h4>
+  <p>Every incident moves through these stages:</p>
+  <ol>
+    <li><strong>OPEN</strong> &mdash; Just created, nobody is looking at it yet</li>
+    <li><strong>INVESTIGATING</strong> &mdash; Someone is actively looking into it</li>
+    <li><strong>CONTAINED</strong> &mdash; The threat has been stopped from spreading</li>
+    <li><strong>RESOLVED</strong> &mdash; The root cause has been fixed</li>
+    <li><strong>CLOSED</strong> &mdash; All done, documented and archived</li>
+  </ol>
+
+  <h4>What you can do</h4>
+  <ul>
+    <li>Create new incidents manually with <strong>+ NEW INCIDENT</strong></li>
+    <li>Change the status as you work through the response</li>
+    <li>Assign incidents to specific people</li>
+    <li>Add notes and timeline events to document your investigation</li>
+    <li>View linked alerts and remediation actions</li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0">Cereberus can <strong>auto-create incidents</strong> when the Fusion Center detects high-confidence threat correlations. You don't always have to create them manually.</p></div>
+</div>
+</section>
+
+<!-- ==================== DEF PROTOCOL ==================== -->
+<section id="def-protocol">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">PLB-17</span>
+    <span class="panel-label">DEF PROTOCOL</span>
+    <span class="panel-name">Defense Protocols</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>Playbooks are automated "if this, then that" rules. When a specific threat is detected, Cereberus can automatically take action without waiting for you to respond. This panel lets you view, create, and manage these rules.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like standing orders for your security guard: "If someone tries the door more than 5 times, lock them out." "If you see someone climb through a window, sound the alarm and call the police." The guard follows these rules automatically.</p></div>
+
+  <h4>Default playbooks (pre-configured)</h4>
+  <ol>
+    <li><strong>Block Brute Force Source</strong> &mdash; Automatically blocks the IP address when a brute force attack is detected</li>
+    <li><strong>Quarantine Suspicious File</strong> &mdash; Moves files flagged by both integrity monitoring and IOC matching to a secure vault</li>
+    <li><strong>Auto-Contain Critical</strong> &mdash; Creates an incident and begins containment when a critical-severity alert fires</li>
+    <li><strong>Network Isolation on Compromise</strong> &mdash; Fully isolates the network when multiple compromise indicators are correlated</li>
+  </ol>
+
+  <h4>Creating custom playbooks</h4>
+  <p>Each playbook rule has:</p>
+  <ul>
+    <li><strong>Trigger type</strong> &mdash; What event starts it (alert severity, anomaly score, threat level, correlation, module event)</li>
+    <li><strong>Conditions</strong> &mdash; Specific criteria that must be met (JSON format)</li>
+    <li><strong>Actions</strong> &mdash; What to do when triggered (block IP, kill process, quarantine file, etc.)</li>
+    <li><strong>Cooldown</strong> &mdash; How long to wait before the rule can fire again (prevents spam)</li>
+    <li><strong>Requires confirmation</strong> &mdash; Whether to ask for human approval before executing</li>
+  </ul>
+
+  <div class="action-box"><p style="margin:0">Use <strong>DRY RUN</strong> to test a playbook rule without actually executing it. This shows you what would happen without any real consequences.</p></div>
+</div>
+</section>
+
+<!-- ==================== SIGNAL RELAY ==================== -->
+<section id="signal-relay">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">SRL-18</span>
+    <span class="panel-label">SIGNAL RELAY</span>
+    <span class="panel-name">Signal Relay</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel connects Cereberus to the outside world &mdash; external threat data feeds, notification channels, and data export tools.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like the communications center in a military base. It receives intelligence reports from other agencies (threat feeds), sends alerts to your phone or email (notifications), and can produce reports for briefings (exports).</p></div>
+
+  <h4>Three tabs</h4>
+  <ul>
+    <li><strong>Notification Channels</strong> &mdash; Set up where alerts are sent:
+      <ul>
+        <li><em>Webhook</em> &mdash; Send JSON data to any URL (useful for Slack, Discord, Teams integrations)</li>
+        <li><em>SMTP</em> &mdash; Send email alerts through your mail server</li>
+      </ul>
+    </li>
+    <li><strong>Threat Feed Config</strong> &mdash; Manage external threat intelligence sources:
+      <ul>
+        <li><em>VirusTotal</em> &mdash; Global malware and threat database (requires API key)</li>
+        <li><em>AbuseIPDB</em> &mdash; Database of reported malicious IP addresses (requires API key)</li>
+        <li><em>URLhaus</em> &mdash; Database of malicious URLs (free, no API key needed)</li>
+      </ul>
+    </li>
+    <li><strong>Export Center</strong> &mdash; Download your security data as CSV or JSON files for reporting or analysis in other tools</li>
+  </ul>
+</div>
+</section>
+
+<!-- ==================== PERSONNEL ==================== -->
+<section id="personnel">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">PER-19</span>
+    <span class="panel-label">PERSONNEL</span>
+    <span class="panel-name">Personnel Management</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>Admin-only panel for managing who has access to Cereberus and what they can do. You can create users, assign roles, and manage API keys for programmatic access.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like the HR department for your security team. You decide who gets hired, what clearance level they get, and you can issue or revoke access badges.</p></div>
+
+  <h4>What you can do</h4>
+  <ul>
+    <li>Create new user accounts with username, password, and role</li>
+    <li>Change a user's role (Admin, Analyst, Operator, Viewer)</li>
+    <li>Generate API keys for automated tools that need to access Cereberus</li>
+    <li>Revoke API keys that are no longer needed</li>
+  </ul>
+
+  <div class="warning-box"><p style="margin:0">This panel is only visible to administrators. If you can't see it, ask your admin to grant you the appropriate role.</p></div>
+</div>
+</section>
+
+<!-- ==================== OPS BOARD ==================== -->
+<section id="ops-board">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">MOD-13</span>
+    <span class="panel-label">OPS BOARD</span>
+    <span class="panel-name">Operations Board</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>Shows the on/off status of all 10 security modules and lets you enable or disable them individually.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like the breaker box in your house. Each breaker controls a different system (lights, outlets, HVAC). You can flip individual breakers on or off.</p></div>
+
+  <h4>The 10 modules</h4>
+  <table>
+    <tr><th>Module</th><th>What it does</th></tr>
+    <tr><td>VPN Guardian</td><td>Monitors VPN connection and checks for leaks</td></tr>
+    <tr><td>Network Sentinel</td><td>Watches all network connections for suspicious activity</td></tr>
+    <tr><td>Brute Force Shield</td><td>Detects and blocks password-guessing attacks</td></tr>
+    <tr><td>File Integrity</td><td>Monitors critical files for unauthorized changes</td></tr>
+    <tr><td>Process Analyzer</td><td>Scans running programs for suspicious behavior</td></tr>
+    <tr><td>Vulnerability Scanner</td><td>Checks for security weaknesses in your system</td></tr>
+    <tr><td>Email Analyzer</td><td>Detects phishing in email content</td></tr>
+    <tr><td>Resource Monitor</td><td>Tracks CPU, memory, disk, and network usage</td></tr>
+    <tr><td>Persistence Scanner</td><td>Watches for malware hiding in startup locations</td></tr>
+    <tr><td>Threat Intelligence</td><td>Correlates events across all modules to find complex threats</td></tr>
+  </table>
+
+  <div class="action-box"><p style="margin:0">Click the toggle button on any module card to enable or disable it. A green glowing LED means the module is online.</p></div>
+</div>
+</section>
+
+<!-- ==================== SYS CONFIG ==================== -->
+<section id="sys-config">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">CFG-14</span>
+    <span class="panel-label">SYS CONFIG</span>
+    <span class="panel-name">System Configuration</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>The settings panel where you can fine-tune how Cereberus operates. Settings are organized into categories: General, VPN, Network, Security, Integrity, and Alerting.</p>
+
+  <div class="action-box"><p style="margin:0">Change a value and click <strong>APPLY</strong> to save. The button turns red when a value has been modified but not yet saved.</p></div>
+
+  <div class="warning-box"><p style="margin:0">Changing settings like scan intervals, thresholds, or watched paths can affect detection accuracy. Only modify settings if you understand what they do.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- HOW THE AI WORKS -->
+<!-- ============================================================ -->
+<section id="how-ai-works">
+<h2>How the AI Works</h2>
+
+<p>Cereberus uses artificial intelligence to detect threats that simple rules can't catch. Here's how it works, explained simply:</p>
+
+<h3>Three Guards, One Vote</h3>
+<p>Instead of relying on a single AI model, Cereberus uses <strong>three different AI "guards"</strong> that each watch your network in a different way. For something to be flagged as an anomaly, <strong>at least 2 out of 3 must agree</strong>. This dramatically reduces false alarms.</p>
+
+<div class="module-grid">
+  <div class="module-card">
+    <div class="module-callsign">GUARD 1 &mdash; AUTOENCODER</div>
+    <h4>The Memory Expert</h4>
+    <p>This AI memorizes what "normal" network behavior looks like. Then it tries to recreate what it sees. If the recreation is very different from reality, something abnormal is happening. Think of it like an artist who memorizes a scene &mdash; if they try to draw it from memory and it looks totally different, the scene must have changed.</p>
+  </div>
+  <div class="module-card">
+    <div class="module-callsign">GUARD 2 &mdash; ISOLATION FOREST</div>
+    <h4>The Outsider Detector</h4>
+    <p>This AI looks for data points that don't fit in with the crowd. It works by randomly splitting data into groups &mdash; normal data takes many splits to isolate, while outliers can be isolated quickly. Think of it like trying to separate one red marble from a bag of blue marbles &mdash; the red one is easy to pick out.</p>
+  </div>
+  <div class="module-card">
+    <div class="module-callsign">GUARD 3 &mdash; Z-SCORE</div>
+    <h4>The Statistician</h4>
+    <p>This uses basic math to check if numbers are way too high or too low compared to average. If your network normally has 100 connections and suddenly has 5,000, the Z-Score says "that's 49 standard deviations from normal &mdash; something is definitely wrong."</p>
+  </div>
+  <div class="module-card">
+    <div class="module-callsign">THE VOTE</div>
+    <h4>Majority Rules</h4>
+    <p>All three guards vote. If at least 2 say "this is suspicious," it gets flagged. If only 1 says it's suspicious but the other 2 disagree, it's probably a false alarm and gets ignored. This is called <strong>ensemble detection</strong>.</p>
+  </div>
+</div>
+
+<h3>Learning What "Normal" Looks Like</h3>
+<p>Cereberus builds <strong>behavioral baselines</strong> &mdash; a profile of what your computer's normal activity looks like. How many connections do you typically have? What's your normal CPU usage? How much network traffic is typical? Once it knows "normal," it can spot "abnormal."</p>
+
+<div class="tip-box"><p style="margin:0">Baselines improve over time as the system collects more data. After running for a few days, the AI becomes much more accurate because it has a better picture of what your specific "normal" looks like.</p></div>
+
+<h3>Predicting Future Threats</h3>
+<p>The <strong>LSTM (Long Short-Term Memory) forecaster</strong> is an AI that looks at patterns in past data to predict what might happen next. If it sees a pattern that historically preceded an attack, it can warn you before the attack happens.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAKING ACTION -->
+<!-- ============================================================ -->
+<section id="taking-action">
+<h2>Taking Action &mdash; Step-by-Step Guides</h2>
+
+<h3>How to run a vulnerability scan and fix findings</h3>
+<ol>
+  <li>Click <strong>THREAT ASMT</strong> in the sidebar</li>
+  <li>Click <strong>INITIATE THREAT SCAN</strong></li>
+  <li>Wait for the scan to complete (usually 5-10 seconds)</li>
+  <li>Review any findings that appear</li>
+  <li>For each fixable finding, click <strong>NEUTRALIZE THREAT</strong></li>
+  <li>Read the Operational Briefing carefully</li>
+  <li>Click <strong>AUTHORIZE ACTION</strong> to fix it</li>
+  <li>Verify the finding disappears after the automatic re-scan</li>
+</ol>
+
+<h3>How to investigate a suspicious network connection</h3>
+<ol>
+  <li>Click <strong>SIGINT</strong> in the sidebar</li>
+  <li>Click <strong>FLAGGED ONLY</strong> to filter to suspicious connections</li>
+  <li>Note the PID (process ID) of the flagged connection</li>
+  <li>Switch to <strong>ASSET TRKR</strong> and find that PID in the process list</li>
+  <li>Check the process name and process tree &mdash; is it a legitimate program?</li>
+  <li>If it's suspicious, check the <strong>FUSION CTR</strong> for any related IOC matches</li>
+  <li>If confirmed malicious, create an incident in <strong>INCIDENT CMD</strong></li>
+</ol>
+
+<h3>How to respond to an incident</h3>
+<ol>
+  <li>Click <strong>INCIDENT CMD</strong> in the sidebar</li>
+  <li>Click the incident to select it</li>
+  <li>Change status to <strong>INVESTIGATING</strong></li>
+  <li>Assign it to yourself or a team member</li>
+  <li>Add notes as you investigate</li>
+  <li>If you need to take action, use <strong>THREAT ASMT</strong> for vulnerability fixes or <strong>DEF PROTOCOL</strong> for automated responses</li>
+  <li>Once contained, change status to <strong>CONTAINED</strong></li>
+  <li>After resolving the root cause, mark as <strong>RESOLVED</strong> then <strong>CLOSED</strong></li>
+</ol>
+
+<h3>How to check if your VPN is leaking</h3>
+<ol>
+  <li>Click <strong>SEC COMMS</strong> in the sidebar</li>
+  <li>Verify the tunnel status shows CONNECTED</li>
+  <li>Click <strong>SEAL INTEGRITY CHECK</strong></li>
+  <li>Check all three seals: IP, DNS, and IPv6</li>
+  <li>Green = sealed (good). Red = breach (your real information is leaking)</li>
+  <li>If any seal shows a breach, consider enabling the kill switch in FULL mode</li>
+</ol>
+</section>
+
+<!-- ============================================================ -->
+<!-- ROLES -->
+<!-- ============================================================ -->
+<section id="roles">
+<h2>User Roles &amp; Permissions</h2>
+
+<p>Cereberus uses Role-Based Access Control (RBAC) &mdash; different users get different levels of access based on their role.</p>
+
+<table>
+  <tr><th>Role</th><th>Who is this for?</th><th>What they can do</th><th>What they can't do</th></tr>
+  <tr>
+    <td><strong>Admin</strong></td>
+    <td>System owner / IT manager</td>
+    <td>Everything &mdash; full access to all panels and actions</td>
+    <td>Nothing is restricted</td>
+  </tr>
+  <tr>
+    <td><strong>Analyst</strong></td>
+    <td>Security investigators</td>
+    <td>View all data, manage incidents, manage alerts, run AI operations, export data</td>
+    <td>Can't manage users, change settings, or execute remediation</td>
+  </tr>
+  <tr>
+    <td><strong>Operator</strong></td>
+    <td>Day-to-day responders</td>
+    <td>View data, acknowledge alerts, manage modules, execute remediation</td>
+    <td>Can't manage users, run AI ops, or change playbooks</td>
+  </tr>
+  <tr>
+    <td><strong>Viewer</strong></td>
+    <td>Read-only observers</td>
+    <td>View the dashboard only</td>
+    <td>Can't change anything or execute any actions</td>
+  </tr>
+</table>
+
+<div class="tip-box"><p style="margin:0"><strong>API Keys</strong> are like passwords for automated tools. Instead of logging in with a username and password, a script can use an API key to access Cereberus data programmatically. Any user can generate API keys for their own account. Keys can be revoked at any time.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- GLOSSARY -->
+<!-- ============================================================ -->
+<section id="glossary">
+<h2>Glossary</h2>
+
+<p>Every technical term used in Cereberus, explained in plain English:</p>
+
+<div class="concept-grid">
+  <div class="concept"><strong>Alert</strong><span>A notification that something security-relevant happened. Like a smoke detector beeping.</span></div>
+  <div class="concept"><strong>Anomaly</strong><span>Something that deviates from normal behavior. Like your car suddenly making a noise it's never made before.</span></div>
+  <div class="concept"><strong>API Key</strong><span>A password-like token for automated systems to access Cereberus without logging in through the browser.</span></div>
+  <div class="concept"><strong>Autoencoder</strong><span>An AI model that memorizes normal patterns and flags anything that looks different.</span></div>
+  <div class="concept"><strong>Baseline</strong><span>What "normal" looks like for your specific computer. Built over time by observing regular activity.</span></div>
+  <div class="concept"><strong>Brute Force</strong><span>An attack that tries thousands of passwords to break into an account. Like trying every key on a keyring.</span></div>
+  <div class="concept"><strong>Correlation</strong><span>Connecting related events to identify a bigger threat. Like connecting witnesses' stories to solve a case.</span></div>
+  <div class="concept"><strong>DEFCON</strong><span>Defense Condition. A 1-5 scale showing current threat severity. 5 = peaceful, 1 = emergency.</span></div>
+  <div class="concept"><strong>DNS Leak</strong><span>When your website lookups bypass your VPN, revealing which sites you visit to your ISP.</span></div>
+  <div class="concept"><strong>Ensemble</strong><span>Multiple AI models working together and voting. Reduces false alarms dramatically.</span></div>
+  <div class="concept"><strong>Firewall</strong><span>Software that controls which network traffic is allowed in or out of your computer. Like a bouncer at a club.</span></div>
+  <div class="concept"><strong>Guest Account</strong><span>A built-in Windows account that lets anyone log in without a password. Should always be disabled.</span></div>
+  <div class="concept"><strong>IOC</strong><span>Indicator of Compromise. A known fingerprint of a threat &mdash; a bad IP, a malware file hash, or a phishing URL.</span></div>
+  <div class="concept"><strong>Isolation Forest</strong><span>An AI model that finds outliers by trying to separate each data point from the rest.</span></div>
+  <div class="concept"><strong>JWT</strong><span>JSON Web Token. The login token that proves your identity when you access the system.</span></div>
+  <div class="concept"><strong>Kill Switch</strong><span>An emergency feature that blocks all internet traffic if your VPN disconnects, preventing data leaks.</span></div>
+  <div class="concept"><strong>Lateral Movement</strong><span>An attacker moving from one computer to another inside your network after initial compromise.</span></div>
+  <div class="concept"><strong>LSTM</strong><span>Long Short-Term Memory. An AI that predicts future threats by analyzing patterns in past events.</span></div>
+  <div class="concept"><strong>Persistence</strong><span>Techniques malware uses to survive computer restarts by hiding in startup locations.</span></div>
+  <div class="concept"><strong>Phishing</strong><span>Fake emails or messages designed to trick you into revealing passwords or clicking malware links.</span></div>
+  <div class="concept"><strong>Playbook</strong><span>An automated response rule: "if this threat appears, take this action." Like standing orders.</span></div>
+  <div class="concept"><strong>Port</strong><span>A numbered channel for network communication. Like apartment numbers &mdash; 443 = secure web, 445 = file sharing.</span></div>
+  <div class="concept"><strong>RBAC</strong><span>Role-Based Access Control. Different users get different permissions based on their assigned role.</span></div>
+  <div class="concept"><strong>Remediation</strong><span>Taking action to fix a security problem. Like patching a hole in a fence.</span></div>
+  <div class="concept"><strong>RPC</strong><span>Remote Procedure Call. A Windows service that lets programs communicate. Can be exploited if exposed.</span></div>
+  <div class="concept"><strong>SMB</strong><span>Server Message Block. Windows file sharing protocol. Notoriously exploitable (WannaCry, EternalBlue).</span></div>
+  <div class="concept"><strong>Threat Feed</strong><span>An external database of known threats that's updated regularly, like a wanted list from the FBI.</span></div>
+  <div class="concept"><strong>VPN</strong><span>Virtual Private Network. Encrypts your internet traffic so nobody between you and the destination can read it.</span></div>
+  <div class="concept"><strong>Z-Score</strong><span>A statistical measure of how unusual a number is compared to the average. High Z-Score = very unusual.</span></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- API REFERENCE -->
+<!-- ============================================================ -->
+<section id="api-ref">
+<h2>API Reference</h2>
+<p>All endpoints are prefixed with <code>/api/v1</code>. Authentication required unless noted. This section is for developers building integrations.</p>
+
+<h3>Authentication</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/login</code></td><td>None</td><td>Login and receive JWT token</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/register</code></td><td>None</td><td>Register new user account</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/auth/me</code></td><td>Any authenticated</td><td>Get current user info</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/refresh</code></td><td>Any authenticated</td><td>Refresh JWT token</td></tr>
+</table>
+
+<h3>Dashboard</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/dashboard/summary</code></td><td>VIEW_DASHBOARD</td><td>System overview summary</td></tr>
+</table>
+
+<h3>VPN Guardian</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vpn/status</code></td><td>VIEW_DASHBOARD</td><td>VPN connection status</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vpn/leak-check</code></td><td>VIEW_DASHBOARD</td><td>Run VPN leak check</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vpn/config-audit</code></td><td>VIEW_DASHBOARD</td><td>Audit VPN configuration</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/vpn/kill-switch/mode</code></td><td>MANAGE_MODULES</td><td>Set kill switch mode</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vpn/kill-switch/status</code></td><td>VIEW_DASHBOARD</td><td>Kill switch status</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vpn/routes</code></td><td>VIEW_DASHBOARD</td><td>Routing table</td></tr>
+</table>
+
+<h3>Network</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/traffic</code></td><td>VIEW_DASHBOARD</td><td>Network traffic data</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/blocked-ips</code></td><td>VIEW_DASHBOARD</td><td>Currently blocked IPs</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/connections</code></td><td>VIEW_DASHBOARD</td><td>Active connections</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/stats</code></td><td>VIEW_DASHBOARD</td><td>Network statistics</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/flagged</code></td><td>VIEW_DASHBOARD</td><td>Flagged connections</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/anomaly</code></td><td>VIEW_DASHBOARD</td><td>Latest anomaly result</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/anomaly/history</code></td><td>VIEW_DASHBOARD</td><td>Anomaly history</td></tr>
+</table>
+
+<h3>Alerts</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/alerts/</code></td><td>VIEW_ALERTS</td><td>List alerts with filters</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/alerts/acknowledge</code></td><td>MANAGE_ALERTS</td><td>Acknowledge alert IDs</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/alerts/{id}</code></td><td>VIEW_ALERTS</td><td>Get single alert</td></tr>
+  <tr><td><span class="method-badge method-patch">PATCH</span></td><td><code>/alerts/{id}/feedback</code></td><td>MANAGE_ALERTS</td><td>Submit TP/FP feedback</td></tr>
+</table>
+
+<h3>Brute Force Shield</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/security/brute-force/events</code></td><td>VIEW_DASHBOARD</td><td>Failed login events</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/security/brute-force/blocked</code></td><td>VIEW_DASHBOARD</td><td>Blocked IPs list</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/security/brute-force/unblock/{ip}</code></td><td>EXECUTE_REMEDIATION</td><td>Unblock an IP</td></tr>
+</table>
+
+<h3>File Integrity</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/integrity/baselines</code></td><td>VIEW_DASHBOARD</td><td>File baselines</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/integrity/scan</code></td><td>VIEW_DASHBOARD</td><td>Trigger integrity scan</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/integrity/changes</code></td><td>VIEW_DASHBOARD</td><td>Detected file changes</td></tr>
+</table>
+
+<h3>Processes</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/processes/</code></td><td>VIEW_DASHBOARD</td><td>All running processes</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/processes/suspicious</code></td><td>VIEW_DASHBOARD</td><td>Suspicious processes</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/processes/{pid}/tree</code></td><td>VIEW_DASHBOARD</td><td>Process tree</td></tr>
+</table>
+
+<h3>Vulnerabilities</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vulnerabilities/</code></td><td>VIEW_DASHBOARD</td><td>All vulnerabilities</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/vulnerabilities/scan</code></td><td>VIEW_DASHBOARD</td><td>Trigger vulnerability scan</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/vulnerabilities/report</code></td><td>VIEW_DASHBOARD</td><td>Last scan report</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/vulnerabilities/remediate</code></td><td>EXECUTE_REMEDIATION</td><td>Remediate a vulnerability</td></tr>
+</table>
+
+<h3>Email</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/email/analyze</code></td><td>VIEW_DASHBOARD</td><td>Analyze email content</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/email/recent</code></td><td>VIEW_DASHBOARD</td><td>Recent analyses</td></tr>
+</table>
+
+<h3>Resources</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/resources/current</code></td><td>VIEW_DASHBOARD</td><td>Current resource metrics</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/resources/history</code></td><td>VIEW_DASHBOARD</td><td>Resource history</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/resources/alerts</code></td><td>VIEW_DASHBOARD</td><td>Resource threshold alerts</td></tr>
+</table>
+
+<h3>Persistence</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/persistence/entries</code></td><td>VIEW_DASHBOARD</td><td>Persistence entries</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/persistence/changes</code></td><td>VIEW_DASHBOARD</td><td>Persistence changes</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/persistence/scan</code></td><td>VIEW_DASHBOARD</td><td>Trigger persistence scan</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/persistence/status</code></td><td>VIEW_DASHBOARD</td><td>Scanner status</td></tr>
+</table>
+
+<h3>Threat Intelligence</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/threats/level</code></td><td>VIEW_DASHBOARD</td><td>Current threat level</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/threats/feed</code></td><td>VIEW_DASHBOARD</td><td>Threat event feed</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/threats/correlations</code></td><td>VIEW_DASHBOARD</td><td>Threat correlations</td></tr>
+</table>
+
+<h3>AI Operations</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/status</code></td><td>VIEW_DASHBOARD</td><td>AI system status</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ai/train/anomaly</code></td><td>AI_OPERATIONS</td><td>Train anomaly models</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ai/train/resource</code></td><td>AI_OPERATIONS</td><td>Train resource forecaster</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ai/train/baseline</code></td><td>AI_OPERATIONS</td><td>Train behavioral baseline</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/models</code></td><td>VIEW_DASHBOARD</td><td>List model versions</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ai/models/{name}/rollback/{ver}</code></td><td>AI_OPERATIONS</td><td>Rollback model version</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/anomaly-events</code></td><td>VIEW_DASHBOARD</td><td>Anomaly detection events</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/predictions</code></td><td>VIEW_DASHBOARD</td><td>Threat predictions</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/baselines</code></td><td>VIEW_DASHBOARD</td><td>Behavioral baselines</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ai/drift</code></td><td>VIEW_DASHBOARD</td><td>Model drift metrics</td></tr>
+</table>
+
+<h3>Incidents</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/incidents/</code></td><td>MANAGE_INCIDENTS</td><td>List incidents</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/incidents/</code></td><td>MANAGE_INCIDENTS</td><td>Create incident</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/incidents/stats</code></td><td>VIEW_DASHBOARD</td><td>Incident statistics</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/incidents/{id}</code></td><td>MANAGE_INCIDENTS</td><td>Get incident details</td></tr>
+  <tr><td><span class="method-badge method-patch">PATCH</span></td><td><code>/incidents/{id}/status</code></td><td>MANAGE_INCIDENTS</td><td>Update status</td></tr>
+  <tr><td><span class="method-badge method-patch">PATCH</span></td><td><code>/incidents/{id}/assign</code></td><td>MANAGE_INCIDENTS</td><td>Assign to analyst</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/incidents/{id}/note</code></td><td>MANAGE_INCIDENTS</td><td>Add note</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/incidents/{id}/timeline</code></td><td>MANAGE_INCIDENTS</td><td>Add timeline event</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/incidents/{id}/actions</code></td><td>MANAGE_INCIDENTS</td><td>Incident remediation actions</td></tr>
+</table>
+
+<h3>Playbooks</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/playbooks/</code></td><td>MANAGE_PLAYBOOKS</td><td>List playbook rules</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/playbooks/</code></td><td>MANAGE_PLAYBOOKS</td><td>Create rule</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/playbooks/{id}</code></td><td>MANAGE_PLAYBOOKS</td><td>Get rule details</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/playbooks/{id}</code></td><td>MANAGE_PLAYBOOKS</td><td>Update rule</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/playbooks/{id}</code></td><td>MANAGE_PLAYBOOKS</td><td>Delete rule</td></tr>
+  <tr><td><span class="method-badge method-patch">PATCH</span></td><td><code>/playbooks/{id}/toggle</code></td><td>MANAGE_PLAYBOOKS</td><td>Enable/disable rule</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/playbooks/{id}/execute</code></td><td>MANAGE_PLAYBOOKS</td><td>Execute rule manually</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/playbooks/{id}/dry-run</code></td><td>MANAGE_PLAYBOOKS</td><td>Dry-run rule</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/playbooks/{id}/history</code></td><td>MANAGE_PLAYBOOKS</td><td>Execution history</td></tr>
+</table>
+
+<h3>Remediation</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/remediation/execute</code></td><td>EXECUTE_REMEDIATION</td><td>Execute remediation action</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/remediation/actions</code></td><td>VIEW_DASHBOARD</td><td>List remediation actions</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/remediation/actions/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get action details</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/remediation/actions/{id}/rollback</code></td><td>EXECUTE_REMEDIATION</td><td>Rollback action</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/remediation/quarantine</code></td><td>VIEW_DASHBOARD</td><td>List quarantined files</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/remediation/quarantine/{id}/restore</code></td><td>EXECUTE_REMEDIATION</td><td>Restore quarantined file</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/remediation/quarantine/{id}</code></td><td>EXECUTE_REMEDIATION</td><td>Delete from vault</td></tr>
+</table>
+
+<h3>Threat Feeds</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/feeds/</code></td><td>MANAGE_FEEDS</td><td>List feeds</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/feeds/</code></td><td>MANAGE_FEEDS</td><td>Create feed</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/feeds/{id}</code></td><td>MANAGE_FEEDS</td><td>Get feed details</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/feeds/{id}</code></td><td>MANAGE_FEEDS</td><td>Update feed</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/feeds/{id}</code></td><td>MANAGE_FEEDS</td><td>Delete feed</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/feeds/{id}/poll</code></td><td>MANAGE_FEEDS</td><td>Poll feed now</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/feeds/{id}/status</code></td><td>MANAGE_FEEDS</td><td>Feed status</td></tr>
+</table>
+
+<h3>IOC Database</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ioc/</code></td><td>VIEW_DASHBOARD</td><td>List IOCs</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ioc/search</code></td><td>VIEW_DASHBOARD</td><td>Search IOCs</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ioc/</code></td><td>MANAGE_FEEDS</td><td>Create IOC</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ioc/bulk</code></td><td>MANAGE_FEEDS</td><td>Bulk import IOCs</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/ioc/check</code></td><td>VIEW_DASHBOARD</td><td>Check values against IOCs</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ioc/stats</code></td><td>VIEW_DASHBOARD</td><td>IOC statistics</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ioc/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get single IOC</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/ioc/{id}</code></td><td>MANAGE_FEEDS</td><td>Deactivate IOC</td></tr>
+</table>
+
+<h3>Notifications</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/notifications/channels</code></td><td>MANAGE_SETTINGS</td><td>List channels</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/notifications/channels</code></td><td>MANAGE_SETTINGS</td><td>Create channel</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/notifications/channels/{id}</code></td><td>MANAGE_SETTINGS</td><td>Get channel</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/notifications/channels/{id}</code></td><td>MANAGE_SETTINGS</td><td>Update channel</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/notifications/channels/{id}</code></td><td>MANAGE_SETTINGS</td><td>Delete channel</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/notifications/channels/{id}/test</code></td><td>MANAGE_SETTINGS</td><td>Test channel</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/notifications/event-types</code></td><td>VIEW_DASHBOARD</td><td>List event types</td></tr>
+</table>
+
+<h3>Export</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/export/</code></td><td>EXPORT_DATA</td><td>Request data export</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/export/</code></td><td>EXPORT_DATA</td><td>List export jobs</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/export/{id}</code></td><td>EXPORT_DATA</td><td>Get export job</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/export/{id}/download</code></td><td>EXPORT_DATA</td><td>Download export file</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/export/{id}</code></td><td>EXPORT_DATA</td><td>Delete export job</td></tr>
+</table>
+
+<h3>Users &amp; RBAC</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/users/</code></td><td>MANAGE_USERS</td><td>List users</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/users/</code></td><td>MANAGE_USERS</td><td>Create user</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/users/roles</code></td><td>MANAGE_USERS</td><td>List roles</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/users/api-keys</code></td><td>Any authenticated</td><td>Generate API key</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/users/api-keys</code></td><td>Any authenticated</td><td>List API keys</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/users/api-keys/{id}</code></td><td>Any authenticated</td><td>Revoke API key</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/users/{id}</code></td><td>MANAGE_USERS</td><td>Get user details</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/users/{id}</code></td><td>MANAGE_USERS</td><td>Update user</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/users/{id}</code></td><td>MANAGE_USERS</td><td>Delete user</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/users/{id}/roles</code></td><td>MANAGE_USERS</td><td>Assign role</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/users/{id}/roles/{rid}</code></td><td>MANAGE_USERS</td><td>Remove role</td></tr>
+</table>
+
+<h3>Modules, Settings, Analytics, Audit, Search, Reports, Comments, Layouts, Maintenance</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/modules/</code></td><td>VIEW_DASHBOARD</td><td>All module statuses</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/modules/{name}/toggle</code></td><td>MANAGE_MODULES</td><td>Enable/disable module</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/modules/{name}/health</code></td><td>VIEW_DASHBOARD</td><td>Module health check</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/settings/</code></td><td>VIEW_DASHBOARD</td><td>All settings</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/settings/{key}</code></td><td>MANAGE_SETTINGS</td><td>Update a setting</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/analytics/alert-trend</code></td><td>VIEW_DASHBOARD</td><td>Alert trend data</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/analytics/severity-distribution</code></td><td>VIEW_DASHBOARD</td><td>Severity breakdown</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/analytics/module-activity</code></td><td>VIEW_DASHBOARD</td><td>Per-module activity</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/audit/logs</code></td><td>VIEW_DASHBOARD</td><td>Audit log entries</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/search</code></td><td>VIEW_DASHBOARD</td><td>Global search</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/reports/generate</code></td><td>EXPORT_DATA</td><td>Generate report</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/comments/{type}/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get comments</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/comments/{type}/{id}</code></td><td>VIEW_DASHBOARD</td><td>Add comment</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/layouts/</code></td><td>VIEW_DASHBOARD</td><td>List layouts</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/layouts/</code></td><td>VIEW_DASHBOARD</td><td>Create layout</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/maintenance/backup</code></td><td>MANAGE_SYSTEM</td><td>Trigger backup</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/maintenance/backups</code></td><td>MANAGE_SYSTEM</td><td>List backups</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/maintenance/cleanup</code></td><td>MANAGE_SYSTEM</td><td>Trigger cleanup</td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEPLOYMENT -->
+<!-- ============================================================ -->
+<section id="deployment">
+<h2>Deployment &amp; Configuration</h2>
+
+<h3>Running Locally</h3>
+<pre><code># Start the backend (requires admin/elevated terminal for firewall commands)
+python -B -m uvicorn cereberus.backend.main:app --host 127.0.0.1 --port 8001
+
+# Start the frontend (in a separate terminal)
+cd cereberus/frontend
+npm run dev</code></pre>
+
+<h3>Docker Setup</h3>
+<pre><code># Build and start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f cereberus</code></pre>
+
+<h3>Key Environment Variables (.env file)</h3>
+<table>
+  <tr><th>Variable</th><th>What it does</th><th>Default</th></tr>
+  <tr><td><code>SECRET_KEY</code></td><td>Secret key used to sign login tokens. Change this in production!</td><td>Random</td></tr>
+  <tr><td><code>DATABASE_URL</code></td><td>Where the database is stored</td><td><code>sqlite+aiosqlite:///./cereberus.db</code></td></tr>
+  <tr><td><code>DEFAULT_ADMIN_PASSWORD</code></td><td>Initial admin password (change immediately)</td><td><code>admin</code></td></tr>
+  <tr><td><code>VIRUSTOTAL_API_KEY</code></td><td>API key for VirusTotal threat feed</td><td>(empty)</td></tr>
+  <tr><td><code>ABUSEIPDB_API_KEY</code></td><td>API key for AbuseIPDB threat feed</td><td>(empty)</td></tr>
+  <tr><td><code>SMTP_HOST</code></td><td>Mail server for email notifications</td><td>(empty)</td></tr>
+  <tr><td><code>SMTP_PORT</code></td><td>Mail server port</td><td><code>587</code></td></tr>
+</table>
+</section>
+
+<!-- ============================================================ -->
+<!-- FOOTER -->
+<!-- ============================================================ -->
+<p style="margin-top: 80px; text-align: center; color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;">
+  &mdash; END OF DOCUMENT &mdash;
+</p>
+<p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 8px;">
+  CEREBERUS v0.9.0 &bull; AI-Powered Cybersecurity Defense System
+</p>
+
+</div>
+</div>
+
+<!-- Sidebar active link highlighting -->
+<script>
+(function() {
+  var links = document.querySelectorAll('.nav-link');
+  var sections = [];
+  links.forEach(function(link) {
+    var href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      var target = document.getElementById(href.slice(1));
+      if (target) sections.push({ link: link, el: target });
+    }
+  });
+  function onScroll() {
+    var scrollY = window.scrollY + 100;
+    var active = null;
+    for (var i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollY) { active = sections[i]; break; }
+    }
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (active) active.link.classList.add('active');
+  }
+  window.addEventListener('scroll', onScroll);
+  onScroll();
+})();
+</script>
+</body>
+</html>
