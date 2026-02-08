@@ -185,6 +185,7 @@ export function DiskCleanupPanel() {
   const [error, setError] = useState<string | null>(null);
   const [lastAnalyzed, setLastAnalyzed] = useState<Date | null>(null);
   const [scanComplete, setScanComplete] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
 
   // ── Data Loading ─────────────────────────────────────────────
 
@@ -241,6 +242,8 @@ export function DiskCleanupPanel() {
       setSelectedCategories(new Set());
       // Reload analysis to get updated numbers
       await loadAnalysis();
+      // Refresh large files list if it was scanned
+      if (largeFiles) handleScanLargeFiles();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Cleanup failed';
       setError(msg);
@@ -259,6 +262,23 @@ export function DiskCleanupPanel() {
       setError(msg);
     } finally {
       setScanningFiles(false);
+    }
+  };
+
+  const handleDeleteFile = async (path: string) => {
+    setDeletingFile(path);
+    setError(null);
+    try {
+      await api.deleteFile(path);
+      // Remove from local list immediately
+      setLargeFiles((prev) => prev ? prev.filter((f) => f.path !== path) : prev);
+      // Refresh categories + disk usage in background
+      loadAnalysis();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      setError(msg);
+    } finally {
+      setDeletingFile(null);
     }
   };
 
@@ -728,7 +748,7 @@ export function DiskCleanupPanel() {
                 >
                   <thead>
                     <tr>
-                      {['PATH', 'SIZE', 'MODIFIED', 'TYPE'].map((col) => (
+                      {['PATH', 'SIZE', 'MODIFIED', 'TYPE', ''].map((col) => (
                         <th
                           key={col}
                           style={{
@@ -794,6 +814,31 @@ export function DiskCleanupPanel() {
                           }}
                         >
                           {file.extension || '--'}
+                        </td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.path); }}
+                            disabled={deletingFile === file.path}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '9px',
+                              letterSpacing: '1px',
+                              padding: '3px 10px',
+                              background: 'transparent',
+                              border: '1px solid var(--red-primary)',
+                              color: 'var(--red-primary)',
+                              borderRadius: '2px',
+                              cursor: deletingFile === file.path ? 'not-allowed' : 'pointer',
+                              opacity: deletingFile === file.path ? 0.5 : 0.7,
+                              transition: 'all 0.2s',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {deletingFile === file.path ? <Spinner size={8} color="var(--red-primary)" /> : null}
+                            {deletingFile === file.path ? 'DELETING' : 'DELETE'}
+                          </button>
                         </td>
                       </tr>
                     ))}

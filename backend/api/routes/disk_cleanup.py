@@ -16,6 +16,10 @@ class CleanupRequest(BaseModel):
     categories: list[str]
 
 
+class DeleteFileRequest(BaseModel):
+    path: str
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -79,3 +83,21 @@ async def find_large_files(
         raise HTTPException(status_code=500, detail=f"Large file scan failed: {e}")
 
     return {"files": files}
+
+
+@router.delete("/file")
+async def delete_file(
+    body: DeleteFileRequest,
+    current_user: dict = Depends(require_permission(PERM_EXECUTE_REMEDIATION)),
+):
+    """Delete a single file. Restricted to user home directory."""
+    analyzer = get_disk_analyzer()
+    try:
+        result = await analyzer.delete_file(body.path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File deletion failed: {e}")
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result

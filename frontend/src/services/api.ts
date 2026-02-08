@@ -532,4 +532,6 @@ export const api = {
     const query = searchParams.toString();
     return request(`/disk-cleanup/large-files${query ? '?' + query : ''}`);
   },
+  deleteFile: (path: string) =>
+    request('/disk-cleanup/file', { method: 'DELETE', body: JSON.stringify({ path }) }),
 };

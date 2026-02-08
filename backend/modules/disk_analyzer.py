@@ -276,6 +276,18 @@ class DiskAnalyzer:
 
         return {"results": results, "total_freed": total_freed}
 
+    async def delete_file(self, file_path: str) -> dict:
+        """Delete a single file and return freed bytes.
+
+        Only allows deletion of files under the user's home directory.
+        Refuses to delete system files, executables, or paths outside home.
+
+        Returns:
+            {"path": str, "freed_bytes": int, "error": str | None}
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self._executor, self._delete_single_file, file_path)
+
     async def find_large_files(self, min_size_mb: int = 100, limit: int = 20) -> list[dict]:
         """Find the largest files under the user's home directory.
 
@@ -634,6 +646,36 @@ class DiskAnalyzer:
         # Sort descending by size and trim to limit
         large_files.sort(key=lambda f: f["size_bytes"], reverse=True)
         return large_files[:limit]
+
+    # ------------------------------------------------------------------
+    # Single-file deletion
+    # ------------------------------------------------------------------
+
+    def _delete_single_file(self, file_path: str) -> dict:
+        """Synchronous single-file deletion with safety checks."""
+        home = os.path.expandvars(r"%USERPROFILE%")
+        resolved = os.path.realpath(file_path)
+
+        # Safety: must be under user home
+        if not resolved.lower().startswith(home.lower()):
+            return {"path": file_path, "freed_bytes": 0, "error": "Path outside user home — blocked"}
+
+        # Safety: refuse to delete executables and critical extensions
+        BLOCKED_EXT = {".exe", ".dll", ".sys", ".msi", ".bat", ".cmd", ".ps1", ".vbs"}
+        _, ext = os.path.splitext(resolved)
+        if ext.lower() in BLOCKED_EXT:
+            return {"path": file_path, "freed_bytes": 0, "error": f"Blocked extension: {ext}"}
+
+        if not os.path.isfile(resolved):
+            return {"path": file_path, "freed_bytes": 0, "error": "File not found"}
+
+        try:
+            size = os.path.getsize(resolved)
+            os.unlink(resolved)
+            logger.info("file_deleted", path=resolved, freed_bytes=size)
+            return {"path": file_path, "freed_bytes": size, "error": None}
+        except (PermissionError, OSError) as exc:
+            return {"path": file_path, "freed_bytes": 0, "error": str(exc)}
 
     # ------------------------------------------------------------------
     # Utility
