@@ -6,6 +6,7 @@ flags suspicious ports, and provides stats for the API/dashboard.
 
 import asyncio
 import subprocess
+import time
 from collections import deque
 from datetime import datetime, timezone
 from typing import Optional
@@ -68,10 +69,15 @@ class NetworkSentinel(BaseModule):
         self._cereberus_blocked_ports: set[int] = set()
         self._blocked_ports_last_check: float = 0
 
+        # Warmup grace period — suppress anomaly alerts while model trains on real data
+        self._warmup_seconds: int = cfg.get("anomaly_warmup_seconds", 600)
+        self._started_at: float = 0.0
+
     async def start(self) -> None:
         """Start the connection monitoring loop."""
         self.running = True
         self.health_status = "running"
+        self._started_at = time.monotonic()
         self.logger.info("network_sentinel_starting")
 
         # Run initial scan
@@ -256,7 +262,8 @@ class NetworkSentinel(BaseModule):
                         "established": stats["established"],
                     }
                     self._last_anomaly_result = result
-                    if result.get("is_anomaly"):
+                    in_warmup = (time.monotonic() - self._started_at) < self._warmup_seconds
+                    if result.get("is_anomaly") and not in_warmup:
                         import json
                         event = {
                             "timestamp": self._last_scan.isoformat(),
@@ -283,6 +290,12 @@ class NetworkSentinel(BaseModule):
                             score=result.get("ensemble_score", 0),
                             agreeing=result.get("agreeing_detectors", []),
                         )
+                    elif result.get("is_anomaly") and in_warmup:
+                        self.logger.info(
+                            "anomaly_suppressed_warmup",
+                            score=result.get("ensemble_score", 0),
+                            remaining_s=int(self._warmup_seconds - (time.monotonic() - self._started_at)),
+                        )
             except Exception as e:
                 self.logger.error("ensemble_detection_error", error=str(e))
         elif self._anomaly_detector and self._anomaly_detector.initialized:
@@ -296,7 +309,8 @@ class NetworkSentinel(BaseModule):
                     "established": stats["established"],
                 }
                 self._last_anomaly_result = result
-                if result.get("is_anomaly"):
+                in_warmup = (time.monotonic() - self._started_at) < self._warmup_seconds
+                if result.get("is_anomaly") and not in_warmup:
                     event = {
                         "timestamp": self._last_scan.isoformat(),
                         "anomaly_score": result["anomaly_score"],
@@ -457,7 +471,17 @@ class NetworkSentinel(BaseModule):
         return self._ioc_matches
 
     def get_anomaly_result(self) -> Optional[dict]:
-        """Return the most recent anomaly detection result."""
+        """Return the most recent anomaly detection result.
+
+        During the warmup grace period, is_anomaly is masked to False
+        so that downstream consumers (e.g. threat_intelligence) do not
+        create alerts from an undertrained model.
+        """
+        if self._last_anomaly_result is None:
+            return None
+        in_warmup = (time.monotonic() - self._started_at) < self._warmup_seconds
+        if in_warmup and self._last_anomaly_result.get("is_anomaly"):
+            return {**self._last_anomaly_result, "is_anomaly": False, "warmup": True}
         return self._last_anomaly_result
 
     def get_anomaly_events(self, limit: int = 50) -> list[dict]:

@@ -22,6 +22,7 @@ TRUSTED_DIRS = {
 
 # PIDs that are core Windows processes and should never be flagged suspicious
 SYSTEM_PIDS = {0, 4}  # 0 = System Idle Process, 4 = System
+CEREBERUS_PIDS = {os.getpid(), os.getppid()}  # Self + parent launcher
 
 
 class ProcessAnalyzer(BaseModule):
@@ -124,8 +125,8 @@ class ProcessAnalyzer(BaseModule):
                 suspicious = False
                 suspicious_reasons = []
 
-                # Skip core Windows system processes — never flag these
-                if pid in SYSTEM_PIDS:
+                # Skip core Windows system processes and Cereberus's own processes
+                if pid in SYSTEM_PIDS or pid in CEREBERUS_PIDS or info.get("ppid") in CEREBERUS_PIDS:
                     procs[pid] = {
                         "pid": pid,
                         "name": info.get("name") or "",

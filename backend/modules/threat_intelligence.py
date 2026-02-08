@@ -30,6 +30,9 @@ class ThreatIntelligence(BaseModule):
         self._poll_task: Optional[asyncio.Task] = None
         self._last_poll: Optional[datetime] = None
 
+        # Track already-reported suspicious PIDs to avoid re-alerting
+        self._seen_suspicious_pids: set[int] = set()
+
         # Phase 7 integrations
         self._playbook_executor = None
         self._incident_manager = None
@@ -179,18 +182,24 @@ class ThreatIntelligence(BaseModule):
             except Exception:
                 pass
 
-        # Collect from Process Analyzer
+        # Collect from Process Analyzer — only report newly-suspicious PIDs
         pa = self._module_refs.get("process_analyzer")
         if pa:
             try:
                 suspicious = pa.get_suspicious()
+                current_suspicious_pids = set()
                 for proc in suspicious:
-                    events.append({
-                        "event_type": "new_process_suspicious",
-                        "source_module": "process_analyzer",
-                        "severity": "high",
-                        "details": proc,
-                    })
+                    pid = proc.get("pid")
+                    current_suspicious_pids.add(pid)
+                    if pid not in self._seen_suspicious_pids:
+                        events.append({
+                            "event_type": "new_process_suspicious",
+                            "source_module": "process_analyzer",
+                            "severity": "high",
+                            "details": proc,
+                        })
+                # Prune PIDs that are no longer suspicious
+                self._seen_suspicious_pids = current_suspicious_pids
             except Exception:
                 pass
 
