@@ -27,6 +27,7 @@ import { IncidentResponsePanel } from '../components/IncidentResponsePanel';
 import { PlaybookPanel } from '../components/PlaybookPanel';
 import { IntegrationSettingsPanel } from '../components/IntegrationSettingsPanel';
 import { UserManagementPanel } from '../components/UserManagementPanel';
+import { DiskCleanupPanel } from '../components/DiskCleanupPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { StatusTicker } from '../components/ui/StatusTicker';
@@ -63,6 +64,7 @@ const NAV_ITEMS = [
   { id: 'playbooks', label: 'DEF PROTOCOL', icon: '\u{1F6E1}', fullLabel: 'Defense Protocols' },
   { id: 'integrations', label: 'SIGNAL RELAY', icon: '\u{1F4E1}', fullLabel: 'Signal Relay' },
   { id: 'personnel', label: 'PERSONNEL', icon: '\u{1F464}', fullLabel: 'Personnel Management', adminOnly: true },
+  { id: 'disk', label: 'DISK SANIT', icon: '\u{1F9F9}', fullLabel: 'Disk Sanitation' },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
   { id: 'settings', label: 'SYS CONFIG', icon: '\u2699', fullLabel: 'System Configuration' },
 ] as const;
@@ -85,6 +87,7 @@ const PANEL_CODES: Record<string, string> = {
   playbooks: 'PLB-17',
   integrations: 'SRL-18',
   personnel: 'PER-19',
+  disk: 'DSK-20',
   modules: 'MOD-13',
   settings: 'CFG-14',
 };
@@ -479,6 +482,7 @@ function Dashboard() {
           {activeNav === 'playbooks' && <PanelErrorBoundary panelName="DEF PROTOCOL"><PlaybookPanel /></PanelErrorBoundary>}
           {activeNav === 'integrations' && <PanelErrorBoundary panelName="SIGNAL RELAY"><IntegrationSettingsPanel /></PanelErrorBoundary>}
           {activeNav === 'personnel' && hasPermission('manage_users') && <PanelErrorBoundary panelName="PERSONNEL"><UserManagementPanel /></PanelErrorBoundary>}
+          {activeNav === 'disk' && <PanelErrorBoundary panelName="DISK SANITATION"><DiskCleanupPanel /></PanelErrorBoundary>}
           {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}
           {activeNav === 'settings' && <PanelErrorBoundary panelName="SYS CONFIG"><SettingsPanel /></PanelErrorBoundary>}
         </div>

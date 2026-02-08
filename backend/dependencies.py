@@ -533,3 +533,17 @@ def get_rule_engine():
         from .ai.rule_engine import RuleEngine
         _rule_engine = RuleEngine()
     return _rule_engine
+
+
+# --- Disk Sanitation ---
+
+_disk_analyzer = None
+
+
+def get_disk_analyzer():
+    """Get the Disk Analyzer singleton."""
+    global _disk_analyzer
+    if _disk_analyzer is None:
+        from .modules.disk_analyzer import DiskAnalyzer
+        _disk_analyzer = DiskAnalyzer()
+    return _disk_analyzer

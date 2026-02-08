@@ -520,4 +520,16 @@ export const api = {
     const query = limit ? `?limit=${limit}` : '';
     return request(`/detection-rules/matches${query}`);
   },
+
+  // === Disk Sanitation ===
+  getDiskAnalysis: () => request('/disk-cleanup/analysis'),
+  cleanDisk: (categories: string[]) =>
+    request('/disk-cleanup/clean', { method: 'POST', body: JSON.stringify({ categories }) }),
+  getLargeFiles: (minSizeMb?: number, limit?: number) => {
+    const searchParams = new URLSearchParams();
+    if (minSizeMb) searchParams.set('min_size_mb', String(minSizeMb));
+    if (limit) searchParams.set('limit', String(limit));
+    const query = searchParams.toString();
+    return request(`/disk-cleanup/large-files${query ? '?' + query : ''}`);
+  },
 };
