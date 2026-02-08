@@ -64,15 +64,15 @@ function GaugeArc({ percent, label, color, size = 130 }: { percent: number; labe
         {ticks.map((t, i) => (
           <g key={i}>
             <line x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="var(--text-muted)" strokeWidth={1} />
-            <text x={t.lx} y={t.ly} textAnchor="middle" dominantBaseline="middle" fill="var(--text-muted)" fontSize="7" fontFamily="var(--font-mono)">
+            <text x={t.lx} y={t.ly} textAnchor="middle" dominantBaseline="middle" fill="var(--text-muted)" fontSize="13" fontFamily="var(--font-mono)">
               {t.label}
             </text>
           </g>
         ))}
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text-primary)" fontSize="22" fontWeight="700" fontFamily="var(--font-mono)">
+        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text-primary)" fontSize="28" fontWeight="700" fontFamily="var(--font-mono)">
           {Math.round(percent)}%
         </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" fill="var(--text-muted)" fontSize="9" letterSpacing="2" fontFamily="var(--font-mono)">
+        <text x={cx} y={cy + 14} textAnchor="middle" fill="var(--text-muted)" fontSize="15" letterSpacing="2" fontFamily="var(--font-mono)">
           {label.toUpperCase()}
         </text>
       </svg>
@@ -127,14 +127,14 @@ export function ResourcePanel() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <IntelCard title="MEMORY" classification="UNCLASSIFIED">
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
+              <div style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
                 {current.memory_used_gb} / {current.memory_total_gb} GB
               </div>
             </div>
           </IntelCard>
           <IntelCard title="DISK" classification="UNCLASSIFIED">
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
+              <div style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
                 {current.disk_used_gb} / {current.disk_total_gb} GB
               </div>
             </div>
@@ -147,14 +147,14 @@ export function ResourcePanel() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <IntelCard title="NET SENT" classification="UNCLASSIFIED">
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--cyan-primary)', letterSpacing: '2px' }}>
+              <div style={{ fontSize: '26px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--cyan-primary)', letterSpacing: '2px' }}>
                 {formatBytes(current.net_bytes_sent)}
               </div>
             </div>
           </IntelCard>
           <IntelCard title="NET RECV" classification="UNCLASSIFIED">
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--cyan-primary)', letterSpacing: '2px' }}>
+              <div style={{ fontSize: '26px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--cyan-primary)', letterSpacing: '2px' }}>
                 {formatBytes(current.net_bytes_recv)}
               </div>
             </div>
@@ -165,7 +165,7 @@ export function ResourcePanel() {
       {/* Threshold Breach Log */}
       <IntelCard title="THRESHOLD BREACH LOG" classification="UNCLASSIFIED" status={alerts.length > 0 ? 'warning' : 'active'}>
         {alerts.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
             NO THRESHOLD BREACHES
           </div>
         ) : (
@@ -177,11 +177,11 @@ export function ResourcePanel() {
                 borderRadius: '2px',
                 borderLeft: '3px solid var(--severity-critical)',
               }}>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '4px', letterSpacing: '1px' }}>
+                <div style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '4px', letterSpacing: '1px' }}>
                   {new Date(a.timestamp).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })} UTC
                 </div>
                 {a.breaches.map((b, j) => (
-                  <div key={j} style={{ fontSize: '11px', color: 'var(--severity-high)', fontFamily: 'var(--font-mono)' }}>{b}</div>
+                  <div key={j} style={{ fontSize: '17px', color: 'var(--severity-high)', fontFamily: 'var(--font-mono)' }}>{b}</div>
                 ))}
               </div>
             ))}

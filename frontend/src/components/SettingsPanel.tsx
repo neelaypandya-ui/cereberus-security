@@ -61,7 +61,7 @@ export function SettingsPanel() {
             onClick={() => setActiveCategory(cat)}
             style={{
               padding: '5px 14px',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '1px',
               textTransform: 'uppercase',
@@ -79,7 +79,7 @@ export function SettingsPanel() {
 
       {/* Settings Form */}
       {filtered.length === 0 ? (
-        <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
           NO SETTINGS IN THIS CATEGORY
         </div>
       ) : (
@@ -88,7 +88,7 @@ export function SettingsPanel() {
             <div key={s.key}>
               <label style={{
                 display: 'block',
-                fontSize: '9px',
+                fontSize: '15px',
                 fontFamily: 'var(--font-mono)',
                 color: 'var(--text-muted)',
                 letterSpacing: '2px',
@@ -106,7 +106,7 @@ export function SettingsPanel() {
                   style={{
                     flex: 1,
                     padding: '8px 12px',
-                    fontSize: '12px',
+                    fontSize: '18px',
                     borderRadius: '2px',
                   }}
                 />
@@ -115,7 +115,7 @@ export function SettingsPanel() {
                   disabled={saving === s.key || editValues[s.key] === s.value}
                   style={{
                     padding: '8px 16px',
-                    fontSize: '10px',
+                    fontSize: '16px',
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '1px',
                     background: editValues[s.key] !== s.value ? 'var(--red-dark)' : 'var(--bg-tertiary)',

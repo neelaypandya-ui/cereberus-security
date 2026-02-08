@@ -69,7 +69,7 @@ export function ThreatLevelBanner({ level }: ThreatLevelBannerProps) {
         }} />
         <span style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '13px',
+          fontSize: '19px',
           fontWeight: 700,
           color: config.color,
           letterSpacing: '2px',
@@ -79,7 +79,7 @@ export function ThreatLevelBanner({ level }: ThreatLevelBannerProps) {
       </div>
       <span style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '12px',
+        fontSize: '18px',
         color: config.color,
         letterSpacing: '3px',
       }}>

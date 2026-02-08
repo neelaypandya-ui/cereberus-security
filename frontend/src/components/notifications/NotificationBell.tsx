@@ -40,7 +40,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
           cursor: 'pointer',
           position: 'relative',
           padding: '4px 8px',
-          fontSize: '18px',
+          fontSize: '24px',
           color: 'var(--text-secondary)',
         }}
       >
@@ -52,7 +52,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
             right: 0,
             background: 'var(--severity-critical)',
             color: '#fff',
-            fontSize: '9px',
+            fontSize: '15px',
             fontWeight: 700,
             borderRadius: '50%',
             width: '16px',
@@ -88,7 +88,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
             padding: '12px 16px',
             borderBottom: '1px solid var(--border-default)',
           }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '1px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '1px' }}>
               NOTIFICATIONS
             </span>
             {unreadCount > 0 && (
@@ -98,7 +98,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
                   background: 'none',
                   border: 'none',
                   color: 'var(--cyan-primary)',
-                  fontSize: '11px',
+                  fontSize: '17px',
                   cursor: 'pointer',
                 }}
               >
@@ -110,7 +110,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
           {/* Notification list */}
           <div style={{ maxHeight: '340px', overflow: 'auto' }}>
             {notifications.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '18px' }}>
                 No notifications
               </div>
             ) : (
@@ -130,19 +130,19 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cyan-primary)', flexShrink: 0 }} />
                     )}
                     <span style={{
-                      fontSize: '10px',
+                      fontSize: '16px',
                       fontWeight: 700,
                       color: severityColor(n.severity),
                       textTransform: 'uppercase',
                     }}>
                       {n.severity}
                     </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1 }}>{n.title}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: '18px', color: 'var(--text-primary)', flex: 1 }}>{n.title}</span>
+                    <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       {new Date(n.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', paddingLeft: n.read ? 0 : '14px' }}>
+                  <div style={{ fontSize: '17px', color: 'var(--text-muted)', paddingLeft: n.read ? 0 : '14px' }}>
                     {n.message}
                   </div>
                 </div>

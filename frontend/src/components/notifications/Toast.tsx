@@ -44,10 +44,10 @@ export function Toast({ notification, onDismiss, index }: ToastProps) {
 
       <div style={{ padding: '12px 12px 12px 16px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
             {notification.title}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '17px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
             {notification.message}
           </div>
         </div>
@@ -58,7 +58,7 @@ export function Toast({ notification, onDismiss, index }: ToastProps) {
             border: 'none',
             color: 'var(--text-muted)',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: '20px',
             padding: '0 4px',
             lineHeight: 1,
           }}

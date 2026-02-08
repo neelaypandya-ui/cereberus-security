@@ -65,7 +65,7 @@ export function NetworkPanel() {
             display: 'flex',
             alignItems: 'center',
             fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
+            fontSize: '16px',
             color: 'var(--text-muted)',
             letterSpacing: '1px',
           }}>
@@ -93,7 +93,7 @@ export function NetworkPanel() {
       {/* INTERCEPT LOG Header */}
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '9px',
+        fontSize: '15px',
         letterSpacing: '2px',
         color: 'var(--text-muted)',
         marginBottom: '8px',
@@ -108,7 +108,7 @@ export function NetworkPanel() {
         overflow: 'auto',
         maxHeight: 'calc(100vh - 400px)',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-default)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
               <Th>PROTO</Th>
@@ -144,7 +144,7 @@ export function NetworkPanel() {
             ))}
             {connections.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '17px' }}>
                   No intercepts
                 </td>
               </tr>
@@ -170,7 +170,7 @@ function Th({ children }: { children: React.ReactNode }) {
     <th style={{
       padding: '8px 10px',
       textAlign: 'left',
-      fontSize: '9px',
+      fontSize: '15px',
       color: 'var(--text-muted)',
       letterSpacing: '1px',
       fontWeight: 600,
@@ -192,7 +192,7 @@ function Td({ children }: { children: React.ReactNode }) {
 function filterBtnStyle(active: boolean): React.CSSProperties {
   return {
     padding: '5px 12px',
-    fontSize: '10px',
+    fontSize: '16px',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '1px',
     background: active ? 'var(--red-dark)' : 'var(--bg-tertiary)',

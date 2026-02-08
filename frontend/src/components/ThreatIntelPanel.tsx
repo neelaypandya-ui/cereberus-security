@@ -183,7 +183,7 @@ export function ThreatIntelPanel() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
+            fontSize: '30px',
             boxShadow: `0 0 24px ${levelColor(threatLevel)}40, 0 0 48px ${levelColor(threatLevel)}20`,
             flexShrink: 0,
           }}>
@@ -194,7 +194,7 @@ export function ThreatIntelPanel() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{
-              fontSize: '24px',
+              fontSize: '30px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
               color: levelColor(threatLevel),
@@ -202,13 +202,13 @@ export function ThreatIntelPanel() {
             }}>
               {threatLevel.toUpperCase()}
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px', marginTop: '4px' }}>
+            <div style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px', marginTop: '4px' }}>
               OVERALL THREAT ASSESSMENT
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>ACTIVE CORRELATIONS</div>
-            <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+            <div style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>ACTIVE CORRELATIONS</div>
+            <div style={{ fontSize: '34px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
               {correlations.length}
             </div>
           </div>
@@ -227,7 +227,7 @@ export function ThreatIntelPanel() {
               border: 'none',
               background: activeTab === tab.key ? 'var(--bg-tertiary)' : 'transparent',
               color: activeTab === tab.key ? 'var(--cyan-primary)' : 'var(--text-muted)',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
               letterSpacing: '2px',
@@ -260,11 +260,11 @@ export function ThreatIntelPanel() {
                     <span className={`stamp-badge ${(PRIORITY_MAP[corr.threat_level] || PRIORITY_MAP.info).stampClass}`}>
                       {(PRIORITY_MAP[corr.threat_level] || PRIORITY_MAP.info).label}
                     </span>
-                    <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '1px' }}>
+                    <span style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '1px' }}>
                       {corr.pattern.replace(/_/g, ' ').toUpperCase()}
                     </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>{corr.description}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: '17px', color: 'var(--text-secondary)', flex: 1 }}>{corr.description}</span>
+                    <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       {corr.matched_events.length} events
                     </span>
                   </div>
@@ -286,7 +286,7 @@ export function ThreatIntelPanel() {
 
           <IntelCard title="THREAT EVENT FEED" classification="SECRET//SI">
             {feed.length === 0 ? (
-              <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+              <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
                 NO EVENTS IN FEED
               </div>
             ) : (
@@ -320,7 +320,7 @@ export function ThreatIntelPanel() {
               onChange={(e) => setIocSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadIocs()}
               placeholder="Search IOCs..."
-              style={{ flex: 1, padding: '6px 10px', fontSize: '11px' }}
+              style={{ flex: 1, padding: '6px 10px', fontSize: '17px' }}
             />
             <div style={{ display: 'flex', gap: '2px' }}>
               {IOC_TYPE_FILTERS.map(t => (
@@ -332,7 +332,7 @@ export function ThreatIntelPanel() {
                     border: '1px solid var(--border-default)',
                     background: iocTypeFilter === t ? 'var(--cyan-primary)' : 'transparent',
                     color: iocTypeFilter === t ? 'var(--bg-primary)' : 'var(--text-muted)',
-                    fontSize: '9px',
+                    fontSize: '15px',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     letterSpacing: '1px',
@@ -351,7 +351,7 @@ export function ThreatIntelPanel() {
             <select
               value={addIocForm.ioc_type}
               onChange={(e) => setAddIocForm({ ...addIocForm, ioc_type: e.target.value })}
-              style={{ padding: '4px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
+              style={{ padding: '4px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--font-mono)' }}
             >
               <option value="ip">IP</option>
               <option value="domain">DOMAIN</option>
@@ -364,12 +364,12 @@ export function ThreatIntelPanel() {
               value={addIocForm.value}
               onChange={(e) => setAddIocForm({ ...addIocForm, value: e.target.value })}
               placeholder="Enter indicator value..."
-              style={{ flex: 1, padding: '4px 8px', fontSize: '10px' }}
+              style={{ flex: 1, padding: '4px 8px', fontSize: '16px' }}
             />
             <select
               value={addIocForm.severity}
               onChange={(e) => setAddIocForm({ ...addIocForm, severity: e.target.value })}
-              style={{ padding: '4px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
+              style={{ padding: '4px', background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--font-mono)' }}
             >
               <option value="critical">CRITICAL</option>
               <option value="high">HIGH</option>
@@ -383,7 +383,7 @@ export function ThreatIntelPanel() {
                 background: 'var(--cyan-primary)',
                 border: 'none',
                 color: 'var(--bg-primary)',
-                fontSize: '10px',
+                fontSize: '16px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -396,9 +396,9 @@ export function ThreatIntelPanel() {
 
           {/* IOC Table */}
           <div style={{ maxHeight: '400px', overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: '9px', letterSpacing: '2px' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: '15px', letterSpacing: '2px' }}>
                   <th style={{ padding: '6px', textAlign: 'left' }}>TYPE</th>
                   <th style={{ padding: '6px', textAlign: 'left' }}>VALUE</th>
                   <th style={{ padding: '6px', textAlign: 'left' }}>SOURCE</th>
@@ -412,7 +412,7 @@ export function ThreatIntelPanel() {
                 ) : iocs.map((ioc) => (
                   <tr key={ioc.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '6px' }}>
-                      <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', borderRadius: '2px', fontSize: '9px', letterSpacing: '1px' }}>
+                      <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', borderRadius: '2px', fontSize: '15px', letterSpacing: '1px' }}>
                         {ioc.ioc_type.toUpperCase()}
                       </span>
                     </td>
@@ -423,7 +423,7 @@ export function ThreatIntelPanel() {
                         {(PRIORITY_MAP[ioc.severity] || PRIORITY_MAP.info).label}
                       </span>
                     </td>
-                    <td style={{ padding: '6px', color: 'var(--text-muted)', fontSize: '10px' }}>
+                    <td style={{ padding: '6px', color: 'var(--text-muted)', fontSize: '16px' }}>
                       {ioc.first_seen ? new Date(ioc.first_seen).toLocaleDateString() : '-'}
                     </td>
                   </tr>
@@ -438,7 +438,7 @@ export function ThreatIntelPanel() {
       {activeTab === 'feeds' && (
         <IntelCard title="THREAT FEED OPERATIONS" classification="SECRET//SI">
           {feeds.length === 0 ? (
-            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', letterSpacing: '2px', textAlign: 'center' }}>
+            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px', textAlign: 'center' }}>
               NO FEEDS CONFIGURED
             </div>
           ) : (
@@ -452,10 +452,10 @@ export function ThreatIntelPanel() {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
+                      <div style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '1px' }}>
                         {f.name}
                       </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
+                      <div style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
                         TYPE: {f.feed_type.toUpperCase()} | INTERVAL: {Math.floor(f.poll_interval_seconds / 60)}m | ITEMS: {f.items_count}
                       </div>
                     </div>
@@ -467,7 +467,7 @@ export function ThreatIntelPanel() {
                         background: f.enabled ? 'var(--status-online)' : 'var(--text-muted)',
                         boxShadow: f.enabled ? '0 0 8px var(--status-online)' : 'none',
                       }} />
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: f.enabled ? 'var(--status-online)' : 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '16px', fontFamily: 'var(--font-mono)', color: f.enabled ? 'var(--status-online)' : 'var(--text-muted)' }}>
                         {f.enabled ? 'ACTIVE' : 'DISABLED'}
                       </span>
                       <button
@@ -478,7 +478,7 @@ export function ThreatIntelPanel() {
                           background: f.enabled ? 'var(--amber-primary)' : 'var(--bg-secondary)',
                           border: 'none',
                           color: f.enabled ? 'var(--bg-primary)' : 'var(--text-muted)',
-                          fontSize: '9px',
+                          fontSize: '15px',
                           fontFamily: 'var(--font-mono)',
                           fontWeight: 700,
                           cursor: f.enabled ? 'pointer' : 'not-allowed',
@@ -489,7 +489,7 @@ export function ThreatIntelPanel() {
                       </button>
                     </div>
                   </div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>
+                  <div style={{ fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '6px' }}>
                     LAST POLLED: {f.last_polled ? new Date(f.last_polled).toLocaleString() : 'NEVER'} |
                     LAST SUCCESS: {f.last_success ? new Date(f.last_success).toLocaleString() : 'NEVER'}
                   </div>

@@ -33,7 +33,7 @@ export function StatusTicker({ events }: StatusTickerProps) {
         className="ticker-scroll"
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
+          fontSize: '16px',
           color: 'var(--cyan-primary)',
           paddingLeft: '100%',
         }}

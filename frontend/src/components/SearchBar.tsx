@@ -84,7 +84,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
         borderRadius: '6px',
         padding: '4px 10px',
       }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{'\u{1F50D}'}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '20px' }}>{'\u{1F50D}'}</span>
         <input
           type="text"
           value={query}
@@ -98,7 +98,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
             border: 'none',
             outline: 'none',
             color: 'var(--text-primary)',
-            fontSize: '12px',
+            fontSize: '18px',
             fontFamily: 'var(--font-sans)',
           }}
         />
@@ -120,7 +120,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
           overflow: 'auto',
         }}>
           {results.total_count === 0 ? (
-            <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+            <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '18px' }}>
               No results found
             </div>
           ) : (
@@ -128,7 +128,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
               {/* Alerts */}
               {r.alerts.length > 0 && (
                 <div>
-                  <div style={{ padding: '8px 12px', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '8px 12px', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
                     ALERTS ({r.alerts.length})
                   </div>
                   {r.alerts.map((a) => (
@@ -138,8 +138,8 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
                       borderBottom: '1px solid var(--border-default)',
                     }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: severityColor(a.severity), textTransform: 'uppercase' }}>{a.severity}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{a.title}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: severityColor(a.severity), textTransform: 'uppercase' }}>{a.severity}</span>
+                        <span style={{ fontSize: '18px', color: 'var(--text-primary)' }}>{a.title}</span>
                       </div>
                     </div>
                   ))}
@@ -149,7 +149,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
               {/* Processes */}
               {r.processes.length > 0 && (
                 <div>
-                  <div style={{ padding: '8px 12px', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '8px 12px', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
                     PROCESSES ({r.processes.length})
                   </div>
                   {r.processes.map((p, i) => (
@@ -157,7 +157,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
                       padding: '8px 12px',
                       cursor: 'pointer',
                       borderBottom: '1px solid var(--border-default)',
-                      fontSize: '12px',
+                      fontSize: '18px',
                       color: 'var(--text-secondary)',
                     }}>
                       {p.name} (PID: {p.pid})
@@ -169,7 +169,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
               {/* Connections */}
               {r.connections.length > 0 && (
                 <div>
-                  <div style={{ padding: '8px 12px', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '8px 12px', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
                     CONNECTIONS ({r.connections.length})
                   </div>
                   {r.connections.map((c, i) => (
@@ -177,7 +177,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
                       padding: '8px 12px',
                       cursor: 'pointer',
                       borderBottom: '1px solid var(--border-default)',
-                      fontSize: '12px',
+                      fontSize: '18px',
                       color: 'var(--text-secondary)',
                       fontFamily: 'var(--font-mono)',
                     }}>
@@ -190,7 +190,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
               {/* Vulnerabilities */}
               {r.vulnerabilities.length > 0 && (
                 <div>
-                  <div style={{ padding: '8px 12px', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
+                  <div style={{ padding: '8px 12px', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px', borderBottom: '1px solid var(--border-default)' }}>
                     VULNERABILITIES ({r.vulnerabilities.length})
                   </div>
                   {r.vulnerabilities.map((v, i) => (
@@ -200,8 +200,8 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
                       borderBottom: '1px solid var(--border-default)',
                     }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: severityColor(v.severity), textTransform: 'uppercase' }}>{v.severity}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{v.title}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: severityColor(v.severity), textTransform: 'uppercase' }}>{v.severity}</span>
+                        <span style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>{v.title}</span>
                       </div>
                     </div>
                   ))}

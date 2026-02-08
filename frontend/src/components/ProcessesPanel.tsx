@@ -74,7 +74,7 @@ export function ProcessesPanel() {
           border: '1px solid var(--severity-critical)',
           borderRadius: '2px',
           marginBottom: '12px',
-          fontSize: '11px',
+          fontSize: '17px',
           fontFamily: 'var(--font-mono)',
           letterSpacing: '1px',
           color: 'var(--severity-critical)',
@@ -88,7 +88,7 @@ export function ProcessesPanel() {
         borderRadius: '2px',
         overflow: 'hidden',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '17px' }}>
           <thead>
             <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-default)' }}>
               <th style={thStyle}>PID</th>
@@ -132,7 +132,7 @@ export function ProcessesPanel() {
                 </td>
                 <td style={tdStyle}>
                   <span style={{
-                    fontSize: '9px',
+                    fontSize: '15px',
                     padding: '2px 6px',
                     borderRadius: '2px',
                     fontFamily: 'var(--font-mono)',
@@ -165,7 +165,7 @@ export function ProcessesPanel() {
           borderRadius: '2px',
         }}>
           <div style={{
-            fontSize: '10px', fontFamily: 'var(--font-mono)',
+            fontSize: '16px', fontFamily: 'var(--font-mono)',
             letterSpacing: '2px', color: 'var(--text-muted)', marginBottom: '10px',
           }}>
             PROCESS TREE &#x2014; PID {expandedPid}
@@ -193,13 +193,13 @@ function TreeNode({ node, depth }: { node: ProcessInfo; depth: number }) {
         gap: '8px',
         padding: '3px 8px',
         fontFamily: 'var(--font-mono)',
-        fontSize: '11px',
+        fontSize: '17px',
         color: node.suspicious ? 'var(--severity-critical)' : 'var(--text-primary)',
         borderLeft: depth > 0 ? '1px dashed var(--border-default)' : 'none',
       }}>
         <span style={{ color: 'var(--text-muted)' }}>{node.pid}</span>
         <span>{node.name}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{node.exe}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '16px' }}>{node.exe}</span>
       </div>
       {node.children?.map((child) => (
         <TreeNode key={child.pid} node={child} depth={depth + 1} />
@@ -211,7 +211,7 @@ function TreeNode({ node, depth }: { node: ProcessInfo; depth: number }) {
 const thStyle: React.CSSProperties = {
   textAlign: 'left',
   padding: '8px 10px',
-  fontSize: '9px',
+  fontSize: '15px',
   fontWeight: 600,
   fontFamily: 'var(--font-mono)',
   color: 'var(--text-muted)',
@@ -222,7 +222,7 @@ const thStyle: React.CSSProperties = {
 const tdStyle: React.CSSProperties = {
   padding: '6px 10px',
   fontFamily: 'var(--font-mono)',
-  fontSize: '11px',
+  fontSize: '17px',
 };
 
 function tabStyle(active: boolean): React.CSSProperties {
@@ -232,7 +232,7 @@ function tabStyle(active: boolean): React.CSSProperties {
     border: `1px solid ${active ? 'var(--border-active)' : 'var(--border-default)'}`,
     borderRadius: '2px',
     color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-    fontSize: '10px',
+    fontSize: '16px',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '1px',
     cursor: 'pointer',

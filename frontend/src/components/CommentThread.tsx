@@ -45,7 +45,7 @@ export function CommentThread({ targetType, targetId }: CommentThreadProps) {
 
   return (
     <div style={{ marginTop: '8px' }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '6px' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '6px' }}>
         COMMS ({comments.length})
       </div>
 
@@ -53,19 +53,19 @@ export function CommentThread({ targetType, targetId }: CommentThreadProps) {
         <div key={c.id} className="cable-feed-item" style={{ padding: '6px 8px', marginBottom: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--cyan-primary)', fontWeight: 600 }}>[{c.username}]</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--cyan-primary)', fontWeight: 600 }}>[{c.username}]</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', marginLeft: '6px' }}>
                 {new Date(c.created_at).toLocaleString('en-US', { hour12: false })}
               </span>
             </div>
             <button
               onClick={() => handleDelete(c.id)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px', padding: '0 4px' }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
             >
               x
             </button>
           </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)', marginTop: '2px' }}>{c.content}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '17px', color: 'var(--text-primary)', marginTop: '2px' }}>{c.content}</div>
         </div>
       ))}
 
@@ -76,9 +76,9 @@ export function CommentThread({ targetType, targetId }: CommentThreadProps) {
           value={newComment}
           onChange={e => setNewComment(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
-          style={{ flex: 1, padding: '4px 8px', fontSize: '10px' }}
+          style={{ flex: 1, padding: '4px 8px', fontSize: '16px' }}
         />
-        <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '8px' }} onClick={handleAdd}>SEND</button>
+        <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={handleAdd}>SEND</button>
       </div>
     </div>
   );

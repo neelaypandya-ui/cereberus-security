@@ -31,15 +31,15 @@ export function DonutChart({ data, height = 200, centerLabel, centerValue }: Don
           ))}
         </Pie>
         <Tooltip
-          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '12px' }}
+          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '18px' }}
         />
         {centerLabel && (
-          <text x="50%" y="47%" textAnchor="middle" fill="#e8e8e8" fontSize="20" fontWeight="700" fontFamily="'Cascadia Code', monospace">
+          <text x="50%" y="47%" textAnchor="middle" fill="#e8e8e8" fontSize="28" fontWeight="700" fontFamily="'Cascadia Code', monospace">
             {centerValue ?? total}
           </text>
         )}
         {centerLabel && (
-          <text x="50%" y="58%" textAnchor="middle" fill="#666" fontSize="10" letterSpacing="1">
+          <text x="50%" y="58%" textAnchor="middle" fill="#666" fontSize="18" letterSpacing="1">
             {centerLabel.toUpperCase()}
           </text>
         )}

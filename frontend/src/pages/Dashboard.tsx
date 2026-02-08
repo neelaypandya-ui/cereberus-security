@@ -256,17 +256,17 @@ function Dashboard() {
           </div>
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '14px',
+            fontSize: '20px',
             fontWeight: 700,
             letterSpacing: '4px',
-            color: 'var(--red-primary)',
+            color: 'var(--status-online)',
             marginTop: '8px',
           }}>
             CEREBERUS
           </div>
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '8px',
+            fontSize: '14px',
             letterSpacing: '3px',
             color: 'var(--text-muted)',
             marginTop: '2px',
@@ -288,7 +288,7 @@ function Dashboard() {
             }} />
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '8px',
+              fontSize: '14px',
               letterSpacing: '2px',
               color: 'var(--status-online)',
             }}>
@@ -317,7 +317,7 @@ function Dashboard() {
                   border: 'none',
                   borderLeft: isActive ? undefined : '2px solid transparent',
                   color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontSize: '11px',
+                  fontSize: '17px',
                   fontFamily: 'var(--font-mono)',
                   letterSpacing: '1px',
                   cursor: 'pointer',
@@ -326,7 +326,7 @@ function Dashboard() {
                   transition: 'all 0.15s ease',
                 }}
               >
-                <span style={{ fontSize: '12px', width: '16px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ fontSize: '18px', width: '16px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {health !== 'none' && health !== 'transparent' && (
                   <div style={{
@@ -353,7 +353,7 @@ function Dashboard() {
               border: '1px solid var(--border-default)',
               borderRadius: '2px',
               color: 'var(--text-muted)',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '2px',
               cursor: 'pointer',
@@ -388,14 +388,14 @@ function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexShrink: 0 }}>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
+              fontSize: '16px',
               color: 'var(--text-muted)',
               letterSpacing: '1px',
             }}>
               [{PANEL_CODES[activeNav] || 'SYS-00'}]
             </span>
             <h1 style={{
-              fontSize: '14px',
+              fontSize: '20px',
               fontWeight: 600,
               letterSpacing: '2px',
               fontFamily: 'var(--font-mono)',
@@ -411,7 +411,7 @@ function Dashboard() {
             <div style={{ textAlign: 'right' }}>
               <div style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '14px',
+                fontSize: '20px',
                 fontWeight: 700,
                 color: 'var(--cyan-primary)',
                 letterSpacing: '2px',
@@ -420,7 +420,7 @@ function Dashboard() {
               </div>
               <div style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '8px',
+                fontSize: '14px',
                 color: 'var(--text-muted)',
                 letterSpacing: '1px',
               }}>

@@ -36,14 +36,14 @@ export function DualLineChart({
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" />
-        <XAxis dataKey={xKey} stroke="#666" fontSize={10} />
-        <YAxis stroke="#666" fontSize={10} />
+        <XAxis dataKey={xKey} stroke="#666" fontSize={16} />
+        <YAxis stroke="#666" fontSize={16} />
         <Tooltip
           contentStyle={{
             background: '#161616',
             border: '1px solid #2d2d2d',
             borderRadius: '6px',
-            fontSize: '12px',
+            fontSize: '18px',
           }}
           labelStyle={{ color: '#a0a0a0' }}
         />
@@ -74,7 +74,7 @@ export function DualLineChart({
               value: thresholdLabel || 'Threshold',
               position: 'right',
               fill: '#ff1744',
-              fontSize: 9,
+              fontSize: 15,
             }}
           />
         )}

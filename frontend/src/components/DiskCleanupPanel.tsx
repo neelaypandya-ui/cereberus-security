@@ -128,7 +128,7 @@ function SectionHeader({ label }: { label: string }) {
       <div
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
+          fontSize: '17px',
           letterSpacing: '2px',
           color: 'var(--cyan-primary)',
           marginBottom: '6px',
@@ -341,7 +341,7 @@ export function DiskCleanupPanel() {
                   justifyContent: 'space-between',
                   marginTop: '8px',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '1px',
                   color: 'var(--text-secondary)',
                 }}
@@ -370,7 +370,7 @@ export function DiskCleanupPanel() {
                   textAlign: 'center',
                   marginTop: '4px',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '18px',
+                  fontSize: '24px',
                   fontWeight: 700,
                   color: usageColor(analysis.disk_usage.percent),
                   letterSpacing: '2px',
@@ -388,7 +388,7 @@ export function DiskCleanupPanel() {
               disabled={loading}
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
+                fontSize: '16px',
                 letterSpacing: '2px',
                 padding: '8px 20px',
                 background: 'transparent',
@@ -411,7 +411,7 @@ export function DiskCleanupPanel() {
               disabled={selectedCategories.size === 0 || cleaning}
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '10px',
+                fontSize: '16px',
                 letterSpacing: '2px',
                 padding: '8px 20px',
                 background: confirmPurge ? 'rgba(220, 38, 38, 0.1)' : 'transparent',
@@ -440,7 +440,7 @@ export function DiskCleanupPanel() {
                 borderLeft: '3px solid var(--red-primary)',
                 borderRadius: '2px',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
+                fontSize: '17px',
                 letterSpacing: '1px',
                 color: 'var(--red-primary)',
                 display: 'flex',
@@ -457,7 +457,7 @@ export function DiskCleanupPanel() {
                   color: 'var(--red-primary)',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '12px',
+                  fontSize: '18px',
                 }}
               >
                 &times;
@@ -474,7 +474,7 @@ export function DiskCleanupPanel() {
                 borderLeft: '3px solid var(--cyan-primary)',
                 borderRadius: '2px',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
+                fontSize: '17px',
                 letterSpacing: '1px',
                 color: 'var(--cyan-primary)',
                 animation: 'fadeIn 0.3s ease',
@@ -493,7 +493,7 @@ export function DiskCleanupPanel() {
                 borderLeft: '3px solid var(--status-online)',
                 borderRadius: '2px',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
+                fontSize: '17px',
                 letterSpacing: '1px',
                 color: 'var(--status-online)',
                 animation: 'fadeIn 0.3s ease',
@@ -524,7 +524,7 @@ export function DiskCleanupPanel() {
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '10px',
+                    fontSize: '16px',
                     letterSpacing: '1px',
                     color: 'var(--text-muted)',
                   }}
@@ -601,7 +601,7 @@ export function DiskCleanupPanel() {
                           <span
                             style={{
                               fontFamily: 'var(--font-mono)',
-                              fontSize: '12px',
+                              fontSize: '18px',
                               fontWeight: 700,
                               color: 'var(--text-primary)',
                               letterSpacing: '1px',
@@ -623,7 +623,7 @@ export function DiskCleanupPanel() {
                         <div
                           style={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '11px',
+                            fontSize: '17px',
                             color: 'var(--text-secondary)',
                             marginBottom: '4px',
                           }}
@@ -633,7 +633,7 @@ export function DiskCleanupPanel() {
                         <div
                           style={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '10px',
+                            fontSize: '16px',
                             color: 'var(--text-muted)',
                             fontStyle: 'italic',
                             lineHeight: '1.4',
@@ -665,7 +665,7 @@ export function DiskCleanupPanel() {
                 disabled={scanningFiles}
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '2px',
                   padding: '6px 16px',
                   background: 'transparent',
@@ -690,7 +690,7 @@ export function DiskCleanupPanel() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '1px',
                   color: 'var(--text-muted)',
                   padding: '20px 0',
@@ -705,7 +705,7 @@ export function DiskCleanupPanel() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '1px',
                   color: 'var(--text-muted)',
                   padding: '20px 0',
@@ -725,7 +725,7 @@ export function DiskCleanupPanel() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '1px',
                   color: 'var(--text-muted)',
                   padding: '20px 0',
@@ -743,7 +743,7 @@ export function DiskCleanupPanel() {
                     width: '100%',
                     borderCollapse: 'collapse',
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '10px',
+                    fontSize: '16px',
                   }}
                 >
                   <thead>
@@ -757,7 +757,7 @@ export function DiskCleanupPanel() {
                             borderBottom: '1px solid var(--border-default)',
                             color: 'var(--text-muted)',
                             letterSpacing: '2px',
-                            fontSize: '9px',
+                            fontSize: '15px',
                             fontWeight: 600,
                           }}
                         >
@@ -821,7 +821,7 @@ export function DiskCleanupPanel() {
                             disabled={deletingFile === file.path}
                             style={{
                               fontFamily: 'var(--font-mono)',
-                              fontSize: '9px',
+                              fontSize: '15px',
                               letterSpacing: '1px',
                               padding: '3px 10px',
                               background: 'transparent',

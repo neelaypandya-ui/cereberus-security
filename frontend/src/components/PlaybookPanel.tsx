@@ -95,10 +95,10 @@ export function PlaybookPanel() {
     <IntelCard title="DEFENSE PROTOCOLS" classification="TOP SECRET">
       {/* Header Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '1px' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px' }}>
           {rules.length} PROTOCOLS | {rules.filter(r => r.enabled).length} ACTIVE
         </div>
-        <button className="stamp-badge stamp-immediate" style={{ cursor: 'pointer', fontSize: '9px' }} onClick={() => setShowCreate(!showCreate)}>
+        <button className="stamp-badge stamp-immediate" style={{ cursor: 'pointer', fontSize: '15px' }} onClick={() => setShowCreate(!showCreate)}>
           + NEW PROTOCOL
         </button>
       </div>
@@ -107,34 +107,34 @@ export function PlaybookPanel() {
       {showCreate && (
         <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-default)', padding: '12px', marginBottom: '16px', borderRadius: '2px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-            <input className="terminal-input" placeholder="Protocol name..." value={newName} onChange={e => setNewName(e.target.value)} style={{ padding: '6px 8px', fontSize: '11px' }} />
-            <select className="terminal-input" value={newTriggerType} onChange={e => setNewTriggerType(e.target.value)} style={{ padding: '6px 8px', fontSize: '11px' }}>
+            <input className="terminal-input" placeholder="Protocol name..." value={newName} onChange={e => setNewName(e.target.value)} style={{ padding: '6px 8px', fontSize: '17px' }} />
+            <select className="terminal-input" value={newTriggerType} onChange={e => setNewTriggerType(e.target.value)} style={{ padding: '6px 8px', fontSize: '17px' }}>
               {Object.entries(TRIGGER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <input className="terminal-input" placeholder="Description..." value={newDesc} onChange={e => setNewDesc(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '11px', marginBottom: '8px', boxSizing: 'border-box' }} />
+          <input className="terminal-input" placeholder="Description..." value={newDesc} onChange={e => setNewDesc(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '17px', marginBottom: '8px', boxSizing: 'border-box' }} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--text-muted)', marginBottom: '2px' }}>TRIGGER CONDITIONS (JSON)</div>
-              <textarea className="terminal-input" value={newConditions} onChange={e => setNewConditions(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '10px', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }} />
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text-muted)', marginBottom: '2px' }}>TRIGGER CONDITIONS (JSON)</div>
+              <textarea className="terminal-input" value={newConditions} onChange={e => setNewConditions(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '16px', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--text-muted)', marginBottom: '2px' }}>ACTIONS (JSON)</div>
-              <textarea className="terminal-input" value={newActions} onChange={e => setNewActions(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '10px', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }} />
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text-muted)', marginBottom: '2px' }}>ACTIONS (JSON)</div>
+              <textarea className="terminal-input" value={newActions} onChange={e => setNewActions(e.target.value)} style={{ width: '100%', padding: '6px 8px', fontSize: '16px', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span>COOLDOWN (s):</span>
-              <input className="terminal-input" type="number" value={newCooldown} onChange={e => setNewCooldown(Number(e.target.value))} style={{ width: '80px', padding: '4px 6px', fontSize: '10px' }} />
+              <input className="terminal-input" type="number" value={newCooldown} onChange={e => setNewCooldown(Number(e.target.value))} style={{ width: '80px', padding: '4px 6px', fontSize: '16px' }} />
             </label>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <input type="checkbox" checked={newRequiresConfirm} onChange={e => setNewRequiresConfirm(e.target.checked)} />
               REQUIRES CONFIRMATION
             </label>
             <div style={{ flex: 1 }} />
-            <button className="stamp-badge stamp-flash" style={{ cursor: 'pointer', fontSize: '9px' }} onClick={handleCreate}>CREATE</button>
-            <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '9px' }} onClick={() => setShowCreate(false)}>CANCEL</button>
+            <button className="stamp-badge stamp-flash" style={{ cursor: 'pointer', fontSize: '15px' }} onClick={handleCreate}>CREATE</button>
+            <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '15px' }} onClick={() => setShowCreate(false)}>CANCEL</button>
           </div>
         </div>
       )}
@@ -158,22 +158,22 @@ export function PlaybookPanel() {
                   width: '6px', height: '6px', borderRadius: '50%',
                   backgroundColor: rule.enabled ? 'var(--status-online)' : 'var(--text-muted)',
                 }} />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{rule.name}</span>
-                <span className={`stamp-badge ${rule.requires_confirmation ? 'stamp-priority' : 'stamp-cleared'}`} style={{ fontSize: '7px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>{rule.name}</span>
+                <span className={`stamp-badge ${rule.requires_confirmation ? 'stamp-priority' : 'stamp-cleared'}`} style={{ fontSize: '13px' }}>
                   {rule.requires_confirmation ? 'MANUAL CONFIRM' : 'AUTO-EXEC'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="stamp-badge stamp-advisory" style={{ cursor: 'pointer', fontSize: '8px' }} onClick={() => handleToggle(rule.id)}>
+                <button className="stamp-badge stamp-advisory" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={() => handleToggle(rule.id)}>
                   {rule.enabled ? 'DISABLE' : 'ENABLE'}
                 </button>
-                <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '8px' }} onClick={() => handleDryRun(rule.id)}>DRY RUN</button>
-                <button className="stamp-badge stamp-immediate" style={{ cursor: 'pointer', fontSize: '8px' }} onClick={() => handleExecute(rule.id)}>EXECUTE</button>
-                <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '8px' }} onClick={() => handleDelete(rule.id)}>DELETE</button>
+                <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={() => handleDryRun(rule.id)}>DRY RUN</button>
+                <button className="stamp-badge stamp-immediate" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={() => handleExecute(rule.id)}>EXECUTE</button>
+                <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={() => handleDelete(rule.id)}>DELETE</button>
               </div>
             </div>
-            {rule.description && <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{rule.description}</div>}
-            <div style={{ display: 'flex', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)' }}>
+            {rule.description && <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{rule.description}</div>}
+            <div style={{ display: 'flex', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)' }}>
               <span>TRIGGER: <span style={{ color: 'var(--cyan-primary)' }}>{TRIGGER_LABELS[rule.trigger_type] || rule.trigger_type}</span></span>
               <span>COOLDOWN: {rule.cooldown_seconds}s</span>
               <span>EXECUTIONS: {rule.execution_count}</span>
@@ -181,7 +181,7 @@ export function PlaybookPanel() {
             </div>
             <div style={{ marginTop: '4px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
               {rule.actions.map((a, i) => (
-                <span key={i} className="stamp-badge stamp-suspect" style={{ fontSize: '7px' }}>
+                <span key={i} className="stamp-badge stamp-suspect" style={{ fontSize: '13px' }}>
                   {ACTION_LABELS[a.type as string] || String(a.type)} {a.target ? `→ ${String(a.target)}` : ''}
                 </span>
               ))}
@@ -189,18 +189,18 @@ export function PlaybookPanel() {
           </div>
         ))}
         {rules.length === 0 && (
-          <div style={{ padding: '30px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>NO DEFENSE PROTOCOLS CONFIGURED</div>
+          <div style={{ padding: '30px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '17px', color: 'var(--text-muted)' }}>NO DEFENSE PROTOCOLS CONFIGURED</div>
         )}
       </div>
 
       {/* Dry Run Result */}
       {dryRunResult != null && (
         <div style={{ marginTop: '16px', background: 'var(--bg-tertiary)', border: '1px solid var(--cyan-primary)', padding: '12px', borderRadius: '2px' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--cyan-primary)', marginBottom: '4px', letterSpacing: '1px' }}>DRY RUN RESULT</div>
-          <pre style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--cyan-primary)', marginBottom: '4px', letterSpacing: '1px' }}>DRY RUN RESULT</div>
+          <pre style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: 0 }}>
             {JSON.stringify(dryRunResult, null, 2)}
           </pre>
-          <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '8px', marginTop: '8px' }} onClick={() => setDryRunResult(null)}>DISMISS</button>
+          <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '14px', marginTop: '8px' }} onClick={() => setDryRunResult(null)}>DISMISS</button>
         </div>
       )}
     </IntelCard>

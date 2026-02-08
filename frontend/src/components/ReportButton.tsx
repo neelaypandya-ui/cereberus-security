@@ -28,7 +28,7 @@ export function ReportButton() {
       disabled={loading}
       style={{
         padding: '6px 16px',
-        fontSize: '11px',
+        fontSize: '17px',
         fontWeight: 600,
         background: loading ? 'var(--bg-tertiary)' : 'var(--red-primary)',
         color: '#fff',

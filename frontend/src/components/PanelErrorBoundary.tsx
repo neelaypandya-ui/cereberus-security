@@ -39,7 +39,7 @@ class PanelErrorBoundary extends Component<Props, State> {
           fontFamily: 'var(--font-mono, monospace)',
         }}>
           <div style={{
-            fontSize: '12px',
+            fontSize: '18px',
             letterSpacing: '2px',
             color: 'var(--severity-critical, #ff1744)',
             marginBottom: '12px',
@@ -48,7 +48,7 @@ class PanelErrorBoundary extends Component<Props, State> {
             {'// CONTAINMENT BREACH \u2014 '}{this.props.panelName}
           </div>
           <div style={{
-            fontSize: '11px',
+            fontSize: '17px',
             color: 'var(--text-secondary, #999)',
             marginBottom: '16px',
             lineHeight: '1.6',
@@ -65,7 +65,7 @@ class PanelErrorBoundary extends Component<Props, State> {
               border: '1px solid var(--severity-critical, #ff1744)',
               borderRadius: '2px',
               color: 'var(--severity-critical, #ff1744)',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono, monospace)',
               letterSpacing: '2px',
               cursor: 'pointer',

@@ -55,7 +55,7 @@ export function IntelCard({ title, classification, status = 'active', children, 
           )}
           <span style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
+            fontSize: '17px',
             letterSpacing: '2px',
             textTransform: 'uppercase',
             color: 'var(--text-secondary)',
@@ -66,7 +66,7 @@ export function IntelCard({ title, classification, status = 'active', children, 
         {classification && (
           <span style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '9px',
+            fontSize: '15px',
             letterSpacing: '1px',
             color: 'var(--red-primary)',
             opacity: 0.7,

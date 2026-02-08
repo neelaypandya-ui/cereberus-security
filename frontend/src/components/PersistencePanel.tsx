@@ -75,7 +75,7 @@ export function PersistencePanel() {
       overflow: 'auto',
       maxHeight: 'calc(100vh - 320px)',
     }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-default)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
             <th style={thStyle}>SOURCE</th>
@@ -105,7 +105,7 @@ export function PersistencePanel() {
                       {STATUS_LABELS[e.status].label}
                     </span>
                   ) : (
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>BASELINE</span>
+                    <span style={{ fontSize: '16px', color: 'var(--text-muted)' }}>BASELINE</span>
                   )}
                 </td>
               )}
@@ -113,7 +113,7 @@ export function PersistencePanel() {
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={showStatus ? 4 : 3} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', letterSpacing: '2px', fontSize: '11px' }}>
+              <td colSpan={showStatus ? 4 : 3} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', letterSpacing: '2px', fontSize: '17px' }}>
                 NO ENTRIES FOUND
               </td>
             </tr>
@@ -140,7 +140,7 @@ export function PersistencePanel() {
           disabled={scanning}
           style={{
             padding: '5px 14px',
-            fontSize: '10px',
+            fontSize: '16px',
             fontFamily: 'var(--font-mono)',
             letterSpacing: '1px',
             background: scanning ? 'var(--bg-tertiary)' : 'var(--cyan-dark)',
@@ -163,7 +163,7 @@ export function PersistencePanel() {
           border: '1px solid var(--severity-critical)',
           borderRadius: '2px',
           marginBottom: '10px',
-          fontSize: '10px',
+          fontSize: '16px',
           fontFamily: 'var(--font-mono)',
           letterSpacing: '2px',
           color: 'var(--severity-critical)',
@@ -181,7 +181,7 @@ export function PersistencePanel() {
 const thStyle: React.CSSProperties = {
   padding: '8px 10px',
   textAlign: 'left',
-  fontSize: '9px',
+  fontSize: '15px',
   fontFamily: 'var(--font-mono)',
   color: 'var(--text-muted)',
   letterSpacing: '1px',
@@ -196,7 +196,7 @@ const tdStyle: React.CSSProperties = {
 function tabBtnStyle(active: boolean): React.CSSProperties {
   return {
     padding: '5px 12px',
-    fontSize: '10px',
+    fontSize: '16px',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '1px',
     background: active ? 'var(--red-dark)' : 'var(--bg-tertiary)',

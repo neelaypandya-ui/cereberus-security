@@ -36,10 +36,10 @@ export function TimelineChart({
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" />}
-          <XAxis dataKey={xKey} tickFormatter={formatXAxis} stroke="#666" fontSize={10} />
-          <YAxis stroke="#666" fontSize={10} />
+          <XAxis dataKey={xKey} tickFormatter={formatXAxis} stroke="#666" fontSize={16} />
+          <YAxis stroke="#666" fontSize={16} />
           <Tooltip
-            contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '12px' }}
+            contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '18px' }}
             labelStyle={{ color: '#a0a0a0' }}
           />
           <Line type="monotone" dataKey={dataKey} stroke={resolvedColor} strokeWidth={2} dot={false} />
@@ -52,10 +52,10 @@ export function TimelineChart({
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" />}
-        <XAxis dataKey={xKey} tickFormatter={formatXAxis} stroke="#666" fontSize={10} />
-        <YAxis stroke="#666" fontSize={10} />
+        <XAxis dataKey={xKey} tickFormatter={formatXAxis} stroke="#666" fontSize={16} />
+        <YAxis stroke="#666" fontSize={16} />
         <Tooltip
-          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '12px' }}
+          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '18px' }}
           labelStyle={{ color: '#a0a0a0' }}
         />
         <Area type="monotone" dataKey={dataKey} stroke={resolvedColor} fill={resolvedColor} fillOpacity={0.15} strokeWidth={2} />

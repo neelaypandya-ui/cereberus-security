@@ -101,14 +101,14 @@ export function EmailAnalyzerPanel() {
               border: '1px solid var(--border-default)',
               borderRadius: '2px',
               padding: '10px',
-              fontSize: '12px',
+              fontSize: '18px',
               fontFamily: 'var(--font-mono)',
               resize: 'vertical',
               caretColor: 'var(--status-online)',
             }}
           />
           <div style={{ marginTop: '10px' }}>
-            <label style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '2px' }}>
+            <label style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '2px' }}>
               URLS (COMMA OR NEWLINE SEPARATED)
             </label>
             <input
@@ -121,7 +121,7 @@ export function EmailAnalyzerPanel() {
                 width: '100%',
                 borderRadius: '2px',
                 padding: '8px 10px',
-                fontSize: '12px',
+                fontSize: '18px',
                 marginTop: '4px',
               }}
             />
@@ -132,7 +132,7 @@ export function EmailAnalyzerPanel() {
             style={{
               marginTop: '12px',
               padding: '8px 20px',
-              fontSize: '11px',
+              fontSize: '17px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '2px',
               fontWeight: 600,
@@ -156,7 +156,7 @@ export function EmailAnalyzerPanel() {
                 <div style={{ marginTop: '8px' }}>
                   <span
                     className={`stamp-badge ${verdictStamp(result.verdict).stampClass}`}
-                    style={{ fontSize: '12px', padding: '4px 16px', transform: 'rotate(-2deg)', display: 'inline-block' }}
+                    style={{ fontSize: '18px', padding: '4px 16px', transform: 'rotate(-2deg)', display: 'inline-block' }}
                   >
                     {verdictStamp(result.verdict).label}
                   </span>
@@ -166,7 +166,7 @@ export function EmailAnalyzerPanel() {
               {/* Evidence Markers */}
               {result.indicators.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '6px', letterSpacing: '2px' }}>
+                  <div style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '6px', letterSpacing: '2px' }}>
                     EVIDENCE MARKERS
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -174,7 +174,7 @@ export function EmailAnalyzerPanel() {
                       <span key={i} style={{
                         padding: '3px 10px',
                         borderRadius: '2px',
-                        fontSize: '10px',
+                        fontSize: '16px',
                         fontFamily: 'var(--font-mono)',
                         background: 'var(--bg-tertiary)',
                         color: 'var(--severity-high)',
@@ -191,12 +191,12 @@ export function EmailAnalyzerPanel() {
               {/* Component Scores */}
               {result.component_scores && Object.keys(result.component_scores).length > 0 && (
                 <div>
-                  <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '6px', letterSpacing: '2px' }}>
+                  <div style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '6px', letterSpacing: '2px' }}>
                     COMPONENT ANALYSIS
                   </div>
                   {Object.entries(result.component_scores).map(([key, val]) => (
                     <div key={key} style={{ marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '2px', fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', marginBottom: '2px', fontFamily: 'var(--font-mono)' }}>
                         <span style={{ color: 'var(--text-secondary)', letterSpacing: '1px' }}>{key.toUpperCase()}</span>
                         <span style={{ color: 'var(--text-muted)' }}>{Math.round(val)}%</span>
                       </div>
@@ -209,7 +209,7 @@ export function EmailAnalyzerPanel() {
               )}
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', textAlign: 'center', padding: '40px 0', letterSpacing: '2px' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', textAlign: 'center', padding: '40px 0', letterSpacing: '2px' }}>
               SUBMIT INTERCEPT FOR ANALYSIS
             </div>
           )}
@@ -219,7 +219,7 @@ export function EmailAnalyzerPanel() {
       {/* Recent Analyses */}
       <IntelCard title="RECENT ANALYSES" classification="SECRET//COMINT">
         {recent.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
             NO RECENT ANALYSES
           </div>
         ) : (
@@ -227,7 +227,7 @@ export function EmailAnalyzerPanel() {
             {recent.map((r, i) => (
               <div key={i} className="cable-feed-item" style={{ alignItems: 'center' }}>
                 <span style={{
-                  fontSize: '14px',
+                  fontSize: '20px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                   color: r.threat_score >= 70 ? '#ff1744' : r.threat_score >= 40 ? '#ff9800' : '#4caf50',
@@ -238,10 +238,10 @@ export function EmailAnalyzerPanel() {
                 <span className={`stamp-badge ${verdictStamp(r.verdict).stampClass}`} style={{ minWidth: '60px', textAlign: 'center' }}>
                   {verdictStamp(r.verdict).label}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '17px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.text_preview}
                 </span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   {r.timestamp ? new Date(r.timestamp).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' }) + 'Z' : ''}
                 </span>
               </div>

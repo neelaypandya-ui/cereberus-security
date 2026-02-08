@@ -49,7 +49,7 @@ export function AnalyticsPanel() {
         {alertTrend.length > 0 ? (
           <TimelineChart data={alertTrend} dataKey="count" color="#ff5722" height={220} />
         ) : (
-          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', textAlign: 'center', padding: '40px', letterSpacing: '2px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', textAlign: 'center', padding: '40px', letterSpacing: '2px' }}>
             NO ALERT DATA AVAILABLE
           </div>
         )}
@@ -63,7 +63,7 @@ export function AnalyticsPanel() {
               <DonutChart data={donutData} centerLabel="Total" height={220} />
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
                 {donutData.map((d) => (
-                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '16px', fontFamily: 'var(--font-mono)' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: d.color }} />
                     <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{d.name}: {d.value}</span>
                   </div>
@@ -71,7 +71,7 @@ export function AnalyticsPanel() {
               </div>
             </>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: '40px', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '17px', textAlign: 'center', padding: '40px', fontFamily: 'var(--font-mono)' }}>
               NO DATA
             </div>
           )}
@@ -81,7 +81,7 @@ export function AnalyticsPanel() {
           {barData.length > 0 ? (
             <BarChart data={barData} color="#00e5ff" height={220} />
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: '40px', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '17px', textAlign: 'center', padding: '40px', fontFamily: 'var(--font-mono)' }}>
               NO DATA
             </div>
           )}
@@ -92,7 +92,7 @@ export function AnalyticsPanel() {
       <div style={{
         textAlign: 'right',
         fontFamily: 'var(--font-mono)',
-        fontSize: '9px',
+        fontSize: '15px',
         color: 'var(--text-muted)',
         letterSpacing: '1px',
         padding: '8px 0',

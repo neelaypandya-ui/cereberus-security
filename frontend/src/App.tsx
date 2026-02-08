@@ -20,7 +20,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
           <pre style={{ color: '#e8e8e8', whiteSpace: 'pre-wrap', marginTop: '20px' }}>
             {this.state.error.message}
           </pre>
-          <pre style={{ color: '#888', whiteSpace: 'pre-wrap', marginTop: '10px', fontSize: '12px' }}>
+          <pre style={{ color: '#888', whiteSpace: 'pre-wrap', marginTop: '10px', fontSize: '18px' }}>
             {this.state.error.stack}
           </pre>
           <button

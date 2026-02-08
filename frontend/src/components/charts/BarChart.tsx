@@ -13,10 +13,10 @@ export function BarChart({ data, dataKey = 'value', color = '#00e5ff', height = 
     <ResponsiveContainer width="100%" height={height}>
       <RechartsBarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#2d2d2d" />
-        <XAxis dataKey={xKey} stroke="#666" fontSize={10} />
-        <YAxis stroke="#666" fontSize={10} />
+        <XAxis dataKey={xKey} stroke="#666" fontSize={16} />
+        <YAxis stroke="#666" fontSize={16} />
         <Tooltip
-          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '12px' }}
+          contentStyle={{ background: '#161616', border: '1px solid #2d2d2d', borderRadius: '6px', fontSize: '18px' }}
         />
         <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} />
       </RechartsBarChart>

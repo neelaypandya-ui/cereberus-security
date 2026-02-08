@@ -63,7 +63,7 @@ export function ModulesPanel() {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <div style={{
-                fontSize: '11px',
+                fontSize: '17px',
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 600,
                 letterSpacing: '1px',
@@ -75,7 +75,7 @@ export function ModulesPanel() {
                 onClick={() => handleToggle(m.name, m.enabled)}
                 style={{
                   padding: '4px 12px',
-                  fontSize: '9px',
+                  fontSize: '15px',
                   fontFamily: 'var(--font-mono)',
                   letterSpacing: '1px',
                   background: m.enabled ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-tertiary)',
@@ -104,7 +104,7 @@ export function ModulesPanel() {
                 }}
               />
               <span style={{
-                fontSize: '11px',
+                fontSize: '17px',
                 fontFamily: 'var(--font-mono)',
                 letterSpacing: '1px',
                 color: healthColor(m.health_status),
@@ -114,7 +114,7 @@ export function ModulesPanel() {
             </div>
 
             {m.last_heartbeat && (
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+              <div style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
                 HEARTBEAT: {new Date(m.last_heartbeat).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}Z
               </div>
             )}
@@ -128,7 +128,7 @@ export function ModulesPanel() {
           textAlign: 'center',
           color: 'var(--text-muted)',
           fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
+          fontSize: '17px',
           letterSpacing: '2px',
         }}>
           NO MODULES LOADED

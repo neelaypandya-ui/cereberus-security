@@ -55,7 +55,7 @@ export function AuditLogPanel() {
           onChange={(e) => setFilterAction(e.target.value)}
           style={{
             padding: '5px 10px',
-            fontSize: '10px',
+            fontSize: '16px',
             fontFamily: 'var(--font-mono)',
             background: 'var(--bg-tertiary)',
             color: 'var(--text-secondary)',
@@ -78,19 +78,19 @@ export function AuditLogPanel() {
           className="terminal-input"
           style={{
             padding: '5px 10px',
-            fontSize: '10px',
+            fontSize: '16px',
             borderRadius: '2px',
             width: '180px',
           }}
         />
-        <div style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+        <div style={{ marginLeft: 'auto', fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
           {logs.length} ENTRIES
         </div>
       </div>
 
       {/* CLASSIFIED ACTIVITY LEDGER */}
       <div style={{
-        fontSize: '9px', fontFamily: 'var(--font-mono)',
+        fontSize: '15px', fontFamily: 'var(--font-mono)',
         letterSpacing: '2px', color: 'var(--text-muted)', marginBottom: '8px',
       }}>
         CLASSIFIED ACTIVITY LEDGER
@@ -102,7 +102,7 @@ export function AuditLogPanel() {
         overflow: 'auto',
         maxHeight: 'calc(100vh - 340px)',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-default)', position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
               <th style={thStyle}>LOG#</th>
@@ -176,12 +176,12 @@ export function AuditLogPanel() {
             borderRadius: '2px',
           }}>
             <div style={{
-              fontSize: '9px', fontFamily: 'var(--font-mono)',
+              fontSize: '15px', fontFamily: 'var(--font-mono)',
               letterSpacing: '2px', color: 'var(--text-muted)', marginBottom: '8px',
             }}>
               FULL OPERATIONAL REPORT
             </div>
-            <pre style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
+            <pre style={{ fontSize: '17px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
               {log.details_json}
             </pre>
           </div>
@@ -194,7 +194,7 @@ export function AuditLogPanel() {
 const thStyle: React.CSSProperties = {
   padding: '8px 10px',
   textAlign: 'left',
-  fontSize: '9px',
+  fontSize: '15px',
   fontFamily: 'var(--font-mono)',
   color: 'var(--text-muted)',
   letterSpacing: '1px',

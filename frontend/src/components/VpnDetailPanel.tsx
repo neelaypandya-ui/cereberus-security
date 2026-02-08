@@ -83,7 +83,7 @@ export function VpnDetailPanel() {
                   width: '36px', height: '36px', borderRadius: '50%',
                   border: '2px solid var(--cyan-primary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '14px',
+                  fontSize: '20px',
                 }}>
                   &#x1F5A5;
                 </div>
@@ -107,7 +107,7 @@ export function VpnDetailPanel() {
                   width: '36px', height: '36px', borderRadius: '50%',
                   border: `2px solid ${status.vpn.connected ? 'var(--status-online)' : 'var(--text-muted)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '14px',
+                  fontSize: '20px',
                 }}>
                   &#x1F512;
                 </div>
@@ -125,7 +125,7 @@ export function VpnDetailPanel() {
             </div>
           </div>
         ) : (
-          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>Loading...</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>Loading...</div>
         )}
       </IntelCard>
 
@@ -133,7 +133,7 @@ export function VpnDetailPanel() {
       <IntelCard title="EMERGENCY COMMS CUTOFF" classification="SECRET" status={status?.kill_switch.active ? 'critical' : 'active'}>
         {status && (
           <>
-            <div style={{ marginBottom: '12px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ marginBottom: '12px', fontSize: '18px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: 'var(--text-muted)', letterSpacing: '1px' }}>STATUS: </span>
               <span style={{
                 color: status.kill_switch.active ? 'var(--severity-critical)' : 'var(--status-online)',
@@ -151,7 +151,7 @@ export function VpnDetailPanel() {
                   style={{
                     flex: 1,
                     padding: '8px 12px',
-                    fontSize: '10px',
+                    fontSize: '16px',
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '1px',
                     background: status.kill_switch.mode === mode
@@ -199,7 +199,7 @@ export function VpnDetailPanel() {
             <SealIndicator label="IPv6 SEAL" sealed={!leakResult.ipv6_leak} />
           </div>
           {leakResult.public_ip && (
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+            <div style={{ fontSize: '17px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
               PUBLIC IP: {leakResult.public_ip}
             </div>
           )}
@@ -209,7 +209,7 @@ export function VpnDetailPanel() {
       {/* Config Audit Results */}
       {audit && (
         <IntelCard title="CONFIG AUDIT" classification="SECRET">
-          <pre style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
+          <pre style={{ fontSize: '17px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
             {JSON.stringify(audit, null, 2)}
           </pre>
         </IntelCard>
@@ -218,7 +218,7 @@ export function VpnDetailPanel() {
       {/* Route Table */}
       {Array.isArray(routes) && routes.length > 0 && (
         <IntelCard title="ROUTE TABLE" classification="UNCLASSIFIED">
-          <pre style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
+          <pre style={{ fontSize: '17px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap' }}>
             {JSON.stringify(routes, null, 2)}
           </pre>
         </IntelCard>
@@ -230,10 +230,10 @@ export function VpnDetailPanel() {
 function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '2px' }}>
+      <div style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '2px' }}>
         {label}
       </div>
-      <div style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: color || 'var(--text-primary)', fontWeight: 600 }}>
+      <div style={{ fontSize: '19px', fontFamily: 'var(--font-mono)', color: color || 'var(--text-primary)', fontWeight: 600 }}>
         {value}
       </div>
     </div>
@@ -254,19 +254,19 @@ function SealIndicator({ label, sealed }: { label: string; sealed: boolean }) {
         border: `3px solid ${sealed ? 'var(--status-online)' : 'var(--severity-critical)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         margin: '0 auto 8px',
-        fontSize: '18px',
+        fontSize: '24px',
       }}>
         {sealed ? '\u2713' : '\u2717'}
       </div>
       <div style={{
-        fontSize: '10px', fontFamily: 'var(--font-mono)', letterSpacing: '1px',
+        fontSize: '16px', fontFamily: 'var(--font-mono)', letterSpacing: '1px',
         color: sealed ? 'var(--status-online)' : 'var(--severity-critical)',
         fontWeight: 700,
       }}>
         {label}
       </div>
       <div style={{
-        fontSize: '9px', fontFamily: 'var(--font-mono)', letterSpacing: '1px',
+        fontSize: '15px', fontFamily: 'var(--font-mono)', letterSpacing: '1px',
         color: 'var(--text-muted)', marginTop: '2px',
       }}>
         {sealed ? 'SEALED' : 'BREACH DETECTED'}
@@ -278,7 +278,7 @@ function SealIndicator({ label, sealed }: { label: string; sealed: boolean }) {
 function actionBtnStyle(disabled: boolean): React.CSSProperties {
   return {
     padding: '8px 20px',
-    fontSize: '11px',
+    fontSize: '17px',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '1px',
     background: disabled ? 'var(--bg-tertiary)' : 'var(--bg-elevated)',

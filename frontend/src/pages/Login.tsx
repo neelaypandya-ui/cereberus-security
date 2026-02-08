@@ -49,7 +49,7 @@ function Login() {
               border: '1px solid var(--border-default)',
               borderRadius: '6px',
               color: 'var(--text-primary)',
-              fontSize: '14px',
+              fontSize: '20px',
               fontFamily: 'var(--font-mono)',
               outline: 'none',
             }}
@@ -66,14 +66,14 @@ function Login() {
               border: '1px solid var(--border-default)',
               borderRadius: '6px',
               color: 'var(--text-primary)',
-              fontSize: '14px',
+              fontSize: '20px',
               fontFamily: 'var(--font-mono)',
               outline: 'none',
             }}
           />
 
           {error && (
-            <div style={{ color: 'var(--red-primary)', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ color: 'var(--red-primary)', fontSize: '19px', fontFamily: 'var(--font-mono)' }}>
               {error}
             </div>
           )}
@@ -87,7 +87,7 @@ function Login() {
               border: '1px solid var(--red-primary)',
               borderRadius: '6px',
               color: 'var(--text-primary)',
-              fontSize: '14px',
+              fontSize: '20px',
               fontWeight: 600,
               fontFamily: 'var(--font-sans)',
               cursor: loading ? 'wait' : 'pointer',
@@ -100,7 +100,7 @@ function Login() {
           </button>
         </form>
 
-        <div style={{ marginTop: '32px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ marginTop: '32px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)' }}>
           CEREBERUS v1.1.0 // AI-POWERED DEFENSE
         </div>
       </div>

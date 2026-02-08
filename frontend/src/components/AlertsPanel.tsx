@@ -68,7 +68,7 @@ export function AlertsPanel() {
             onClick={() => setFilter(level)}
             style={{
               padding: '4px 12px',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '1px',
               textTransform: 'uppercase',
@@ -91,7 +91,7 @@ export function AlertsPanel() {
             onClick={() => handleAcknowledge(alerts.filter((a) => !a.acknowledged).map((a) => a.id))}
             style={{
               padding: '5px 14px',
-              fontSize: '10px',
+              fontSize: '16px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '1px',
               background: 'var(--bg-tertiary)',
@@ -115,7 +115,7 @@ export function AlertsPanel() {
             textAlign: 'center',
             color: 'var(--text-muted)',
             fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
+            fontSize: '17px',
             letterSpacing: '2px',
           }}>
             NO THREATS MATCHING FILTER
@@ -141,13 +141,13 @@ export function AlertsPanel() {
                 onClick={() => setExpandedId(expandedId === a.id ? null : a.id)}
               >
                 <span className={`stamp-badge ${mil.stampClass}`}>{mil.label}</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1 }}>
+                <span style={{ fontSize: '18px', color: 'var(--text-primary)', flex: 1 }}>
                   {a.title}
                 </span>
-                <span style={{ fontSize: '10px', color: 'var(--cyan-primary)', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '16px', color: 'var(--cyan-primary)', fontFamily: 'var(--font-mono)' }}>
                   {a.module_source}
                 </span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   {new Date(a.timestamp).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}Z
                 </span>
                 {!a.acknowledged && (
@@ -155,7 +155,7 @@ export function AlertsPanel() {
                     onClick={(e) => { e.stopPropagation(); handleAcknowledge([a.id]); }}
                     style={{
                       padding: '2px 8px',
-                      fontSize: '9px',
+                      fontSize: '15px',
                       fontFamily: 'var(--font-mono)',
                       letterSpacing: '1px',
                       background: 'var(--bg-elevated)',
@@ -177,7 +177,7 @@ export function AlertsPanel() {
                 }}>
                   <div style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '9px',
+                    fontSize: '15px',
                     letterSpacing: '2px',
                     color: 'var(--text-muted)',
                     marginBottom: '6px',
@@ -185,7 +185,7 @@ export function AlertsPanel() {
                     CLASSIFIED DETAILS
                   </div>
                   <div style={{
-                    fontSize: '12px',
+                    fontSize: '18px',
                     color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-mono)',
                     lineHeight: 1.6,
@@ -193,7 +193,7 @@ export function AlertsPanel() {
                     {a.description}
                   </div>
                   {a.vpn_status && (
-                    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ marginTop: '6px', fontSize: '17px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       VPN STATUS: {a.vpn_status}
                     </div>
                   )}

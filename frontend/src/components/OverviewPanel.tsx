@@ -83,7 +83,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
             <RadarSweep size={240} blips={radarBlips} />
             <div style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
+              fontSize: '18px',
               fontWeight: 700,
               color: defcon.color,
               letterSpacing: '2px',
@@ -93,7 +93,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
             </div>
             <div className="breathing" style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '9px',
+              fontSize: '15px',
               color: 'var(--text-muted)',
               letterSpacing: '2px',
               marginTop: '4px',
@@ -144,7 +144,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
                 />
                 <div style={{ flex: 1 }}>
                   <div style={{
-                    fontSize: '10px',
+                    fontSize: '16px',
                     fontFamily: 'var(--font-mono)',
                     letterSpacing: '1px',
                     color: 'var(--text-secondary)',
@@ -152,7 +152,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
                     {m.name.toUpperCase().replace(/_/g, ' ')}
                   </div>
                   <div style={{
-                    fontSize: '9px',
+                    fontSize: '15px',
                     fontFamily: 'var(--font-mono)',
                     marginTop: '2px',
                     color: isRunning ? 'var(--status-online)' : 'var(--text-muted)',
@@ -171,7 +171,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
       <IntelCard title="SIGINT FEED" classification="SECRET//SI">
         <div style={{ maxHeight: '240px', overflow: 'auto' }}>
           {recentAlerts.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)', padding: '12px 0' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', padding: '12px 0' }}>
               No intelligence traffic
             </div>
           ) : (
@@ -205,7 +205,7 @@ function SitrepCard({ label, value, color, subtext, children }: {
     <IntelCard title={label} classification="UNCLASSIFIED">
       <div style={{ textAlign: 'center' }}>
         <div style={{
-          fontSize: '32px',
+          fontSize: '38px',
           fontWeight: 700,
           fontFamily: 'var(--font-mono)',
           color,
@@ -213,7 +213,7 @@ function SitrepCard({ label, value, color, subtext, children }: {
           lineHeight: 1,
         }}>
           {value}
-          {subtext && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{subtext}</span>}
+          {subtext && <span style={{ fontSize: '20px', color: 'var(--text-muted)' }}>{subtext}</span>}
         </div>
         {children && <div style={{ marginTop: '8px' }}>{children}</div>}
       </div>

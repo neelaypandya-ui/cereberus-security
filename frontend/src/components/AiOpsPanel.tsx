@@ -226,14 +226,14 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
                   }} />
                   <span style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '9px',
+                    fontSize: '15px',
                     letterSpacing: '1px',
                     color: mc.color,
                   }}>
                     {mc.name}
                   </span>
                 </div>
-                <div className="instrument-readout" style={{ fontSize: '10px', lineHeight: '1.6' }}>
+                <div className="instrument-readout" style={{ fontSize: '16px', lineHeight: '1.6' }}>
                   <div>STATUS: {initialized ? 'ONLINE' : 'OFFLINE'}</div>
                   <div>MODEL: {hasModel ? 'LOADED' : 'NONE'}</div>
                   {registry && (
@@ -262,10 +262,10 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
             ].map((d) => (
               <div key={d.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', letterSpacing: '1px', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', letterSpacing: '1px', color: 'var(--text-secondary)' }}>
                     {d.name}
                   </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: d.color }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: d.color }}>
                     W:{d.weight} {d.score !== undefined ? `S:${d.score.toFixed(3)}` : ''}
                   </span>
                 </div>
@@ -313,7 +313,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
                   borderRadius: '2px',
                   color: 'var(--cyan-primary)',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '16px',
                   letterSpacing: '1px',
                   cursor: training.loading ? 'wait' : 'pointer',
                   opacity: training.loading && training.model !== btn.type ? 0.5 : 1,
@@ -323,7 +323,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
               </button>
               <div style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '8px',
+                fontSize: '14px',
                 color: 'var(--text-muted)',
                 marginTop: '6px',
                 letterSpacing: '0.5px',
@@ -333,10 +333,10 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
               {training.loading && training.model === btn.type && training.epoch !== undefined && (
                 <div style={{ marginTop: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text-secondary)' }}>
                       EPOCH {training.epoch}/{training.totalEpochs}
                     </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--amber-primary)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--amber-primary)' }}>
                       LOSS: {training.loss?.toFixed(4)}
                     </span>
                   </div>
@@ -373,7 +373,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
             textAlign: 'center',
             padding: '40px',
             fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
+            fontSize: '17px',
             color: 'var(--text-muted)',
             letterSpacing: '1px',
           }}>
@@ -384,7 +384,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
           <div style={{ marginTop: '12px' }}>
             <div style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '9px',
+              fontSize: '15px',
               letterSpacing: '1px',
               color: 'var(--severity-critical)',
               marginBottom: '6px',
@@ -415,7 +415,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
               textAlign: 'center',
               padding: '30px',
               fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
+              fontSize: '16px',
               color: 'var(--text-muted)',
             }}>
               NO ANOMALY DATA AVAILABLE
@@ -435,7 +435,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
               <div style={{
                 textAlign: 'center',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '9px',
+                fontSize: '15px',
                 color: 'var(--text-secondary)',
                 marginTop: '4px',
               }}>
@@ -447,7 +447,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
               textAlign: 'center',
               padding: '30px',
               fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
+              fontSize: '16px',
               color: 'var(--text-muted)',
             }}>
               NO FEEDBACK SUBMITTED YET
@@ -459,7 +459,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
       {/* SECTION VI: ANOMALY EVENT LOG */}
       <IntelCard title="ANOMALY EVENT LOG" classification="SECTION VI" status="active">
         <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '16px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
                 {['TIMESTAMP', 'DETECTOR', 'SCORE', 'CONF', 'STATUS'].map((h) => (
@@ -467,7 +467,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
                     padding: '6px 8px',
                     textAlign: 'left',
                     color: 'var(--text-muted)',
-                    fontSize: '8px',
+                    fontSize: '14px',
                     letterSpacing: '1px',
                     fontWeight: 400,
                   }}>
@@ -508,7 +508,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
                       {(evt.confidence * 100).toFixed(0)}%
                     </td>
                     <td style={{ padding: '6px 8px' }}>
-                      <span className={evt.is_anomaly ? 'stamp-badge stamp-hostile' : 'stamp-badge stamp-cleared'} style={{ fontSize: '7px' }}>
+                      <span className={evt.is_anomaly ? 'stamp-badge stamp-hostile' : 'stamp-badge stamp-cleared'} style={{ fontSize: '13px' }}>
                         {evt.is_anomaly ? 'ANOMALY' : 'NORMAL'}
                       </span>
                     </td>
@@ -526,7 +526,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
                         {evt.detector_scores && Object.keys(evt.detector_scores).length > 0 && (
                           <div style={{ marginTop: '6px', display: 'flex', gap: '12px' }}>
                             {Object.entries(evt.detector_scores).map(([k, v]) => (
-                              <span key={k} style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
+                              <span key={k} style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
                                 {k.toUpperCase()}: {(v as number).toFixed(3)}
                               </span>
                             ))}
