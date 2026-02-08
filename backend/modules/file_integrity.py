@@ -36,6 +36,9 @@ class FileIntegrity(BaseModule):
         self._scan_task: Optional[asyncio.Task] = None
         self._baseline_established: bool = False
 
+        # DB session factory for baseline persistence
+        self._db_session_factory = None
+
         # IOC matcher integration (Phase 8)
         self._ioc_matcher = None
         self._ioc_matches: list[dict] = []
@@ -45,6 +48,9 @@ class FileIntegrity(BaseModule):
         self.running = True
         self.health_status = "running"
         self.logger.info("file_integrity_starting")
+
+        # Load persisted baselines from DB
+        await self._load_baselines_from_db()
 
         # Run initial baseline scan
         if self._watched_paths:
@@ -151,6 +157,10 @@ class FileIntegrity(BaseModule):
                 self.logger.error("ioc_hash_check_error", error=str(e))
 
         self._last_scan = result
+
+        # Persist baselines to DB
+        await self._save_baselines_to_db()
+
         self.heartbeat()
         return result
 
@@ -214,6 +224,70 @@ class FileIntegrity(BaseModule):
             if baseline[p] != current[p]
         )
         return {"modified": modified, "added": added, "deleted": deleted}
+
+    def set_db_session_factory(self, factory) -> None:
+        """Attach a DB session factory for baseline persistence."""
+        self._db_session_factory = factory
+        self.logger.info("db_session_factory_attached")
+
+    async def _load_baselines_from_db(self) -> None:
+        """Load persisted file baselines from the database."""
+        if not self._db_session_factory:
+            return
+        try:
+            from sqlalchemy import select
+            from ..models.file_baseline import FileBaseline
+
+            async with self._db_session_factory() as session:
+                result = await session.execute(select(FileBaseline))
+                rows = result.scalars().all()
+                if rows:
+                    self._baselines = {row.file_path: row.sha256_hash for row in rows}
+                    self._baseline_established = True
+                    self.logger.info(
+                        "baselines_loaded_from_db",
+                        count=len(self._baselines),
+                    )
+        except Exception as e:
+            self.logger.error("baselines_load_from_db_error", error=str(e))
+
+    async def _save_baselines_to_db(self) -> None:
+        """Upsert file baselines to the database after a scan."""
+        if not self._db_session_factory or not self._baselines:
+            return
+        try:
+            from sqlalchemy import select
+            from ..models.file_baseline import FileBaseline
+
+            async with self._db_session_factory() as session:
+                # Load existing baselines
+                result = await session.execute(select(FileBaseline))
+                existing = {row.file_path: row for row in result.scalars().all()}
+
+                for file_path, sha256_hash in self._baselines.items():
+                    if file_path in existing:
+                        # Update if hash changed
+                        if existing[file_path].sha256_hash != sha256_hash:
+                            existing[file_path].sha256_hash = sha256_hash
+                    else:
+                        # Insert new
+                        session.add(FileBaseline(
+                            file_path=file_path,
+                            sha256_hash=sha256_hash,
+                        ))
+
+                # Remove baselines for files no longer tracked
+                for file_path, record in existing.items():
+                    if file_path not in self._baselines:
+                        await session.delete(record)
+
+                await session.commit()
+                self.logger.info(
+                    "baselines_saved_to_db",
+                    count=len(self._baselines),
+                )
+        except Exception as e:
+            self.logger.error("baselines_save_to_db_error", error=str(e))
 
     def set_ioc_matcher(self, matcher) -> None:
         """Attach an IOCMatcher for checking file hashes against threat feeds."""

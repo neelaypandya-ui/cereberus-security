@@ -146,6 +146,16 @@ async def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check burn list (token revocation)
+    from .api.routes.auth import is_token_burned
+    if is_token_burned(credentials.credentials):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token revoked \u2014 burn notice active",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return payload
 
 

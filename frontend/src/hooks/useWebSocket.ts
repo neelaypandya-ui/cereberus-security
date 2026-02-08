@@ -142,14 +142,26 @@ export function useWebSocket() {
   const [lastMessage, setLastMessage] = useState<WsMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
+  const retryCount = useRef<number>(0);
+
+  const MAX_RETRIES = 10;
+  const BASE_DELAY = 1000;
+  const MULTIPLIER = 1.5;
+  const MAX_DELAY = 30000;
 
   const connect = useCallback(() => {
+    const token = localStorage.getItem('cereberus_token');
+    if (!token) {
+      return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws/events`);
+    const ws = new WebSocket(`${protocol}//${host}/ws/events?token=${encodeURIComponent(token)}`);
 
     ws.onopen = () => {
       setConnected(true);
+      retryCount.current = 0;
       ws.send(JSON.stringify({ type: 'ping' }));
     };
 
@@ -193,7 +205,11 @@ export function useWebSocket() {
 
     ws.onclose = () => {
       setConnected(false);
-      reconnectTimer.current = window.setTimeout(connect, 3000);
+      if (retryCount.current < MAX_RETRIES) {
+        const delay = Math.min(BASE_DELAY * Math.pow(MULTIPLIER, retryCount.current), MAX_DELAY);
+        retryCount.current += 1;
+        reconnectTimer.current = window.setTimeout(connect, delay);
+      }
     };
 
     ws.onerror = () => {

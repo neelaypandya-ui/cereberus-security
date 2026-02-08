@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,12 +35,12 @@ def _get_playbook_executor():
 # --- Request bodies ---
 
 class CreatePlaybookRuleRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     description: Optional[str] = None
-    trigger_type: str  # alert_severity, anomaly_score, threat_level, correlation_pattern, module_event
+    trigger_type: str = Field(pattern=r"^(alert_severity|anomaly_score|threat_level|correlation_pattern|module_event)$")
     trigger_conditions: dict = {}
-    actions: list[dict] = []
-    cooldown_seconds: int = 300
+    actions: list[dict] = Field(default=[], max_length=20)
+    cooldown_seconds: int = Field(default=300, ge=10, le=86400)
     requires_confirmation: bool = False
 
 
@@ -105,16 +105,6 @@ async def create_playbook_rule(
     current_user: dict = Depends(require_permission(PERM_MANAGE_PLAYBOOKS)),
 ):
     """Create a new playbook rule."""
-    valid_trigger_types = (
-        "alert_severity", "anomaly_score", "threat_level",
-        "correlation_pattern", "module_event",
-    )
-    if body.trigger_type not in valid_trigger_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"trigger_type must be one of: {', '.join(valid_trigger_types)}",
-        )
-
     # Check for duplicate name
     existing = await db.execute(
         select(PlaybookRule).where(PlaybookRule.name == body.name)

@@ -74,7 +74,8 @@ class TestVulnScanner:
         def mock_probe(port, host="127.0.0.1", timeout=1.0):
             return port in (23, 445)
 
-        with patch.object(scanner, "_probe_port", side_effect=mock_probe):
+        with patch.object(scanner, "_probe_port", side_effect=mock_probe), \
+             patch.object(scanner, "_is_port_blocked_by_cereberus", return_value=False):
             report = await scanner.run_scan()
 
         assert report["total_findings"] == 2

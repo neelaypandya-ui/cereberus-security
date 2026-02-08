@@ -36,6 +36,8 @@ from .user_role import UserRole
 from .comment import Comment
 from .api_key import APIKey
 from .dashboard_layout import DashboardLayout
+# Phase 10
+from .file_baseline import FileBaseline
 
 __all__ = [
     "Base",
@@ -69,4 +71,5 @@ __all__ = [
     "Comment",
     "APIKey",
     "DashboardLayout",
+    "FileBaseline",
 ]

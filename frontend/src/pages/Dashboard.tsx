@@ -5,6 +5,8 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useNotifications } from '../hooks/useNotifications';
 import { usePermissions } from '../hooks/usePermissions';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useSessionTimeout } from '../hooks/useSessionTimeout';
+import { PanelErrorBoundary } from '../components/PanelErrorBoundary';
 import { VpnStatusPanel } from '../components/VpnStatusPanel/VpnStatusPanel';
 import { OverviewPanel } from '../components/OverviewPanel';
 import { NetworkPanel } from '../components/NetworkPanel';
@@ -27,7 +29,6 @@ import { IntegrationSettingsPanel } from '../components/IntegrationSettingsPanel
 import { UserManagementPanel } from '../components/UserManagementPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
-import { ToastContainer } from '../components/notifications/ToastContainer';
 import { StatusTicker } from '../components/ui/StatusTicker';
 import '../components/notifications/notifications.css';
 
@@ -114,15 +115,21 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('overview');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, anomalyAlert, aiStatus, predictions, trainingProgress } = useWebSocket();
-  const { notifications, toasts, unreadCount, addNotification, dismissToast, markRead, markAllRead } = useNotifications();
+  const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, aiStatus, predictions, trainingProgress } = useWebSocket();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { hasPermission, role } = usePermissions();
   const utcTime = useUtcClock();
   const uptime = useUptime();
 
   const prevAlertCount = useRef(0);
-  const lastToastTime = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Ghost Protocol — session self-destructs after 15 min inactivity
+  useSessionTimeout(() => {
+    api.logout().catch(() => {});
+    localStorage.removeItem('cereberus_token');
+    navigate('/login');
+  });
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -171,6 +178,7 @@ function Dashboard() {
   };
 
   const handleLogout = () => {
+    api.logout().catch(() => {});
     localStorage.removeItem('cereberus_token');
     navigate('/login');
   };
@@ -437,38 +445,42 @@ function Dashboard() {
         {/* Content Area */}
         <div style={{ flex: 1, overflow: 'auto', padding: '20px', paddingBottom: 'calc(20px + var(--ticker-height))' }}>
           {activeNav === 'overview' && summary && (
-            <OverviewPanel
-              alerts={summary.alerts}
-              eventsToday={summary.events_today}
-              modules={summary.modules}
-              networkStats={networkStats}
-              threatLevel={threatLevel}
-            />
+            <PanelErrorBoundary panelName="CMD CENTER">
+              <OverviewPanel
+                alerts={summary.alerts}
+                eventsToday={summary.events_today}
+                modules={summary.modules}
+                networkStats={networkStats}
+                threatLevel={threatLevel}
+              />
+            </PanelErrorBoundary>
           )}
-          {activeNav === 'network' && <NetworkPanel />}
-          {activeNav === 'processes' && <ProcessesPanel />}
-          {activeNav === 'vulnerabilities' && <VulnerabilityPanel />}
-          {activeNav === 'threats' && <ThreatIntelPanel />}
-          {activeNav === 'resources' && <ResourcePanel />}
-          {activeNav === 'persistence' && <PersistencePanel />}
-          {activeNav === 'analytics' && <AnalyticsPanel />}
-          {activeNav === 'email' && <EmailAnalyzerPanel />}
-          {activeNav === 'alerts' && <AlertsPanel />}
-          {activeNav === 'audit' && <AuditLogPanel />}
+          {activeNav === 'network' && <PanelErrorBoundary panelName="SIGINT"><NetworkPanel /></PanelErrorBoundary>}
+          {activeNav === 'processes' && <PanelErrorBoundary panelName="ASSET TRACKER"><ProcessesPanel /></PanelErrorBoundary>}
+          {activeNav === 'vulnerabilities' && <PanelErrorBoundary panelName="THREAT ASSESSMENT"><VulnerabilityPanel /></PanelErrorBoundary>}
+          {activeNav === 'threats' && <PanelErrorBoundary panelName="FUSION CENTER"><ThreatIntelPanel /></PanelErrorBoundary>}
+          {activeNav === 'resources' && <PanelErrorBoundary panelName="SYS DIAGNOSTICS"><ResourcePanel /></PanelErrorBoundary>}
+          {activeNav === 'persistence' && <PanelErrorBoundary panelName="WATCHLIST"><PersistencePanel /></PanelErrorBoundary>}
+          {activeNav === 'analytics' && <PanelErrorBoundary panelName="INTEL BRIEFING"><AnalyticsPanel /></PanelErrorBoundary>}
+          {activeNav === 'email' && <PanelErrorBoundary panelName="COMINT"><EmailAnalyzerPanel /></PanelErrorBoundary>}
+          {activeNav === 'alerts' && <PanelErrorBoundary panelName="THREAT BOARD"><AlertsPanel /></PanelErrorBoundary>}
+          {activeNav === 'audit' && <PanelErrorBoundary panelName="OPS LOG"><AuditLogPanel /></PanelErrorBoundary>}
           {activeNav === 'aiops' && (
-            <AiOpsPanel
-              aiStatus={aiStatus}
-              predictions={predictions}
-              trainingProgress={trainingProgress}
-            />
+            <PanelErrorBoundary panelName="AI OPS">
+              <AiOpsPanel
+                aiStatus={aiStatus}
+                predictions={predictions}
+                trainingProgress={trainingProgress}
+              />
+            </PanelErrorBoundary>
           )}
-          {activeNav === 'vpn' && <VpnDetailPanel />}
-          {activeNav === 'incidents' && <IncidentResponsePanel />}
-          {activeNav === 'playbooks' && <PlaybookPanel />}
-          {activeNav === 'integrations' && <IntegrationSettingsPanel />}
-          {activeNav === 'personnel' && hasPermission('manage_users') && <UserManagementPanel />}
-          {activeNav === 'modules' && <ModulesPanel />}
-          {activeNav === 'settings' && <SettingsPanel />}
+          {activeNav === 'vpn' && <PanelErrorBoundary panelName="SEC COMMS"><VpnDetailPanel /></PanelErrorBoundary>}
+          {activeNav === 'incidents' && <PanelErrorBoundary panelName="INCIDENT CMD"><IncidentResponsePanel /></PanelErrorBoundary>}
+          {activeNav === 'playbooks' && <PanelErrorBoundary panelName="DEF PROTOCOL"><PlaybookPanel /></PanelErrorBoundary>}
+          {activeNav === 'integrations' && <PanelErrorBoundary panelName="SIGNAL RELAY"><IntegrationSettingsPanel /></PanelErrorBoundary>}
+          {activeNav === 'personnel' && hasPermission('manage_users') && <PanelErrorBoundary panelName="PERSONNEL"><UserManagementPanel /></PanelErrorBoundary>}
+          {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}
+          {activeNav === 'settings' && <PanelErrorBoundary panelName="SYS CONFIG"><SettingsPanel /></PanelErrorBoundary>}
         </div>
 
         {/* Status Ticker */}

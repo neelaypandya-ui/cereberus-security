@@ -15,8 +15,32 @@ logger = get_logger("middleware.audit")
 # Methods to audit
 AUDITED_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
-# Paths to skip auditing (auth endpoints produce tokens, not worth logging content)
-SKIP_PATHS = {"/api/v1/auth/login", "/api/v1/auth/register", "/ws/events"}
+# Paths to skip auditing
+SKIP_PATHS = {"/ws/events"}
+
+# Semantic event mapping: (method, path_prefix) -> event name
+SEMANTIC_EVENTS: list[tuple[str, str, str]] = [
+    ("POST", "/api/v1/remediation/execute", "remediation_executed"),
+    ("POST", "/api/v1/incidents", "incident_created"),
+    ("PATCH", "/api/v1/incidents", "incident_updated"),
+    ("POST", "/api/v1/playbooks", "playbook_created"),
+    ("DELETE", "/api/v1/playbooks", "playbook_deleted"),
+    ("POST", "/api/v1/users", "user_created"),
+    ("DELETE", "/api/v1/users", "user_deleted"),
+    ("POST", "/api/v1/feeds", "feed_created"),
+    ("POST", "/api/v1/ioc", "ioc_created"),
+    ("POST", "/api/v1/maintenance/backup", "backup_triggered"),
+    ("POST", "/api/v1/maintenance/cleanup", "cleanup_triggered"),
+    ("POST", "/api/v1/auth/login", "login_attempt"),
+]
+
+
+def _resolve_semantic_event(method: str, path: str) -> str | None:
+    """Resolve a semantic event name from the request method and path."""
+    for evt_method, evt_prefix, evt_name in SEMANTIC_EVENTS:
+        if method == evt_method and path.startswith(evt_prefix):
+            return evt_name
+    return None
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -50,6 +74,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         try:
             username = self._extract_username(request)
             ip_address = request.client.host if request.client else None
+            semantic_event = _resolve_semantic_event(request.method, path)
 
             asyncio.create_task(self._record_audit(
                 username=username,
@@ -58,6 +83,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 target=request.url.query or None,
                 ip_address=ip_address,
                 status_code=response.status_code,
+                semantic_event=semantic_event,
             ))
         except Exception as e:
             logger.error("audit_dispatch_error", error=str(e))
@@ -81,7 +107,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             pass
         return None
 
-    async def _record_audit(self, username, action, endpoint, target, ip_address, status_code):
+    async def _record_audit(self, username, action, endpoint, target, ip_address, status_code, semantic_event=None):
         """Write audit record to database."""
         factory = self._get_session_factory()
         if factory is None:
@@ -97,6 +123,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     target=target,
                     ip_address=ip_address,
                     status_code=status_code,
+                    semantic_event=semantic_event,
                 )
                 session.add(log)
                 await session.commit()

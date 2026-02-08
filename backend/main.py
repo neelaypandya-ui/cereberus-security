@@ -16,8 +16,10 @@ from sqlalchemy import select
 from .api.router import api_router, websocket_router
 from .api.websockets.events import manager as ws_manager
 from .config import get_config
-from .database import close_engine, create_tables, get_session_factory
+from .database import close_engine, create_tables, get_engine, get_session_factory
 from .middleware.audit import AuditMiddleware
+from .middleware.security_headers import ShieldWallMiddleware
+from .middleware.rate_limit import GatekeeperMiddleware
 from .dependencies import (
     get_alert_manager,
     get_anomaly_detector,
@@ -225,8 +227,39 @@ async def lifespan(app: FastAPI):
     # --- Startup ---
     logger.info("cereberus_starting", host=config.host, port=config.port)
 
+    # Secret key warning — The Default must not walk through the front door
+    if config.secret_key == "CHANGE_ME_IN_PRODUCTION":
+        logger.warning(
+            "INSECURE_SECRET_KEY — default secret_key detected. "
+            "Set a strong, unique SECRET_KEY in .env before deploying to production."
+        )
+
     # Create database tables
     await create_tables(config)
+
+    # Migrate existing tables — add columns that may not exist yet
+    from sqlalchemy import text, inspect as sa_inspect
+    engine = get_engine(config)
+
+    async def _migrate_add_column(table: str, column: str, col_type: str, default: str | None = None):
+        """Add a column to an existing table if it doesn't exist (no-op for new installs)."""
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(text(f"PRAGMA table_info({table})"))
+                columns = [row[1] for row in result.fetchall()]
+                if not columns:
+                    return  # Table doesn't exist yet (new install — create_all handles it)
+                if column not in columns:
+                    default_clause = f" DEFAULT {default}" if default is not None else ""
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}{default_clause}"))
+                    await conn.commit()
+                    logger.info("migration_applied", table=table, column=column)
+        except Exception as e:
+            logger.warning("migration_skipped", table=table, column=column, error=str(e))
+
+    await _migrate_add_column("users", "must_change_password", "BOOLEAN NOT NULL", "0")
+    await _migrate_add_column("audit_logs", "semantic_event", "VARCHAR(100)", "NULL")
+
     logger.info("database_initialized")
 
     # Seed default admin user if none exists
@@ -238,6 +271,7 @@ async def lifespan(app: FastAPI):
                 username="admin",
                 password_hash=hash_password("admin"),
                 role="admin",
+                must_change_password=True,
             )
             session.add(admin)
             await session.commit()
@@ -348,31 +382,58 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("network_sentinel_launch_failed", error=str(e))
 
-        # Auto-train IsolationForest + ZScore on initial connection data
-        # Wait for network sentinel's initial scan to complete
-        await asyncio.sleep(2)
-        try:
-            ad = get_anomaly_detector()
-            if ad.initialized and hasattr(ad, 'extract_features'):
-                conns = network_sentinel.get_live_connections()
-                if conns:
-                    import numpy as np
-                    features = ad.extract_features(conns)
-                    # Build a small synthetic training set from the initial snapshot
-                    noise = np.random.normal(0, 0.05, (30, len(features)))
-                    train_data = np.vstack([features.reshape(1, -1)] * 5 + [features + noise])
-                    ifo = get_isolation_forest_detector()
-                    if ifo._model is None:
-                        ifo.train(train_data)
-                        await ifo.save_model()
-                        logger.info("isolation_forest_auto_trained", samples=len(train_data))
-                    zs = get_zscore_detector()
-                    if zs._mean is None:
-                        zs.update_baseline(train_data)
-                        await zs.save_baseline()
-                        logger.info("zscore_auto_trained", samples=len(train_data))
-        except Exception as e:
-            logger.error("ai_auto_train_failed", error=str(e))
+        # Delayed real-data AI auto-training
+        async def _delayed_real_data_train():
+            """Wait 5 min, collect 10 real snapshots, train on real data."""
+            try:
+                await asyncio.sleep(300)  # Wait 5 minutes for real data
+                logger.info("real_data_ai_training_starting")
+
+                ns = get_network_sentinel()
+                ad = get_anomaly_detector()
+                if not (ad.initialized and hasattr(ad, 'extract_features')):
+                    return
+
+                import numpy as np
+                samples = []
+                for i in range(10):
+                    conns = ns.get_live_connections()
+                    if conns:
+                        features = ad.extract_features(conns)
+                        samples.append(features)
+                    if i < 9:
+                        await asyncio.sleep(30)
+
+                if len(samples) < 5:
+                    logger.warning("real_data_train_insufficient_samples", count=len(samples))
+                    return
+
+                real_data = np.vstack([s.reshape(1, -1) for s in samples])
+                # Augment with small noise
+                noise = np.random.normal(0, 0.03, (20, real_data.shape[1]))
+                mean_sample = real_data.mean(axis=0)
+                augmented = mean_sample + noise
+                train_data = np.vstack([real_data, augmented])
+
+                ifo = get_isolation_forest_detector()
+                if ifo._model is None:
+                    ifo.train(train_data)
+                    await ifo.save_model()
+                    logger.info("isolation_forest_real_data_trained", samples=len(train_data))
+
+                zs = get_zscore_detector()
+                if zs._mean is None:
+                    zs.update_baseline(train_data)
+                    await zs.save_baseline()
+                    logger.info("zscore_real_data_trained", samples=len(train_data))
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.error("real_data_train_failed", error=str(e))
+
+        if network_sentinel:
+            train_task = asyncio.create_task(_delayed_real_data_train())
+            _module_tasks.append(train_task)
 
     # Start Brute Force Shield
     brute_force_shield = None
@@ -389,6 +450,7 @@ async def lifespan(app: FastAPI):
     file_integrity = None
     if config.module_file_integrity:
         file_integrity = get_file_integrity()
+        file_integrity.set_db_session_factory(factory)
         try:
             task = asyncio.create_task(file_integrity.start())
             _module_tasks.append(task)
@@ -544,6 +606,50 @@ async def lifespan(app: FastAPI):
     retention_task = asyncio.create_task(_retention_cleanup_loop())
     _module_tasks.append(retention_task)
 
+    # Chunk 11: Threat Forecaster broadcast loop — The Oracle speaks
+    async def _forecast_check_loop():
+        """Run threat forecaster every 5 min, broadcast predictions, create alerts."""
+        await asyncio.sleep(600)  # Wait 10 min for sufficient data
+        while True:
+            try:
+                rm = get_resource_monitor()
+                fc = get_threat_forecaster()
+                if not fc.initialized:
+                    await asyncio.sleep(300)
+                    continue
+
+                history = rm.get_history(limit=360)
+                if len(history) < 30:
+                    await asyncio.sleep(300)
+                    continue
+
+                predictions = await fc.predict_trend(history, steps=6)
+                if predictions:
+                    # Broadcast prediction_update via WebSocket
+                    await ws_manager.broadcast({
+                        "type": "prediction_update",
+                        "data": predictions,
+                    })
+
+                    # Check for threshold breaches
+                    forecast_alerts = fc.check_forecast_alerts(predictions)
+                    for fa in forecast_alerts:
+                        await alert_manager.create_alert(
+                            severity="medium",
+                            module="threat_forecaster",
+                            title=f"Predicted {fa['metric']} breach in {fa['minutes_until_breach']}min",
+                            details=json.dumps(fa),
+                        )
+                await asyncio.sleep(300)  # 5-minute interval
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("forecast_check_error", error=str(e))
+                await asyncio.sleep(300)
+
+    forecast_task = asyncio.create_task(_forecast_check_loop())
+    _module_tasks.append(forecast_task)
+
     logger.info("cereberus_started", app=config.app_name)
 
     yield
@@ -589,11 +695,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CEREBERUS",
     description="AI-Powered Cybersecurity Defense System",
-    version="0.9.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server
+# CORS — allow frontend dev server (tightened: explicit methods + headers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -602,9 +708,15 @@ app.add_middleware(
         "http://localhost:3000",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
+
+# The Shield Wall — security headers on every response
+app.add_middleware(ShieldWallMiddleware)
+
+# The Gatekeeper — rate limiting on state-changing endpoints
+app.add_middleware(GatekeeperMiddleware)
 
 # Audit middleware — logs mutating requests
 app.add_middleware(AuditMiddleware, session_factory=None)  # session_factory set at startup
@@ -619,7 +731,7 @@ async def root():
     """Root endpoint — health check."""
     return {
         "name": config.app_name,
-        "version": "0.9.0",
+        "version": "1.0.0",
         "status": "operational",
     }
 

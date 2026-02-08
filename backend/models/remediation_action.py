@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy import DateTime, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -11,6 +11,9 @@ from .base import Base
 
 class RemediationAction(Base):
     __tablename__ = "remediation_actions"
+    __table_args__ = (
+        Index("ix_remediation_actions_incident", "incident_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     incident_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

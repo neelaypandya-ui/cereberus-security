@@ -10,9 +10,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from ..utils.input_validators import (
+    sanitize_firewall_rule_name,
+    validate_file_path,
+    validate_interface_name,
+    validate_ip_address,
+    validate_port,
+    validate_process_target,
+    validate_protocol,
+    validate_username,
+)
 from ..utils.logging import get_logger
 
 logger = get_logger("engine.remediation")
+
+
+def _run_cmd(args: list[str], timeout: int = 30) -> subprocess.CompletedProcess:
+    """Run a subprocess with argument list (never shell=True)."""
+    return subprocess.run(args, capture_output=True, text=True, timeout=timeout)
 
 
 class RemediationEngine:
@@ -113,7 +128,12 @@ class RemediationEngine:
         incident_id: int | None = None, playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Block an IP address using Windows Firewall."""
-        rule_name = f"CEREBERUS_REMEDIATION_{ip.replace('.', '_').replace(':', '_')}"
+        try:
+            ip = validate_ip_address(ip)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
+        rule_name = sanitize_firewall_rule_name(f"CEREBERUS_REMEDIATION_{ip.replace('.', '_').replace(':', '_')}")
         action_id = await self._persist_action(
             "block_ip", ip, "executing",
             parameters={"duration": duration, "reason": reason, "rule_name": rule_name},
@@ -122,9 +142,12 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'netsh advfirewall firewall add rule name="{rule_name}" dir=in action=block remoteip={ip} protocol=any'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "firewall", "add", "rule",
+                    f"name={rule_name}", "dir=in", "action=block",
+                    f"remoteip={ip}", "protocol=any",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -139,7 +162,12 @@ class RemediationEngine:
 
     async def unblock_ip(self, ip: str, executed_by: str | None = None) -> dict:
         """Remove firewall rule for an IP."""
-        rule_name = f"CEREBERUS_REMEDIATION_{ip.replace('.', '_').replace(':', '_')}"
+        try:
+            ip = validate_ip_address(ip)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
+        rule_name = sanitize_firewall_rule_name(f"CEREBERUS_REMEDIATION_{ip.replace('.', '_').replace(':', '_')}")
         action_id = await self._persist_action(
             "block_ip", ip, "executing",
             parameters={"action": "unblock", "rule_name": rule_name},
@@ -147,9 +175,11 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'netsh advfirewall firewall delete rule name="{rule_name}"'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "firewall", "delete", "rule",
+                    f"name={rule_name}",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip()}
@@ -165,6 +195,11 @@ class RemediationEngine:
         playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Kill a process by PID or name."""
+        try:
+            target = validate_process_target(target)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         action_id = await self._persist_action(
             "kill_process", target, "executing",
             incident_id=incident_id, playbook_rule_id=playbook_rule_id, executed_by=executed_by,
@@ -180,9 +215,8 @@ class RemediationEngine:
                 proc.terminate()
                 killed.append({"pid": pid, "name": proc_name})
             else:
-                cmd = f'taskkill /F /IM "{target}"'
                 result = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                    None, lambda: _run_cmd(["taskkill", "/F", "/IM", target])
                 )
                 killed.append({"name": target, "output": result.stdout.strip()})
 
@@ -201,6 +235,11 @@ class RemediationEngine:
         incident_id: int | None = None, playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Quarantine a file — hash, move to vault, write stub."""
+        try:
+            path = validate_file_path(path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         action_id = await self._persist_action(
             "quarantine_file", path, "executing",
             parameters={"reason": reason},
@@ -309,6 +348,11 @@ class RemediationEngine:
         playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Disable a network interface to isolate the system."""
+        try:
+            interface = validate_interface_name(interface)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         action_id = await self._persist_action(
             "isolate_network", interface, "executing",
             rollback_data={"interface": interface},
@@ -316,9 +360,11 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'netsh interface set interface "{interface}" admin=disable'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "interface", "set", "interface",
+                    interface, "admin=disable",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -332,6 +378,11 @@ class RemediationEngine:
 
     async def restore_network(self, interface: str, executed_by: str | None = None) -> dict:
         """Re-enable a network interface."""
+        try:
+            interface = validate_interface_name(interface)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         action_id = await self._persist_action(
             "isolate_network", interface, "executing",
             parameters={"action": "restore"},
@@ -339,9 +390,11 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'netsh interface set interface "{interface}" admin=enable'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "interface", "set", "interface",
+                    interface, "admin=enable",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip()}
@@ -357,6 +410,11 @@ class RemediationEngine:
         playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Disable a Windows user account."""
+        try:
+            username = validate_username(username)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
         action_id = await self._persist_action(
             "disable_user", username, "executing",
             rollback_data={"username": username},
@@ -364,9 +422,8 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'net user "{username}" /active:no'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd(["net", "user", username, "/active:no"])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -382,13 +439,21 @@ class RemediationEngine:
         incident_id: int | None = None, playbook_rule_id: int | None = None, executed_by: str | None = None,
     ) -> dict:
         """Block an inbound port using Windows Firewall."""
-        rule_name = f"CEREBERUS_BLOCK_PORT_{port}"
+        try:
+            port = validate_port(port)
+            protocol = validate_protocol(protocol)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+
+        rule_name = sanitize_firewall_rule_name(f"CEREBERUS_BLOCK_PORT_{port}")
 
         # Check if rule already exists to avoid duplicates
         try:
-            check_cmd = f'netsh advfirewall firewall show rule name="{rule_name}"'
             check_result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(check_cmd, shell=True, capture_output=True, text=True, timeout=5)
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "firewall", "show", "rule",
+                    f"name={rule_name}",
+                ], timeout=5)
             )
             if check_result.returncode == 0 and "Action:" in check_result.stdout:
                 return {"action_id": None, "success": True, "output": f"Firewall rule {rule_name} already exists", "rule_name": rule_name, "already_exists": True}
@@ -403,9 +468,12 @@ class RemediationEngine:
         )
 
         try:
-            cmd = f'netsh advfirewall firewall add rule name="{rule_name}" dir=in action=block localport={port} protocol={protocol}'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "firewall", "add", "rule",
+                    f"name={rule_name}", "dir=in", "action=block",
+                    f"localport={port}", f"protocol={protocol}",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip(), "rule_name": rule_name}
@@ -429,9 +497,8 @@ class RemediationEngine:
         )
 
         try:
-            cmd = 'net user guest /active:no'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd(["net", "user", "guest", "/active:no"])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -455,9 +522,10 @@ class RemediationEngine:
         )
 
         try:
-            cmd = 'netsh advfirewall set allprofiles state on'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "set", "allprofiles", "state", "on",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -481,9 +549,12 @@ class RemediationEngine:
         )
 
         try:
-            cmd = r'reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_SZ /d 0 /f'
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                None, lambda: _run_cmd([
+                    "reg", "add",
+                    r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
+                    "/v", "AutoAdminLogon", "/t", "REG_SZ", "/d", "0", "/f",
+                ])
             )
             success = result.returncode == 0
             res = {"success": success, "output": result.stdout.strip(), "error": result.stderr.strip()}
@@ -522,11 +593,13 @@ class RemediationEngine:
                 result = {"success": False, "error": "Unknown action type"}
 
                 if action.action_type == "block_ip":
-                    rule_name = rollback_data.get("rule_name", "")
+                    rule_name = sanitize_firewall_rule_name(rollback_data.get("rule_name", ""))
                     if rule_name:
-                        cmd = f'netsh advfirewall firewall delete rule name="{rule_name}"'
                         proc = await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                            None, lambda: _run_cmd([
+                                "netsh", "advfirewall", "firewall", "delete", "rule",
+                                f"name={rule_name}",
+                            ])
                         )
                         result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 
@@ -538,9 +611,12 @@ class RemediationEngine:
                 elif action.action_type == "disable_user":
                     username = rollback_data.get("username", "")
                     if username:
-                        cmd = f'net user "{username}" /active:yes'
+                        try:
+                            username = validate_username(username)
+                        except ValueError as e:
+                            return {"success": False, "error": str(e)}
                         proc = await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                            None, lambda: _run_cmd(["net", "user", username, "/active:yes"])
                         )
                         result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 
@@ -561,33 +637,38 @@ class RemediationEngine:
                             result = {"success": False, "error": "Quarantine entry not found"}
 
                 elif action.action_type == "block_port":
-                    rule_name = rollback_data.get("rule_name", "")
+                    rule_name = sanitize_firewall_rule_name(rollback_data.get("rule_name", ""))
                     if rule_name:
-                        cmd = f'netsh advfirewall firewall delete rule name="{rule_name}"'
                         proc = await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                            None, lambda: _run_cmd([
+                                "netsh", "advfirewall", "firewall", "delete", "rule",
+                                f"name={rule_name}",
+                            ])
                         )
                         result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 
                 elif action.action_type == "disable_guest":
                     username = rollback_data.get("username", "guest")
-                    cmd = f'net user "{username}" /active:yes'
                     proc = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                        None, lambda: _run_cmd(["net", "user", username, "/active:yes"])
                     )
                     result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 
                 elif action.action_type == "enable_firewall":
-                    cmd = 'netsh advfirewall set allprofiles state off'
                     proc = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                        None, lambda: _run_cmd([
+                            "netsh", "advfirewall", "set", "allprofiles", "state", "off",
+                        ])
                     )
                     result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 
                 elif action.action_type == "disable_autologin":
-                    cmd = r'reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_SZ /d 1 /f'
                     proc = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                        None, lambda: _run_cmd([
+                            "reg", "add",
+                            r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
+                            "/v", "AutoAdminLogon", "/t", "REG_SZ", "/d", "1", "/f",
+                        ])
                     )
                     result = {"success": proc.returncode == 0, "output": proc.stdout.strip()}
 

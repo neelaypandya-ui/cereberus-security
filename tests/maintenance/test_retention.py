@@ -9,7 +9,9 @@ from backend.maintenance.retention import RetentionManager
 
 
 def _make_config(alert_days=90, audit_days=365, anomaly_days=30,
-                 snapshot_days=7, export_days=30):
+                 snapshot_days=7, export_days=30,
+                 incidents_days=365, remediation_days=180,
+                 comments_days=365, iocs_days=180):
     """Create a mock config with retention day settings."""
     config = MagicMock()
     config.retention_alerts_days = alert_days
@@ -17,6 +19,10 @@ def _make_config(alert_days=90, audit_days=365, anomaly_days=30,
     config.retention_anomaly_days = anomaly_days
     config.retention_snapshots_days = snapshot_days
     config.retention_exports_days = export_days
+    config.retention_incidents_days = incidents_days
+    config.retention_remediation_days = remediation_days
+    config.retention_comments_days = comments_days
+    config.retention_iocs_days = iocs_days
     return config
 
 
@@ -65,8 +71,9 @@ class TestCleanupAlerts:
         """run_cleanup should issue a DELETE query for alerts older than configured days."""
         config = _make_config(alert_days=90)
         factory, session, delete_results = _make_session_factory()
-        # Set rowcounts: alerts=5, audit=0, anomaly=0, snapshots=0, select_exports=0, delete_exports=0
-        delete_results.extend([5, 0, 0, 0, 0, 0])
+        # Set rowcounts: alerts=5, audit=0, anomaly=0, snapshots=0, select_exports=0, delete_exports=0,
+        # incidents=0, remediation=0, comments=0, iocs=0
+        delete_results.extend([5, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
         manager = RetentionManager(db_session_factory=factory, config=config)
 
@@ -84,8 +91,9 @@ class TestCleanupAuditLogs:
         """run_cleanup should issue a DELETE query for audit logs older than configured days."""
         config = _make_config(audit_days=365)
         factory, session, delete_results = _make_session_factory()
-        # alerts=0, audit=12, anomaly=0, snapshots=0, select_exports=0, delete_exports=0
-        delete_results.extend([0, 12, 0, 0, 0, 0])
+        # alerts=0, audit=12, anomaly=0, snapshots=0, select_exports=0, delete_exports=0,
+        # incidents=0, remediation=0, comments=0, iocs=0
+        delete_results.extend([0, 12, 0, 0, 0, 0, 0, 0, 0, 0])
 
         manager = RetentionManager(db_session_factory=factory, config=config)
 
@@ -102,7 +110,7 @@ class TestCleanupRespectsConfig:
         # Use non-default retention values
         config = _make_config(alert_days=7, audit_days=14)
         factory, session, delete_results = _make_session_factory()
-        delete_results.extend([3, 8, 0, 0, 0, 0])
+        delete_results.extend([3, 8, 0, 0, 0, 0, 0, 0, 0, 0])
 
         manager = RetentionManager(db_session_factory=factory, config=config)
 

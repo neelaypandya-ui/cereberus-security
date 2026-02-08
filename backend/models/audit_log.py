@@ -24,3 +24,4 @@ class AuditLog(Base):
     details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    semantic_event: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)

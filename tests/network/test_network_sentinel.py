@@ -69,12 +69,12 @@ class TestNetworkSentinel:
 
     def test_parse_connection_listening(self):
         """Should handle a listening connection with no remote addr."""
-        conn = _make_conn("0.0.0.0", 8080, status="LISTEN", pid=1111)
+        conn = _make_conn("0.0.0.0", 4444, status="LISTEN", pid=1111)
         result = self.sentinel._parse_connection(conn)
         assert result["remote_addr"] == ""
         assert result["remote_port"] is None
         assert result["status"] == "LISTEN"
-        # 8080 is in suspicious ports
+        # 4444 is in suspicious ports
         assert result["suspicious"] is True
 
     def test_parse_connection_udp(self):

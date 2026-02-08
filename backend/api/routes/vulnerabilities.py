@@ -3,7 +3,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_EXECUTE_REMEDIATION
 from ...dependencies import get_vuln_scanner
@@ -12,9 +12,9 @@ router = APIRouter(prefix="/vulnerabilities", tags=["vulnerabilities"])
 
 
 class RemediateRequest(BaseModel):
-    category: str
-    port: Optional[int] = None
-    service: Optional[str] = None
+    category: str = Field(pattern=r"^(open_port|guest_account|firewall|autologin|windows_update)$")
+    port: Optional[int] = Field(default=None, ge=1, le=65535)
+    service: Optional[str] = Field(default=None, max_length=100)
 
 
 @router.get("/")

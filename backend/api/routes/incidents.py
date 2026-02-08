@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,16 +35,16 @@ def _get_incident_manager():
 # --- Request bodies ---
 
 class CreateIncidentRequest(BaseModel):
-    title: str
-    severity: str  # critical, high, medium, low
+    title: str = Field(min_length=1, max_length=255)
+    severity: str = Field(pattern=r"^(critical|high|medium|low)$")
     category: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=5000)
     source_alert_ids: Optional[list[int]] = None
 
 
 class UpdateStatusRequest(BaseModel):
-    new_status: str  # open, investigating, contained, resolved, closed
-    note: Optional[str] = None
+    new_status: str = Field(pattern=r"^(open|investigating|contained|resolved|closed)$")
+    note: Optional[str] = Field(default=None, max_length=5000)
 
 
 class AssignRequest(BaseModel):
@@ -52,7 +52,7 @@ class AssignRequest(BaseModel):
 
 
 class AddNoteRequest(BaseModel):
-    note: str
+    note: str = Field(min_length=1, max_length=5000)
 
 
 class AddTimelineEventRequest(BaseModel):
@@ -87,9 +87,6 @@ async def create_incident(
     current_user: dict = Depends(require_permission(PERM_MANAGE_INCIDENTS)),
 ):
     """Create a new incident."""
-    if body.severity not in ("critical", "high", "medium", "low"):
-        raise HTTPException(status_code=400, detail="severity must be one of: critical, high, medium, low")
-
     manager = _get_incident_manager()
     result = await manager.create_incident(
         title=body.title,
@@ -132,13 +129,6 @@ async def update_incident_status(
     current_user: dict = Depends(require_permission(PERM_MANAGE_INCIDENTS)),
 ):
     """Update the status of an incident with transition validation."""
-    valid_statuses = ("open", "investigating", "contained", "resolved", "closed")
-    if body.new_status not in valid_statuses:
-        raise HTTPException(
-            status_code=400,
-            detail=f"new_status must be one of: {', '.join(valid_statuses)}",
-        )
-
     manager = _get_incident_manager()
     result = await manager.update_status(
         incident_id=incident_id,

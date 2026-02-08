@@ -17,6 +17,8 @@ def get_engine(config: CereberusConfig):
             config.database_url,
             echo=config.debug,
             future=True,
+            pool_pre_ping=True,
+            connect_args={"timeout": 30},
         )
     return _engine
 

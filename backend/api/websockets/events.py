@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ...config import get_config
 from ...dependencies import (
     get_alert_manager,
     get_behavioral_baseline,
@@ -17,6 +18,7 @@ from ...dependencies import (
     get_vpn_guardian,
 )
 from ...utils.logging import get_logger
+from ...utils.security import decode_access_token
 
 logger = get_logger("websocket.events")
 
@@ -66,6 +68,17 @@ async def websocket_events(websocket: WebSocket):
         "timestamp": "ISO 8601"
     }
     """
+    # Authenticate via JWT token in query params
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001)
+        return
+    config = get_config()
+    payload = decode_access_token(token, config.secret_key, config.jwt_algorithm)
+    if payload is None:
+        await websocket.close(code=4001)
+        return
+
     await manager.connect(websocket)
 
     # Register with alert manager for broadcasting

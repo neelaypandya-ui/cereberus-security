@@ -34,6 +34,20 @@ class RateLimiter:
         self._attempts[key] = [t for t in self._attempts[key] if t > cutoff]
         self._attempts[key].append(now)
 
+        # Bounded cleanup: if too many keys, prune stale ones (limit 100 per call)
+        if len(self._attempts) > 10000:
+            pruned = 0
+            keys_to_remove = []
+            for k in list(self._attempts.keys()):
+                if pruned >= 100:
+                    break
+                self._attempts[k] = [t for t in self._attempts[k] if t > cutoff]
+                if not self._attempts[k]:
+                    keys_to_remove.append(k)
+                pruned += 1
+            for k in keys_to_remove:
+                del self._attempts[k]
+
     def remaining_attempts(self, key: str) -> int:
         """Get remaining attempts before rate limiting."""
         now = time.time()

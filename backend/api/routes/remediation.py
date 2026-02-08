@@ -2,10 +2,11 @@
 
 import json
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,13 @@ from ...dependencies import get_db
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_EXECUTE_REMEDIATION
 from ...models.remediation_action import RemediationAction
 from ...models.quarantine_vault import QuarantineEntry
+from ...utils.input_validators import (
+    validate_ip_address,
+    validate_process_target,
+    validate_file_path,
+    validate_interface_name,
+    validate_username,
+)
 
 router = APIRouter(prefix="/remediation", tags=["remediation"])
 
@@ -35,13 +43,27 @@ def _get_remediation_engine():
     return _remediation_engine
 
 
+# --- Enums ---
+
+class ActionType(str, Enum):
+    block_ip = "block_ip"
+    kill_process = "kill_process"
+    quarantine_file = "quarantine_file"
+    isolate_network = "isolate_network"
+    disable_user = "disable_user"
+    block_port = "block_port"
+    disable_guest = "disable_guest"
+    enable_firewall = "enable_firewall"
+    disable_autologin = "disable_autologin"
+
+
 # --- Request bodies ---
 
 class ExecuteActionRequest(BaseModel):
-    action_type: str  # block_ip, kill_process, quarantine_file, isolate_network, disable_user, block_port, disable_guest, enable_firewall, disable_autologin
-    target: str
+    action_type: ActionType
+    target: str = Field(min_length=1, max_length=500)
     parameters: Optional[dict] = None
-    incident_id: Optional[int] = None
+    incident_id: Optional[int] = Field(default=None, ge=1)
 
 
 # --- Endpoints ---
@@ -52,18 +74,30 @@ async def execute_remediation_action(
     current_user: dict = Depends(require_permission(PERM_EXECUTE_REMEDIATION)),
 ):
     """Execute a remediation action (block IP, kill process, quarantine file, etc.)."""
-    valid_actions = ("block_ip", "kill_process", "quarantine_file", "isolate_network", "disable_user", "block_port", "disable_guest", "enable_firewall", "disable_autologin")
-    if body.action_type not in valid_actions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"action_type must be one of: {', '.join(valid_actions)}",
-        )
+    # Per-action-type input validation
+    try:
+        if body.action_type == ActionType.block_ip:
+            validate_ip_address(body.target)
+        elif body.action_type == ActionType.kill_process:
+            validate_process_target(body.target)
+        elif body.action_type == ActionType.quarantine_file:
+            validate_file_path(body.target)
+        elif body.action_type == ActionType.isolate_network:
+            validate_interface_name(body.target)
+        elif body.action_type == ActionType.disable_user:
+            validate_username(body.target)
+        elif body.action_type == ActionType.block_port:
+            port_val = int(body.target)
+            if port_val < 1 or port_val > 65535:
+                raise ValueError(f"Port must be between 1 and 65535, got: {port_val}")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     engine = _get_remediation_engine()
     actor = current_user.get("sub", "unknown")
     params = body.parameters or {}
 
-    if body.action_type == "block_ip":
+    if body.action_type == ActionType.block_ip:
         result = await engine.block_ip(
             ip=body.target,
             duration=params.get("duration", 3600),
@@ -71,55 +105,53 @@ async def execute_remediation_action(
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "kill_process":
+    elif body.action_type == ActionType.kill_process:
         result = await engine.kill_process(
             target=body.target,
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "quarantine_file":
+    elif body.action_type == ActionType.quarantine_file:
         result = await engine.quarantine_file(
             path=body.target,
             reason=params.get("reason", "Manual quarantine"),
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "isolate_network":
+    elif body.action_type == ActionType.isolate_network:
         result = await engine.isolate_network(
             interface=body.target,
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "disable_user":
+    elif body.action_type == ActionType.disable_user:
         result = await engine.disable_user_account(
             username=body.target,
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "block_port":
+    elif body.action_type == ActionType.block_port:
         result = await engine.block_port(
             port=int(body.target),
             protocol=params.get("protocol", "TCP"),
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "disable_guest":
+    elif body.action_type == ActionType.disable_guest:
         result = await engine.disable_guest_account(
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "enable_firewall":
+    elif body.action_type == ActionType.enable_firewall:
         result = await engine.enable_firewall(
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    elif body.action_type == "disable_autologin":
+    elif body.action_type == ActionType.disable_autologin:
         result = await engine.disable_autologin(
             incident_id=body.incident_id,
             executed_by=actor,
         )
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown action type: {body.action_type}")
 
     if not result.get("success", False) and "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])

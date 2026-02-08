@@ -382,7 +382,7 @@ td code { font-size: 13px; }
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-brand">
     <h1>CEREBERUS</h1>
-    <div class="version">VERSION 0.9.0</div>
+    <div class="version">VERSION 1.0.0</div>
   </div>
 
   <div class="nav-section">
@@ -419,6 +419,7 @@ td code { font-size: 13px; }
     <div class="nav-section-title">Understanding the System</div>
     <a href="#how-ai-works" class="nav-link">How the AI Works</a>
     <a href="#taking-action" class="nav-link">Taking Action</a>
+    <a href="#security" class="nav-link">Security Hardening</a>
     <a href="#roles" class="nav-link">User Roles</a>
     <a href="#glossary" class="nav-link">Glossary</a>
   </div>
@@ -439,7 +440,7 @@ td code { font-size: 13px; }
   <div class="classification-top">TOP SECRET // CEREBERUS // NOFORN</div>
   <div class="logo">CEREBERUS</div>
   <div class="subtitle">AI-Powered Cybersecurity Defense System</div>
-  <div class="ver">v0.9.0 &mdash; System Documentation &amp; User Guide</div>
+  <div class="ver">v1.0.0 &mdash; System Documentation &amp; User Guide</div>
 </div>
 
 <!-- ============================================================ -->
@@ -468,7 +469,7 @@ td code { font-size: 13px; }
 
 <h3>Tech stack (for developers)</h3>
 <ul>
-  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (30 database tables)</li>
+  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (31 database tables)</li>
   <li><strong>Frontend:</strong> React 18 + TypeScript, Recharts for visualization</li>
   <li><strong>AI/ML:</strong> PyTorch (Autoencoder, LSTM), scikit-learn (Isolation Forest), Z-Score statistics</li>
   <li><strong>Real-time:</strong> WebSocket for live updates across all panels</li>
@@ -489,7 +490,7 @@ td code { font-size: 13px; }
 </ul>
 
 <div class="warning-box">
-  <p style="margin:0">Change the default password immediately after your first login. Anyone who knows these defaults can access your entire security system.</p>
+  <p style="margin:0">You will be prompted to change the default password on first login. The system requires a minimum of 12 characters. Anyone who knows the defaults can access your entire security system &mdash; change it immediately.</p>
 </div>
 
 <h3>Dashboard Layout</h3>
@@ -1214,6 +1215,60 @@ td code { font-size: 13px; }
 </section>
 
 <!-- ============================================================ -->
+<!-- SECURITY HARDENING -->
+<!-- ============================================================ -->
+<section id="security">
+<h2>Security Hardening</h2>
+
+<p>Cereberus v1.0.0 includes comprehensive security hardening across the entire stack. These protections operate automatically and require no configuration.</p>
+
+<h3>Input Validation &amp; Command Injection Prevention</h3>
+<p>All user-supplied inputs (IP addresses, ports, hostnames, file paths, process targets) are validated through a centralized validation layer before reaching any system command. Every subprocess call uses argument lists instead of shell strings, eliminating command injection entirely.</p>
+
+<h3>Security Headers (Shield Wall)</h3>
+<p>Every HTTP response includes hardened security headers:</p>
+<ul>
+  <li><strong>X-Frame-Options: DENY</strong> &mdash; Prevents clickjacking by blocking iframe embedding</li>
+  <li><strong>Content-Security-Policy</strong> &mdash; Restricts resource loading to trusted origins</li>
+  <li><strong>X-Content-Type-Options: nosniff</strong> &mdash; Prevents MIME-type sniffing attacks</li>
+  <li><strong>Referrer-Policy: strict-origin-when-cross-origin</strong> &mdash; Controls referrer information leakage</li>
+</ul>
+
+<h3>Rate Limiting (Gatekeeper)</h3>
+<p>State-changing endpoints are rate-limited per client IP to prevent abuse:</p>
+<ul>
+  <li><strong>Global:</strong> 100 requests/minute for all state-changing methods</li>
+  <li><strong>Remediation:</strong> 10 executions/minute</li>
+  <li><strong>Incidents &amp; Playbooks:</strong> 20 requests/minute each</li>
+  <li><strong>IOC operations:</strong> 30 requests/minute</li>
+  <li><strong>Data export:</strong> 5 requests/minute</li>
+</ul>
+<p>Exceeded limits return HTTP 429 with an <code>X-RateLimit-Remaining</code> header.</p>
+
+<h3>Session Management (Burn Notice)</h3>
+<ul>
+  <li><strong>Token revocation:</strong> Logging out invalidates your JWT token immediately via the burn list</li>
+  <li><strong>Session timeout:</strong> 15 minutes of inactivity triggers automatic logout (Ghost Protocol)</li>
+  <li><strong>Token refresh:</strong> Expired tokens are automatically refreshed in the background without interrupting your work</li>
+</ul>
+
+<h3>WebSocket Authentication</h3>
+<p>WebSocket connections require a valid JWT token passed as a query parameter. Unauthenticated connections are immediately closed with code 4001.</p>
+
+<h3>Alert Deduplication (Echo Suppressor)</h3>
+<p>Identical alerts within a 5-minute window are suppressed to prevent alert fatigue and infinite playbook loops. Deduplication uses a hash of severity, module, title, and details.</p>
+
+<h3>Audit Logging (Black Box)</h3>
+<p>Every API request (except WebSocket heartbeats) is logged with semantic event classification. The audit trail records WHO did WHAT and WHEN &mdash; covering 12 event types including remediation execution, incident management, and user administration.</p>
+
+<h3>CORS Policy</h3>
+<p>Cross-Origin Resource Sharing is restricted to explicit HTTP methods and headers. Only <code>Authorization</code>, <code>Content-Type</code>, and <code>X-API-Key</code> headers are allowed.</p>
+
+<h3>Default Credential Protection</h3>
+<p>The default admin account is flagged with <code>must_change_password</code> on first login. A startup warning is logged if the secret key has not been changed from its default value. Passwords require a minimum of 12 characters.</p>
+</section>
+
+<!-- ============================================================ -->
 <!-- ROLES -->
 <!-- ============================================================ -->
 <section id="roles">
@@ -1307,6 +1362,8 @@ td code { font-size: 13px; }
   <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/register</code></td><td>None</td><td>Register new user account</td></tr>
   <tr><td><span class="method-badge method-get">GET</span></td><td><code>/auth/me</code></td><td>Any authenticated</td><td>Get current user info</td></tr>
   <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/refresh</code></td><td>Any authenticated</td><td>Refresh JWT token</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/logout</code></td><td>Any authenticated</td><td>Revoke current token (burn notice)</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/auth/change-password</code></td><td>Any authenticated</td><td>Change password (required on first login)</td></tr>
 </table>
 
 <h3>Dashboard</h3>
@@ -1595,7 +1652,7 @@ docker-compose logs -f cereberus</code></pre>
   &mdash; END OF DOCUMENT &mdash;
 </p>
 <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 8px;">
-  CEREBERUS v0.9.0 &bull; AI-Powered Cybersecurity Defense System
+  CEREBERUS v1.0.0 &bull; AI-Powered Cybersecurity Defense System
 </p>
 
 </div>

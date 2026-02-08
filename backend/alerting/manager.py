@@ -4,7 +4,10 @@ Routes alerts to various outputs: database, WebSocket broadcast,
 desktop notifications, and webhooks.
 """
 
+import hashlib
 import json
+import time
+from collections import deque
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -28,7 +31,9 @@ class AlertManager:
         self._webhook_url = webhook_url
         self._db_session_factory = db_session_factory
         self._ws_connections: list = []  # WebSocket connections for broadcasting
-        self._alert_history: list[dict] = []
+        self._alert_history: deque = deque(maxlen=1000)
+        self._dedup_cache: dict[str, float] = {}
+        self._dedup_ttl: float = 300.0
 
         # Phase 7/8 integrations
         self._playbook_executor = None
@@ -45,6 +50,11 @@ class AlertManager:
     def set_notification_dispatcher(self, dispatcher) -> None:
         """Attach the NotificationDispatcher for multi-channel alerts."""
         self._notification_dispatcher = dispatcher
+
+    def _alert_dedup_key(self, severity: str, module_source: str, title: str, details: dict | None) -> str:
+        """Create an MD5 hash deduplication key from alert fields."""
+        raw = f"{severity}|{module_source}|{title}|{json.dumps(details, sort_keys=True, default=str)}"
+        return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
     def register_ws(self, ws) -> None:
         """Register a WebSocket connection for alert broadcasting."""
@@ -87,6 +97,24 @@ class AlertManager:
             "interface_name": interface_name,
             "acknowledged": False,
         }
+
+        # Deduplication check
+        dedup_key = self._alert_dedup_key(severity, module_source, title, details)
+        now = time.time()
+
+        # Prune expired dedup cache entries (limit to 100 per call)
+        expired_keys = [
+            k for k in list(self._dedup_cache.keys())[:100]
+            if now - self._dedup_cache[k] > self._dedup_ttl
+        ]
+        for k in expired_keys:
+            del self._dedup_cache[k]
+
+        if dedup_key in self._dedup_cache and now - self._dedup_cache[dedup_key] <= self._dedup_ttl:
+            logger.info("echo_suppressed", severity=severity, module=module_source, title=title)
+            return alert
+
+        self._dedup_cache[dedup_key] = now
 
         self._alert_history.append(alert)
         logger.info(

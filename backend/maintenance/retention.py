@@ -135,6 +135,76 @@ class RetentionManager:
                 cutoff_days=retention_days,
             )
 
+            # --- Incidents (resolved or closed) ---
+            retention_days = getattr(self._config, "retention_incidents_days", 365)
+            cutoff = now - timedelta(days=retention_days)
+            from ..models.incident import Incident
+
+            result = await session.execute(
+                delete(Incident).where(
+                    Incident.created_at < cutoff,
+                    Incident.status.in_(["resolved", "closed"]),
+                )
+            )
+            summary["incidents"] = result.rowcount
+            logger.info(
+                "retention_cleanup",
+                table="incidents",
+                deleted=result.rowcount,
+                cutoff_days=retention_days,
+            )
+
+            # --- Remediation Actions ---
+            retention_days = getattr(self._config, "retention_remediation_days", 180)
+            cutoff = now - timedelta(days=retention_days)
+            from ..models.remediation_action import RemediationAction
+
+            result = await session.execute(
+                delete(RemediationAction).where(RemediationAction.created_at < cutoff)
+            )
+            summary["remediation_actions"] = result.rowcount
+            logger.info(
+                "retention_cleanup",
+                table="remediation_actions",
+                deleted=result.rowcount,
+                cutoff_days=retention_days,
+            )
+
+            # --- Comments ---
+            retention_days = getattr(self._config, "retention_comments_days", 365)
+            cutoff = now - timedelta(days=retention_days)
+            from ..models.comment import Comment
+
+            result = await session.execute(
+                delete(Comment).where(Comment.created_at < cutoff)
+            )
+            summary["comments"] = result.rowcount
+            logger.info(
+                "retention_cleanup",
+                table="comments",
+                deleted=result.rowcount,
+                cutoff_days=retention_days,
+            )
+
+            # --- IOCs (inactive) ---
+            retention_days = getattr(self._config, "retention_iocs_days", 180)
+            cutoff = now - timedelta(days=retention_days)
+            from ..models.ioc import IOC
+
+            result = await session.execute(
+                delete(IOC).where(
+                    IOC.first_seen < cutoff,
+                    IOC.active == False,
+                )
+            )
+            summary["iocs"] = result.rowcount
+            logger.info(
+                "retention_cleanup",
+                table="iocs",
+                deleted=result.rowcount,
+                cutoff_days=retention_days,
+            )
+
             await session.commit()
 
         logger.info("retention_cleanup_complete", summary=summary)

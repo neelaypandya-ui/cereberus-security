@@ -1,5 +1,7 @@
 const API_BASE = '/api/v1';
 
+let _refreshPromise: Promise<string | null> | null = null;
+
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -11,6 +13,32 @@ function getHeaders(): Record<string, string> {
   return headers;
 }
 
+async function _attemptTokenRefresh(): Promise<string | null> {
+  try {
+    const token = localStorage.getItem('cereberus_token');
+    if (!token) return null;
+
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.access_token) {
+      localStorage.setItem('cereberus_token', data.access_token);
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -18,6 +46,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (response.status === 401) {
+    // Don't try refresh for auth endpoints — credentials expired, return to base
+    const isAuthEndpoint = path.startsWith('/auth/');
+    if (!isAuthEndpoint) {
+      // Requesting second wind — singleton refresh promise prevents concurrent calls
+      if (!_refreshPromise) {
+        _refreshPromise = _attemptTokenRefresh().finally(() => { _refreshPromise = null; });
+      }
+      const newToken = await _refreshPromise;
+      if (newToken) {
+        // Retry original request with new token
+        const retryResponse = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: {
+            ...getHeaders(),
+            ...options.headers as Record<string, string>,
+          },
+        });
+        if (retryResponse.ok) {
+          return retryResponse.json();
+        }
+      }
+    }
+
+    // Credentials expired, returning to base
     localStorage.removeItem('cereberus_token');
     window.location.href = '/login';
     throw new Error('Unauthorized');
@@ -34,7 +86,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: (username: string, password: string) =>
-    request<{ access_token: string; token_type: string }>('/auth/login', {
+    request<{ access_token: string; token_type: string; must_change_password?: boolean }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
@@ -48,6 +100,14 @@ export const api = {
   getMe: () => request<{ sub: string; role: string }>('/auth/me'),
 
   refreshToken: () => request('/auth/refresh', { method: 'POST' }),
+
+  logout: () => request('/auth/logout', { method: 'POST' }).catch(() => {}),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
 
   // Dashboard
   getDashboardSummary: () => request<{

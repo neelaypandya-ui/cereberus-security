@@ -32,6 +32,7 @@ class CereberusConfig(BaseSettings):
     secret_key: str = "CHANGE_ME_IN_PRODUCTION"
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 60
+    min_password_length: int = 12
 
     # Redis
     redis_url: str = "redis://localhost:6379"
@@ -143,6 +144,10 @@ class CereberusConfig(BaseSettings):
     retention_snapshots_days: int = 7
     retention_exports_days: int = 30
     retention_cleanup_interval_hours: int = 24
+    retention_incidents_days: int = 365
+    retention_remediation_days: int = 180
+    retention_comments_days: int = 365
+    retention_iocs_days: int = 180
 
     @field_validator("vpn_kill_switch_mode")
     @classmethod

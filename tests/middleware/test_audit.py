@@ -15,7 +15,8 @@ class TestAuditMiddlewareConfig:
         assert "GET" not in AUDITED_METHODS
 
     def test_skip_paths(self):
-        assert "/api/v1/auth/login" in SKIP_PATHS
+        # Phase 10: auth endpoints no longer skipped — "nothing escapes the black box"
+        assert "/api/v1/auth/login" not in SKIP_PATHS
         assert "/ws/events" in SKIP_PATHS
 
     def test_init_with_session_factory(self):

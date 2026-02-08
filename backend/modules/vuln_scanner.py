@@ -176,8 +176,8 @@ class VulnScanner(BaseModule):
         try:
             rule_name = f"CEREBERUS_BLOCK_PORT_{port}"
             result = subprocess.run(
-                f'netsh advfirewall firewall show rule name="{rule_name}"',
-                shell=True, capture_output=True, text=True, timeout=5,
+                ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rule_name}"],
+                capture_output=True, text=True, timeout=5,
             )
             return result.returncode == 0 and "Action:" in result.stdout
         except Exception:

@@ -181,6 +181,37 @@ class NetworkSentinel(BaseModule):
             except Exception as e:
                 self.logger.error("baseline_update_error", error=str(e))
 
+        # Check for behavioral deviations
+        if self._behavioral_baseline:
+            try:
+                for metric_name, metric_value in [
+                    ("total_connections", float(stats["total"])),
+                    ("established_connections", float(stats["established"])),
+                    ("suspicious_connections", float(stats["suspicious"])),
+                ]:
+                    deviation = self._behavioral_baseline.get_deviation_score(metric_name, metric_value)
+                    if deviation and deviation.get("is_deviation"):
+                        event = {
+                            "timestamp": self._last_scan.isoformat(),
+                            "anomaly_score": abs(deviation.get("z_score", 0)) / 10.0,
+                            "threshold": 0.3,
+                            "detector_type": "behavioral_baseline",
+                            "metric": metric_name,
+                            "value": metric_value,
+                            "z_score": deviation.get("z_score", 0),
+                            "stats": {"total": stats["total"], "suspicious": stats["suspicious"], "established": stats["established"]},
+                        }
+                        self._anomaly_events.append(event)
+                        if self._db_session_factory:
+                            await self._persist_baseline_deviation(event)
+                        self.logger.warning(
+                            "baseline_deviation_detected",
+                            metric=metric_name,
+                            z_score=deviation.get("z_score", 0),
+                        )
+            except Exception as e:
+                self.logger.error("baseline_deviation_check_error", error=str(e))
+
         # Check remote IPs against IOC database
         if self._ioc_matcher:
             try:
@@ -335,8 +366,8 @@ class NetworkSentinel(BaseModule):
             try:
                 rule_name = f"CEREBERUS_BLOCK_PORT_{port}"
                 result = subprocess.run(
-                    f'netsh advfirewall firewall show rule name="{rule_name}"',
-                    shell=True, capture_output=True, text=True, timeout=5,
+                    ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rule_name}"],
+                    capture_output=True, text=True, timeout=5,
                 )
                 if result.returncode == 0 and "Action:" in result.stdout:
                     blocked.add(port)
@@ -372,6 +403,27 @@ class NetworkSentinel(BaseModule):
             )
             session.add(record)
             await session.commit()
+
+    async def _persist_baseline_deviation(self, event: dict) -> None:
+        """Persist a behavioral baseline deviation event."""
+        import json
+        from ..models.anomaly_event import AnomalyEvent
+
+        try:
+            async with self._db_session_factory() as session:
+                record = AnomalyEvent(
+                    detector_type="behavioral_baseline",
+                    anomaly_score=event.get("anomaly_score", 0.0),
+                    threshold=event.get("threshold", 0.3),
+                    is_anomaly=True,
+                    explanation=f"Behavioral deviation in {event.get('metric', 'unknown')}: z_score={event.get('z_score', 0):.2f}",
+                    confidence=min(abs(event.get("z_score", 0)) / 5.0, 1.0),
+                    context_json=json.dumps(event.get("stats", {})),
+                )
+                session.add(record)
+                await session.commit()
+        except Exception as e:
+            self.logger.error("baseline_deviation_persist_error", error=str(e))
 
     # --- Anomaly detector integration ---
 
