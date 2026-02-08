@@ -44,6 +44,24 @@ async function _attemptTokenRefresh(): Promise<string | null> {
   }
 }
 
+async function _refreshAndRetry<T>(path: string, options: RequestInit): Promise<T | null> {
+  if (!_refreshPromise) {
+    _refreshPromise = _attemptTokenRefresh().finally(() => { _refreshPromise = null; });
+  }
+  const newToken = await _refreshPromise;
+  if (newToken) {
+    const retryResponse = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers: { ...getHeaders(), ...options.headers as Record<string, string> },
+    });
+    if (retryResponse.ok) {
+      return retryResponse.json();
+    }
+  }
+  return null;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -51,23 +69,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: { ...getHeaders(), ...options.headers as Record<string, string> },
   });
 
-  if (response.status === 401) {
+  // Handle 401 (expired token) or 403 (missing/invalid CSRF) by refreshing
+  if (response.status === 401 || response.status === 403) {
     const isAuthEndpoint = path.startsWith('/auth/');
     if (!isAuthEndpoint) {
-      if (!_refreshPromise) {
-        _refreshPromise = _attemptTokenRefresh().finally(() => { _refreshPromise = null; });
-      }
-      const newToken = await _refreshPromise;
-      if (newToken) {
-        const retryResponse = await fetch(`${API_BASE}${path}`, {
-          ...options,
-          credentials: 'include',
-          headers: { ...getHeaders(), ...options.headers as Record<string, string> },
-        });
-        if (retryResponse.ok) {
-          return retryResponse.json();
-        }
-      }
+      const result = await _refreshAndRetry<T>(path, options);
+      if (result !== null) return result;
     }
 
     // Session expired — clear CSRF and redirect
@@ -259,11 +266,22 @@ export const api = {
 
   // Reports
   generateReport: async () => {
-    const response = await fetch(`${API_BASE}/reports/generate`, {
+    let response = await fetch(`${API_BASE}/reports/generate`, {
       method: 'POST',
       credentials: 'include',
       headers: getHeaders(),
     });
+    // Handle missing CSRF token (e.g. after page refresh)
+    if (response.status === 403 || response.status === 401) {
+      const refreshed = await _attemptTokenRefresh();
+      if (refreshed) {
+        response = await fetch(`${API_BASE}/reports/generate`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: getHeaders(),
+        });
+      }
+    }
     if (!response.ok) throw new Error('Report generation failed');
     return response.blob();
   },

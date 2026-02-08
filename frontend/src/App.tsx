@@ -1,7 +1,9 @@
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import { api } from './services/api';
+import { setCsrfToken } from './services/api';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -22,7 +24,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
             {this.state.error.stack}
           </pre>
           <button
-            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+            onClick={() => { setCsrfToken(null); window.location.href = '/login'; }}
             style={{ marginTop: '20px', padding: '10px 20px', background: '#333', color: '#fff', border: '1px solid #666', cursor: 'pointer' }}
           >
             Clear Session &amp; Retry
@@ -34,18 +36,30 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-function App() {
-  const token = localStorage.getItem('cereberus_token');
+function AuthGate({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
 
+  useEffect(() => {
+    api.getMe()
+      .then(() => setStatus('authenticated'))
+      .catch(() => setStatus('unauthenticated'));
+  }, []);
+
+  if (status === 'checking') return null;
+  if (status === 'unauthenticated') return <Navigate to="/login" />;
+  return <>{children}</>;
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
           path="/dashboard"
-          element={token ? <Dashboard /> : <Navigate to="/login" />}
+          element={<AuthGate><Dashboard /></AuthGate>}
         />
-        <Route path="*" element={<Navigate to={token ? '/dashboard' : '/login'} />} />
+        <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </ErrorBoundary>
   );
