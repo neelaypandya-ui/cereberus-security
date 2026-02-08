@@ -182,16 +182,24 @@ export function DiskCleanupPanel() {
   const [scanningFiles, setScanningFiles] = useState(false);
   const [cleanResult, setCleanResult] = useState<CleanResult | null>(null);
   const [confirmPurge, setConfirmPurge] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastAnalyzed, setLastAnalyzed] = useState<Date | null>(null);
+  const [scanComplete, setScanComplete] = useState(false);
 
   // ── Data Loading ─────────────────────────────────────────────
 
   const loadAnalysis = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.getDiskAnalysis() as AnalysisResult;
       setAnalysis(data);
-    } catch {
-      /* silently fail */
+      setLastAnalyzed(new Date());
+      setScanComplete(true);
+      setTimeout(() => setScanComplete(false), 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Analysis failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -233,8 +241,9 @@ export function DiskCleanupPanel() {
       setSelectedCategories(new Set());
       // Reload analysis to get updated numbers
       await loadAnalysis();
-    } catch {
-      /* silently fail */
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Cleanup failed';
+      setError(msg);
     } finally {
       setCleaning(false);
     }
@@ -245,8 +254,9 @@ export function DiskCleanupPanel() {
     try {
       const data = await api.getLargeFiles(100, 20) as LargeFilesResult;
       setLargeFiles(data.files.sort((a, b) => b.size_bytes - a.size_bytes));
-    } catch {
-      /* silently fail */
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Large file scan failed';
+      setError(msg);
     } finally {
       setScanningFiles(false);
     }
@@ -281,7 +291,7 @@ export function DiskCleanupPanel() {
       {loading && !analysis ? (
         <LoadingSkeleton />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', opacity: loading && analysis ? 0.5 : 1, transition: 'opacity 0.3s' }}>
 
           {/* ── Section 1: Disk Usage Bar ─────────────────────── */}
           {analysis && (
@@ -374,7 +384,7 @@ export function DiskCleanupPanel() {
               }}
             >
               {loading && <Spinner size={12} color="var(--cyan-primary)" />}
-              ANALYZE
+              {loading ? 'SCANNING DISK...' : 'ANALYZE'}
             </button>
             <button
               onClick={handlePurge}
@@ -400,6 +410,59 @@ export function DiskCleanupPanel() {
               {confirmPurge ? 'CONFIRM PURGE?' : 'PURGE SELECTED'}
             </button>
           </div>
+
+          {/* ── Error Banner ────────────────────────────────── */}
+          {error && (
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(220, 38, 38, 0.06)',
+                borderLeft: '3px solid var(--red-primary)',
+                borderRadius: '2px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                letterSpacing: '1px',
+                color: 'var(--red-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>ANALYSIS ERROR &mdash; {error}</span>
+              <button
+                onClick={() => setError(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--red-primary)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          )}
+
+          {/* ── Scan Complete Banner ─────────────────────────── */}
+          {scanComplete && (
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(0, 229, 255, 0.06)',
+                borderLeft: '3px solid var(--cyan-primary)',
+                borderRadius: '2px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                letterSpacing: '1px',
+                color: 'var(--cyan-primary)',
+                animation: 'fadeIn 0.3s ease',
+              }}
+            >
+              SCAN COMPLETE &mdash; {analysis?.categories.length ?? 0} categories analyzed &middot; {lastAnalyzed?.toLocaleTimeString()}
+            </div>
+          )}
 
           {/* ── Section 4: Results Banner ─────────────────────── */}
           {cleanResult && (
