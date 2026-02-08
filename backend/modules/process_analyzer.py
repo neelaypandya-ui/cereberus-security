@@ -20,6 +20,9 @@ TRUSTED_DIRS = {
     os.environ.get("SYSTEMROOT", r"C:\Windows"),
 }
 
+# PIDs that are core Windows processes and should never be flagged suspicious
+SYSTEM_PIDS = {0, 4}  # 0 = System Idle Process, 4 = System
+
 
 class ProcessAnalyzer(BaseModule):
     """Monitors running processes for suspicious behavior and malware indicators."""
@@ -120,6 +123,23 @@ class ProcessAnalyzer(BaseModule):
 
                 suspicious = False
                 suspicious_reasons = []
+
+                # Skip core Windows system processes — never flag these
+                if pid in SYSTEM_PIDS:
+                    procs[pid] = {
+                        "pid": pid,
+                        "name": info.get("name") or "",
+                        "exe": exe,
+                        "username": info.get("username") or "",
+                        "cpu_percent": cpu,
+                        "memory_percent": mem,
+                        "status": info.get("status") or "",
+                        "create_time": None,
+                        "ppid": info.get("ppid"),
+                        "suspicious": False,
+                        "suspicious_reasons": [],
+                    }
+                    continue
 
                 # Check against known suspicious names
                 for sname in self._suspicious_names:

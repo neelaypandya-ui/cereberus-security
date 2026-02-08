@@ -30,9 +30,21 @@ class AlertManager:
         self._ws_connections: list = []  # WebSocket connections for broadcasting
         self._alert_history: list[dict] = []
 
+        # Phase 7/8 integrations
+        self._playbook_executor = None
+        self._notification_dispatcher = None
+
     def set_db_session_factory(self, factory) -> None:
         """Set the async session factory for database persistence."""
         self._db_session_factory = factory
+
+    def set_playbook_executor(self, executor) -> None:
+        """Attach the PlaybookExecutor for automated alert-triggered responses."""
+        self._playbook_executor = executor
+
+    def set_notification_dispatcher(self, dispatcher) -> None:
+        """Attach the NotificationDispatcher for multi-channel alerts."""
+        self._notification_dispatcher = dispatcher
 
     def register_ws(self, ws) -> None:
         """Register a WebSocket connection for alert broadcasting."""
@@ -92,6 +104,29 @@ class AlertManager:
         await self._send_desktop_notification(alert)
         await self._send_webhook(alert)
 
+        # Feed to playbook executor for automated response
+        if self._playbook_executor:
+            try:
+                event = {
+                    "event_type": "alert_severity",
+                    "source_module": module_source,
+                    "severity": severity,
+                    "details": details or {},
+                    "title": title,
+                }
+                await self._playbook_executor.evaluate_event(event)
+            except Exception as e:
+                logger.error("playbook_eval_on_alert_failed", error=str(e))
+
+        # Dispatch to notification channels
+        if self._notification_dispatcher:
+            try:
+                event_type = f"alert_{severity}" if severity in ("critical", "high") else None
+                if event_type:
+                    await self._notification_dispatcher.dispatch(event_type, alert)
+            except Exception as e:
+                logger.error("notification_dispatch_failed", error=str(e))
+
         return alert
 
     async def _persist_to_db(self, alert: dict) -> None:
@@ -133,20 +168,8 @@ class AlertManager:
             self._ws_connections.remove(ws)
 
     async def _send_desktop_notification(self, alert: dict) -> None:
-        """Send a desktop notification via plyer."""
-        if not self._desktop_notifications:
-            return
-
-        try:
-            from plyer import notification
-            notification.notify(
-                title=f"CEREBERUS [{alert['severity'].upper()}]",
-                message=f"{alert['title']}\n{alert['description'][:200]}",
-                app_name="Cereberus",
-                timeout=10,
-            )
-        except Exception as e:
-            logger.debug("desktop_notification_failed", error=str(e))
+        """Send a desktop notification via plyer. Disabled — use WebSocket/webhook instead."""
+        return
 
     async def _send_webhook(self, alert: dict) -> None:
         """Send alert to configured webhook URL."""

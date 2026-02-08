@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ...dependencies import get_current_user, get_vpn_guardian
+from ...auth.rbac import require_permission, PERM_MANAGE_SETTINGS, PERM_VIEW_DASHBOARD
+from ...dependencies import get_vpn_guardian
 
 router = APIRouter(prefix="/vpn", tags=["vpn"])
 
@@ -14,7 +15,7 @@ class KillSwitchModeRequest(BaseModel):
 
 @router.get("/status")
 async def get_vpn_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get current VPN connection status."""
     vpn = get_vpn_guardian()
@@ -23,7 +24,7 @@ async def get_vpn_status(
 
 @router.get("/leak-check")
 async def run_leak_check(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Run an on-demand VPN leak check."""
     vpn = get_vpn_guardian()
@@ -32,7 +33,7 @@ async def run_leak_check(
 
 @router.get("/config-audit")
 async def run_config_audit(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Run a VPN configuration security audit."""
     vpn = get_vpn_guardian()
@@ -42,7 +43,7 @@ async def run_config_audit(
 @router.post("/kill-switch/mode")
 async def set_kill_switch_mode(
     body: KillSwitchModeRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),
 ):
     """Change the kill switch mode."""
     vpn = get_vpn_guardian()
@@ -51,7 +52,7 @@ async def set_kill_switch_mode(
 
 @router.get("/kill-switch/status")
 async def get_kill_switch_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get kill switch status."""
     vpn = get_vpn_guardian()
@@ -65,7 +66,7 @@ async def get_kill_switch_status(
 
 @router.get("/routes")
 async def get_routing_table(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get current routing table snapshot."""
     vpn = get_vpn_guardian()

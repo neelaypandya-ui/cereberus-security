@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  cereberus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cereberus-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - cereberus-data:/app/data
+      - cereberus-exports:/app/exports
+      - cereberus-models:/app/models
+      - cereberus-backups:/app/backups
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DEBUG=false
+      - HOST=0.0.0.0
+      - PORT=8000
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: cereberus-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - cereberus
+    restart: unless-stopped
+
+volumes:
+  cereberus-data:
+  cereberus-exports:
+  cereberus-models:
+  cereberus-backups:

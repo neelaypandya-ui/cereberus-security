@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useNotifications } from '../hooks/useNotifications';
+import { usePermissions } from '../hooks/usePermissions';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { VpnStatusPanel } from '../components/VpnStatusPanel/VpnStatusPanel';
 import { OverviewPanel } from '../components/OverviewPanel';
 import { NetworkPanel } from '../components/NetworkPanel';
@@ -19,6 +21,10 @@ import { AnalyticsPanel } from '../components/AnalyticsPanel';
 import { EmailAnalyzerPanel } from '../components/EmailAnalyzerPanel';
 import { AuditLogPanel } from '../components/AuditLogPanel';
 import { AiOpsPanel } from '../components/AiOpsPanel';
+import { IncidentResponsePanel } from '../components/IncidentResponsePanel';
+import { PlaybookPanel } from '../components/PlaybookPanel';
+import { IntegrationSettingsPanel } from '../components/IntegrationSettingsPanel';
+import { UserManagementPanel } from '../components/UserManagementPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { ToastContainer } from '../components/notifications/ToastContainer';
@@ -52,9 +58,13 @@ const NAV_ITEMS = [
   { id: 'audit', label: 'OPS LOG', icon: '\u{1F4DD}', fullLabel: 'Operations Log' },
   { id: 'vpn', label: 'SEC COMMS', icon: '\u2693', fullLabel: 'Secure Comms' },
   { id: 'aiops', label: 'AI OPS', icon: '\u{1F9E0}', fullLabel: 'AI Operations Center' },
+  { id: 'incidents', label: 'INCIDENT CMD', icon: '\u{1F6A8}', fullLabel: 'Incident Command' },
+  { id: 'playbooks', label: 'DEF PROTOCOL', icon: '\u{1F6E1}', fullLabel: 'Defense Protocols' },
+  { id: 'integrations', label: 'SIGNAL RELAY', icon: '\u{1F4E1}', fullLabel: 'Signal Relay' },
+  { id: 'personnel', label: 'PERSONNEL', icon: '\u{1F464}', fullLabel: 'Personnel Management', adminOnly: true },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
   { id: 'settings', label: 'SYS CONFIG', icon: '\u2699', fullLabel: 'System Configuration' },
-];
+] as const;
 
 const PANEL_CODES: Record<string, string> = {
   overview: 'SEC-01',
@@ -70,6 +80,10 @@ const PANEL_CODES: Record<string, string> = {
   audit: 'OPS-11',
   vpn: 'VPN-12',
   aiops: 'AIO-15',
+  incidents: 'INC-16',
+  playbooks: 'PLB-17',
+  integrations: 'SRL-18',
+  personnel: 'PER-19',
   modules: 'MOD-13',
   settings: 'CFG-14',
 };
@@ -102,10 +116,23 @@ function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, anomalyAlert, aiStatus, predictions, trainingProgress } = useWebSocket();
   const { notifications, toasts, unreadCount, addNotification, dismissToast, markRead, markAllRead } = useNotifications();
+  const { hasPermission, role } = usePermissions();
   const utcTime = useUtcClock();
   const uptime = useUptime();
 
   const prevAlertCount = useRef(0);
+  const lastToastTime = useRef(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchRef.current?.focus(),
+    onPanelSwitch: (index) => {
+      const filteredNav = NAV_ITEMS.filter(n => !('adminOnly' in n && n.adminOnly) || role === 'admin');
+      if (index < filteredNav.length) setActiveNav(filteredNav[index].id);
+    },
+    onExport: () => setActiveNav('integrations'),
+  });
 
   // Build ticker events from recent WS alerts
   const tickerEvents = wsAlerts.slice(0, 10).map((a) => ({
@@ -120,21 +147,10 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Track alert count for ticker — no toast popups
   useEffect(() => {
-    if (wsAlerts.length > prevAlertCount.current && prevAlertCount.current > 0) {
-      const newAlerts = wsAlerts.slice(0, wsAlerts.length - prevAlertCount.current);
-      for (const alert of newAlerts) {
-        addNotification(alert.severity, alert.title, alert.description);
-      }
-    }
     prevAlertCount.current = wsAlerts.length;
-  }, [wsAlerts, addNotification]);
-
-  useEffect(() => {
-    if (anomalyAlert?.is_anomaly) {
-      addNotification('high', 'Network Anomaly Detected', `Anomaly score: ${anomalyAlert.anomaly_score.toFixed(3)}`);
-    }
-  }, [anomalyAlert, addNotification]);
+  }, [wsAlerts]);
 
   useEffect(() => {
     if (threatLevel === 'high' || threatLevel === 'critical') {
@@ -187,6 +203,12 @@ function Dashboard() {
     return 'var(--amber-primary)';
   };
 
+  // Filter nav items based on permissions
+  const visibleNavItems = NAV_ITEMS.filter(n => {
+    if ('adminOnly' in n && n.adminOnly && role !== 'admin') return false;
+    return true;
+  });
+
   const currentNav = NAV_ITEMS.find((n) => n.id === activeNav);
   const utcStr = utcTime.toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' });
 
@@ -196,8 +218,7 @@ function Dashboard() {
       <div className="scan-line-overlay" />
       <div className="hex-grid-overlay" />
 
-      {/* Toast notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {/* Toast notifications disabled — alerts visible on THREAT BOARD */}
 
       {/* Sidebar */}
       <aside style={{
@@ -267,7 +288,7 @@ function Dashboard() {
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = activeNav === item.id;
             const health = getModuleHealth(item.id);
             return (
@@ -442,6 +463,10 @@ function Dashboard() {
             />
           )}
           {activeNav === 'vpn' && <VpnDetailPanel />}
+          {activeNav === 'incidents' && <IncidentResponsePanel />}
+          {activeNav === 'playbooks' && <PlaybookPanel />}
+          {activeNav === 'integrations' && <IntegrationSettingsPanel />}
+          {activeNav === 'personnel' && hasPermission('manage_users') && <UserManagementPanel />}
           {activeNav === 'modules' && <ModulesPanel />}
           {activeNav === 'settings' && <SettingsPanel />}
         </div>

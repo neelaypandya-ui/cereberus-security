@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...dependencies import get_current_user, get_db
+from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
+from ...dependencies import get_db
 from ...models.alert import Alert
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 async def get_alert_trend(
     hours: int = Query(24, ge=1, le=168),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get hourly alert counts for the given time window."""
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -43,7 +44,7 @@ async def get_alert_trend(
 @router.get("/severity-distribution")
 async def get_severity_distribution(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get alert counts grouped by severity."""
     result = await db.execute(
@@ -57,7 +58,7 @@ async def get_severity_distribution(
 @router.get("/module-activity")
 async def get_module_activity(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get event counts by module source."""
     result = await db.execute(
@@ -72,7 +73,7 @@ async def get_module_activity(
 @router.get("/threat-history")
 async def get_threat_history(
     hours: int = Query(24, ge=1, le=168),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get threat level samples over time (from in-memory threat intelligence)."""
     from ...dependencies import get_threat_intelligence

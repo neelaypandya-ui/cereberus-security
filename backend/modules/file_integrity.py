@@ -36,6 +36,10 @@ class FileIntegrity(BaseModule):
         self._scan_task: Optional[asyncio.Task] = None
         self._baseline_established: bool = False
 
+        # IOC matcher integration (Phase 8)
+        self._ioc_matcher = None
+        self._ioc_matches: list[dict] = []
+
     async def start(self) -> None:
         """Start the file integrity monitoring loop."""
         self.running = True
@@ -135,6 +139,17 @@ class FileIntegrity(BaseModule):
             # Update baseline to current state
             self._baselines = current_hashes
 
+        # Check file hashes against IOC database
+        if self._ioc_matcher and current_hashes:
+            try:
+                hashes = list(set(current_hashes.values()))
+                matches = await self._ioc_matcher.check_hashes(hashes)
+                if matches:
+                    self._ioc_matches = matches
+                    self.logger.warning("ioc_hash_matches_found", count=len(matches))
+            except Exception as e:
+                self.logger.error("ioc_hash_check_error", error=str(e))
+
         self._last_scan = result
         self.heartbeat()
         return result
@@ -199,6 +214,15 @@ class FileIntegrity(BaseModule):
             if baseline[p] != current[p]
         )
         return {"modified": modified, "added": added, "deleted": deleted}
+
+    def set_ioc_matcher(self, matcher) -> None:
+        """Attach an IOCMatcher for checking file hashes against threat feeds."""
+        self._ioc_matcher = matcher
+        self.logger.info("ioc_matcher_attached")
+
+    def get_ioc_matches(self) -> list[dict]:
+        """Return IOC hash matches from the last scan."""
+        return self._ioc_matches
 
     # --- Public API methods ---
 

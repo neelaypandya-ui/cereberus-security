@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...dependencies import get_current_user, get_db
+from ...auth.rbac import require_permission, PERM_MANAGE_SETTINGS, PERM_VIEW_DASHBOARD
+from ...dependencies import get_db
 from ...models.settings import ModuleStatus
 
 router = APIRouter(prefix="/modules", tags=["modules"])
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/modules", tags=["modules"])
 @router.get("/")
 async def get_all_modules(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get status of all security modules."""
     result = await db.execute(select(ModuleStatus))
@@ -40,7 +41,7 @@ async def toggle_module(
     module_name: str,
     body: ModuleToggleRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),
 ):
     """Enable or disable a module."""
     result = await db.execute(
@@ -59,7 +60,7 @@ async def toggle_module(
 async def get_module_health(
     module_name: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get health status of a specific module."""
     result = await db.execute(

@@ -158,6 +158,17 @@ class ResourceMonitor(BaseModule):
                 self._alerts = self._alerts[-100:]
             self.logger.warning("resource_threshold_breach", breaches=breaches)
 
+            # Dispatch through alert manager for DB persistence and notifications
+            if self._alert_manager:
+                severity = "critical" if len(breaches) > 1 else "high"
+                asyncio.ensure_future(self._alert_manager.create_alert(
+                    severity=severity,
+                    module_source="resource_monitor",
+                    title="Resource threshold breach",
+                    description="; ".join(breaches),
+                    details=alert,
+                ))
+
     # --- Public API ---
 
     def get_current(self) -> dict:

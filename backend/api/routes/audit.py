@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...dependencies import get_current_user, get_db
+from ...auth.rbac import require_permission, PERM_VIEW_AUDIT
+from ...dependencies import get_db
 from ...models.audit_log import AuditLog
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -16,7 +17,7 @@ async def get_audit_logs(
     username: str | None = None,
     action: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_AUDIT)),
 ):
     """Get audit log entries with optional filters."""
     query = select(AuditLog).order_by(AuditLog.timestamp.desc())
@@ -48,7 +49,7 @@ async def get_audit_logs(
 async def get_audit_log(
     log_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_AUDIT)),
 ):
     """Get a single audit log entry by ID."""
     result = await db.execute(select(AuditLog).where(AuditLog.id == log_id))

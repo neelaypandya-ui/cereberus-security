@@ -30,6 +30,11 @@ class ThreatIntelligence(BaseModule):
         self._poll_task: Optional[asyncio.Task] = None
         self._last_poll: Optional[datetime] = None
 
+        # Phase 7 integrations
+        self._playbook_executor = None
+        self._incident_manager = None
+        self._alert_manager = None
+
     def set_module_refs(self, refs: dict) -> None:
         """Set references to other running modules.
 
@@ -39,6 +44,21 @@ class ThreatIntelligence(BaseModule):
         """
         self._module_refs = refs
         self.logger.info("threat_intel_module_refs_set", modules=list(refs.keys()))
+
+    def set_playbook_executor(self, executor) -> None:
+        """Attach the PlaybookExecutor for automated responses."""
+        self._playbook_executor = executor
+        self.logger.info("playbook_executor_attached")
+
+    def set_incident_manager(self, manager) -> None:
+        """Attach the IncidentManager for auto-incident creation."""
+        self._incident_manager = manager
+        self.logger.info("incident_manager_attached")
+
+    def set_alert_manager(self, manager) -> None:
+        """Attach the AlertManager for creating persistent alerts."""
+        self._alert_manager = manager
+        self.logger.info("alert_manager_attached")
 
     def _ensure_correlator(self):
         if self._correlator is None:
@@ -233,6 +253,40 @@ class ThreatIntelligence(BaseModule):
             for e in events:
                 e["timestamp"] = datetime.now(timezone.utc).isoformat()
             self._threat_feed = (events + self._threat_feed)[:self._feed_max]
+
+            # Create persistent alerts for high/critical events
+            if self._alert_manager:
+                for event in events:
+                    sev = event.get("severity", "info")
+                    if sev in ("critical", "high"):
+                        try:
+                            await self._alert_manager.create_alert(
+                                severity=sev,
+                                module_source=event.get("source_module", "threat_intelligence"),
+                                title=f"{event.get('event_type', 'security_event')}",
+                                description=str(event.get("details", {}))[:500],
+                                details=event.get("details"),
+                            )
+                        except Exception as ae:
+                            self.logger.error("alert_create_error", error=str(ae))
+
+            # Feed events to playbook executor for automated response
+            if self._playbook_executor:
+                for event in events:
+                    try:
+                        await self._playbook_executor.evaluate_event(event)
+                    except Exception as pe:
+                        self.logger.error("playbook_eval_error", error=str(pe))
+
+            # Auto-create incidents from correlations
+            if self._incident_manager and self._correlations:
+                for corr in self._correlations:
+                    try:
+                        await self._incident_manager.auto_create_from_correlation(
+                            corr, events
+                        )
+                    except Exception as ie:
+                        self.logger.error("incident_auto_create_error", error=str(ie))
 
         self._last_poll = datetime.now(timezone.utc)
         self.heartbeat()

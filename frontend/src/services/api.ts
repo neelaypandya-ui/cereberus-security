@@ -47,6 +47,8 @@ export const api = {
 
   getMe: () => request<{ sub: string; role: string }>('/auth/me'),
 
+  refreshToken: () => request('/auth/refresh', { method: 'POST' }),
+
   // Dashboard
   getDashboardSummary: () => request<{
     alerts: Record<string, number>;
@@ -134,6 +136,10 @@ export const api = {
   getVulnerabilities: () => request('/vulnerabilities/'),
   triggerVulnerabilityScan: () => request('/vulnerabilities/scan', { method: 'POST' }),
   getVulnerabilityReport: () => request('/vulnerabilities/report'),
+
+  // Vulnerability Remediation
+  remediateVulnerability: (data: { category: string; port?: number; service?: string }) =>
+    request('/vulnerabilities/remediate', { method: 'POST', body: JSON.stringify(data) }),
 
   // Email Analyzer
   analyzeEmail: (text: string, urls: string[] = []) =>
@@ -239,4 +245,160 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ feedback }),
     }),
+
+  // === Phase 7: Incidents ===
+  getIncidents: (params?: { status?: string; severity?: string; assigned_to?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.severity) searchParams.set('severity', params.severity);
+    if (params?.assigned_to) searchParams.set('assigned_to', params.assigned_to);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return request(`/incidents/${query ? '?' + query : ''}`);
+  },
+  createIncident: (data: { title: string; severity: string; description?: string; category?: string; source_alert_ids?: number[] }) =>
+    request('/incidents/', { method: 'POST', body: JSON.stringify(data) }),
+  getIncident: (id: number) => request(`/incidents/${id}`),
+  updateIncidentStatus: (id: number, newStatus: string, note?: string) =>
+    request(`/incidents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ new_status: newStatus, note }) }),
+  assignIncident: (id: number, username: string) =>
+    request(`/incidents/${id}/assign`, { method: 'PATCH', body: JSON.stringify({ username }) }),
+  addIncidentNote: (id: number, note: string) =>
+    request(`/incidents/${id}/note`, { method: 'POST', body: JSON.stringify({ note }) }),
+  addIncidentTimeline: (id: number, event: string, details?: string) =>
+    request(`/incidents/${id}/timeline`, { method: 'POST', body: JSON.stringify({ event, details }) }),
+  getIncidentActions: (id: number) => request(`/incidents/${id}/actions`),
+  getIncidentStats: () => request('/incidents/stats'),
+
+  // === Phase 7: Playbooks ===
+  getPlaybooks: () => request('/playbooks/'),
+  createPlaybook: (data: { name: string; description?: string; trigger_type: string; trigger_conditions: unknown; actions: unknown[]; cooldown_seconds?: number; requires_confirmation?: boolean }) =>
+    request('/playbooks/', { method: 'POST', body: JSON.stringify(data) }),
+  getPlaybook: (id: number) => request(`/playbooks/${id}`),
+  updatePlaybook: (id: number, data: Record<string, unknown>) =>
+    request(`/playbooks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePlaybook: (id: number) => request(`/playbooks/${id}`, { method: 'DELETE' }),
+  togglePlaybook: (id: number) => request(`/playbooks/${id}/toggle`, { method: 'PATCH' }),
+  executePlaybook: (id: number, context: Record<string, unknown>) =>
+    request(`/playbooks/${id}/execute`, { method: 'POST', body: JSON.stringify({ event_context: context }) }),
+  dryRunPlaybook: (id: number, context: Record<string, unknown>) =>
+    request(`/playbooks/${id}/dry-run`, { method: 'POST', body: JSON.stringify({ event_context: context }) }),
+  getPlaybookHistory: (id: number) => request(`/playbooks/${id}/history`),
+
+  // === Phase 7: Remediation ===
+  executeRemediation: (data: { action_type: string; target: string; parameters?: Record<string, unknown>; incident_id?: number }) =>
+    request('/remediation/execute', { method: 'POST', body: JSON.stringify(data) }),
+  getRemediationActions: (params?: { limit?: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.status) searchParams.set('status', params.status);
+    const query = searchParams.toString();
+    return request(`/remediation/actions${query ? '?' + query : ''}`);
+  },
+  getRemediationAction: (id: number) => request(`/remediation/actions/${id}`),
+  rollbackRemediation: (id: number) => request(`/remediation/actions/${id}/rollback`, { method: 'POST' }),
+  getQuarantine: () => request('/remediation/quarantine'),
+  restoreQuarantine: (id: number) => request(`/remediation/quarantine/${id}/restore`, { method: 'POST' }),
+  deleteQuarantine: (id: number) => request(`/remediation/quarantine/${id}`, { method: 'DELETE' }),
+
+  // === Phase 8: Feeds ===
+  getFeeds: () => request('/feeds/'),
+  createFeed: (data: { name: string; feed_type: string; url?: string; api_key?: string; enabled?: boolean; poll_interval_seconds?: number }) =>
+    request('/feeds/', { method: 'POST', body: JSON.stringify(data) }),
+  getFeed: (id: number) => request(`/feeds/${id}`),
+  updateFeed: (id: number, data: Record<string, unknown>) =>
+    request(`/feeds/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFeed: (id: number) => request(`/feeds/${id}`, { method: 'DELETE' }),
+  pollFeed: (id: number) => request(`/feeds/${id}/poll`, { method: 'POST' }),
+  getFeedStatus: (id: number) => request(`/feeds/${id}/status`),
+
+  // === Phase 8: IOC ===
+  getIocs: (params?: { ioc_type?: string; active?: boolean; source?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.ioc_type) searchParams.set('ioc_type', params.ioc_type);
+    if (params?.active !== undefined) searchParams.set('active', String(params.active));
+    if (params?.source) searchParams.set('source', params.source);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString();
+    return request(`/ioc/${query ? '?' + query : ''}`);
+  },
+  searchIocs: (q: string) => request(`/ioc/search?q=${encodeURIComponent(q)}`),
+  addIoc: (data: { ioc_type: string; value: string; source?: string; severity?: string; tags?: string[]; context?: Record<string, unknown> }) =>
+    request('/ioc/', { method: 'POST', body: JSON.stringify(data) }),
+  bulkImportIocs: (iocs: Array<{ ioc_type: string; value: string; source?: string; severity?: string }>) =>
+    request('/ioc/bulk', { method: 'POST', body: JSON.stringify({ iocs }) }),
+  checkIocs: (values: string[], ioc_type?: string) =>
+    request('/ioc/check', { method: 'POST', body: JSON.stringify({ values, ioc_type }) }),
+  getIocStats: () => request('/ioc/stats'),
+
+  // === Phase 8: Notifications ===
+  getNotificationChannels: () => request('/notifications/channels'),
+  createNotificationChannel: (data: { name: string; channel_type: string; config: Record<string, unknown>; enabled?: boolean; events?: string[] }) =>
+    request('/notifications/channels', { method: 'POST', body: JSON.stringify(data) }),
+  updateNotificationChannel: (id: number, data: Record<string, unknown>) =>
+    request(`/notifications/channels/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteNotificationChannel: (id: number) => request(`/notifications/channels/${id}`, { method: 'DELETE' }),
+  testNotificationChannel: (id: number) => request(`/notifications/channels/${id}/test`, { method: 'POST' }),
+  getEventTypes: () => request('/notifications/event-types'),
+
+  // === Phase 8: Export ===
+  requestExport: (data: { export_type: string; format: string; filters?: Record<string, unknown> }) =>
+    request('/export/', { method: 'POST', body: JSON.stringify(data) }),
+  getExportJobs: () => request('/export/'),
+  getExportJob: (id: number) => request(`/export/${id}`),
+  downloadExport: async (id: number) => {
+    const response = await fetch(`${API_BASE}/export/${id}/download`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Download failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export-${id}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  deleteExport: (id: number) => request(`/export/${id}`, { method: 'DELETE' }),
+
+  // === Phase 9: Users & RBAC ===
+  getUsers: () => request('/users/'),
+  createUser: (data: { username: string; password: string; role?: string }) =>
+    request('/users/', { method: 'POST', body: JSON.stringify(data) }),
+  getUser: (id: number) => request(`/users/${id}`),
+  updateUser: (id: number, data: Record<string, unknown>) =>
+    request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUser: (id: number) => request(`/users/${id}`, { method: 'DELETE' }),
+  assignUserRole: (userId: number, roleId: number) =>
+    request(`/users/${userId}/roles`, { method: 'POST', body: JSON.stringify({ role_id: roleId }) }),
+  removeUserRole: (userId: number, roleId: number) =>
+    request(`/users/${userId}/roles/${roleId}`, { method: 'DELETE' }),
+  getUserRoles: (userId: number) => request(`/users/${userId}/roles`),
+  generateApiKey: (data: { name: string; permissions?: string[] }) =>
+    request('/users/api-keys', { method: 'POST', body: JSON.stringify(data) }),
+  getApiKeys: () => request('/users/api-keys'),
+  revokeApiKey: (keyId: number) => request(`/users/api-keys/${keyId}`, { method: 'DELETE' }),
+  getRoles: () => request('/users/roles'),
+
+  // === Phase 9: Comments ===
+  getComments: (targetType: string, targetId: number) => request(`/comments/${targetType}/${targetId}`),
+  addComment: (targetType: string, targetId: number, content: string) =>
+    request(`/comments/${targetType}/${targetId}`, { method: 'POST', body: JSON.stringify({ content }) }),
+  updateComment: (id: number, content: string) =>
+    request(`/comments/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+  deleteComment: (id: number) => request(`/comments/${id}`, { method: 'DELETE' }),
+
+  // === Phase 9: Layouts ===
+  getLayouts: () => request('/layouts/'),
+  createLayout: (data: { name: string; layout_json: unknown; is_default?: boolean }) =>
+    request('/layouts/', { method: 'POST', body: JSON.stringify(data) }),
+  getDefaultLayout: () => request('/layouts/default'),
+  updateLayout: (id: number, data: Record<string, unknown>) =>
+    request(`/layouts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteLayout: (id: number) => request(`/layouts/${id}`, { method: 'DELETE' }),
+
+  // === Phase 9: Maintenance ===
+  triggerBackup: () => request('/maintenance/backup', { method: 'POST' }),
+  listBackups: () => request('/maintenance/backups'),
+  triggerCleanup: () => request('/maintenance/cleanup', { method: 'POST' }),
+  getRetentionConfig: () => request('/maintenance/retention'),
 };

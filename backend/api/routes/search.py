@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
 from ...dependencies import (
-    get_current_user,
     get_db,
     get_network_sentinel,
     get_process_analyzer,
@@ -21,7 +21,7 @@ async def global_search(
     q: str = Query(..., min_length=1, max_length=200),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Search across alerts, processes, connections, and vulnerabilities."""
     query_lower = q.lower()

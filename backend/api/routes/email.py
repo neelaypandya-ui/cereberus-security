@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ...dependencies import get_current_user, get_email_analyzer
+from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
+from ...dependencies import get_email_analyzer
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -16,7 +17,7 @@ class AnalyzeRequest(BaseModel):
 @router.post("/analyze")
 async def analyze_content(
     body: AnalyzeRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Analyze email/text content for phishing and threats."""
     analyzer = get_email_analyzer()
@@ -26,7 +27,7 @@ async def analyze_content(
 @router.get("/recent")
 async def get_recent_analyses(
     limit: int = 50,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get recent email analyses."""
     analyzer = get_email_analyzer()

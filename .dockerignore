@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.env
+.env.*
+node_modules
+cereberus.db
+exports/
+backups/
+quarantine_vault/
+*.egg-info
+.pytest_cache
+.mypy_cache
+.vscode
+.idea
+*.log

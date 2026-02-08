@@ -1,16 +1,18 @@
 """FastAPI dependency injection providers."""
 
-from typing import Annotated
+import hashlib
+from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import CereberusConfig, get_config
-from .database import get_session
+from .database import get_session, get_session_factory
 from .utils.security import decode_access_token
 
-security_scheme = HTTPBearer()
+security_scheme = HTTPBearer(auto_error=False)
 
 _config_instance: CereberusConfig | None = None
 _alert_manager = None
@@ -33,6 +35,17 @@ _ensemble_detector = None
 _behavioral_baseline = None
 _threat_forecaster = None
 
+# Phase 7 engine singletons
+_remediation_engine = None
+_incident_manager = None
+_playbook_executor = None
+
+# Phase 8 integration singletons
+_feed_manager = None
+_ioc_matcher = None
+_notification_dispatcher = None
+_data_exporter = None
+
 
 def get_app_config() -> CereberusConfig:
     """Get the application config singleton."""
@@ -48,11 +61,80 @@ async def get_db(config: CereberusConfig = Depends(get_app_config)):
         yield session
 
 
+async def _validate_api_key(api_key: str, config: CereberusConfig) -> Optional[dict]:
+    """Validate an API key and return user info if valid."""
+    try:
+        from .models.api_key import APIKey
+        from .models.user import User
+        from datetime import datetime, timezone
+
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        factory = get_session_factory(config)
+        async with factory() as session:
+            result = await session.execute(
+                select(APIKey).where(
+                    APIKey.key_hash == key_hash,
+                    APIKey.revoked == False,
+                )
+            )
+            api_key_record = result.scalar_one_or_none()
+            if api_key_record is None:
+                return None
+
+            # Check expiry
+            if api_key_record.expires_at and api_key_record.expires_at < datetime.now(timezone.utc):
+                return None
+
+            # Update last used
+            api_key_record.last_used = datetime.now(timezone.utc)
+
+            # Get user
+            user_result = await session.execute(
+                select(User).where(User.id == api_key_record.user_id)
+            )
+            user = user_result.scalar_one_or_none()
+            if user is None:
+                return None
+
+            await session.commit()
+
+            import json
+            permissions = json.loads(api_key_record.permissions_json) if api_key_record.permissions_json else []
+            return {
+                "sub": user.username,
+                "role": user.role,
+                "permissions": permissions,
+                "auth_method": "api_key",
+            }
+    except Exception:
+        return None
+
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     config: CereberusConfig = Depends(get_app_config),
 ) -> dict:
-    """Validate JWT token and return current user."""
+    """Validate JWT token or API key and return current user."""
+    # Check X-API-Key header first
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        result = await _validate_api_key(api_key, config)
+        if result is not None:
+            return result
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired API key",
+        )
+
+    # Fall back to JWT Bearer token
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     payload = decode_access_token(
         credentials.credentials,
         config.secret_key,
@@ -311,3 +393,97 @@ def get_threat_forecaster():
             model_dir=config.ai_model_dir,
         )
     return _threat_forecaster
+
+
+# --- Phase 7: Engine singletons ---
+
+def get_remediation_engine():
+    """Get the Remediation Engine singleton."""
+    global _remediation_engine
+    if _remediation_engine is None:
+        from .engine.remediation import RemediationEngine
+        config = get_app_config()
+        _remediation_engine = RemediationEngine(
+            base_dir=config.quarantine_vault_dir,
+        )
+    return _remediation_engine
+
+
+def get_incident_manager():
+    """Get the Incident Manager singleton."""
+    global _incident_manager
+    if _incident_manager is None:
+        from .engine.incident_manager import IncidentManager
+        _incident_manager = IncidentManager()
+    return _incident_manager
+
+
+def get_playbook_executor():
+    """Get the Playbook Executor singleton."""
+    global _playbook_executor
+    if _playbook_executor is None:
+        from .engine.playbook_executor import PlaybookExecutor
+        _playbook_executor = PlaybookExecutor(
+            remediation_engine=get_remediation_engine(),
+        )
+    return _playbook_executor
+
+
+# --- Phase 8: Integration singletons ---
+
+def get_feed_manager():
+    """Get the Feed Manager singleton."""
+    global _feed_manager
+    if _feed_manager is None:
+        from .intel.feed_manager import FeedManager
+        config = get_app_config()
+        from .database import get_session_factory
+        factory = get_session_factory(config)
+        _feed_manager = FeedManager(
+            db_session_factory=factory,
+            config=config,
+        )
+    return _feed_manager
+
+
+def get_ioc_matcher():
+    """Get the IOC Matcher singleton."""
+    global _ioc_matcher
+    if _ioc_matcher is None:
+        from .intel.ioc_matcher import IOCMatcher
+        config = get_app_config()
+        from .database import get_session_factory
+        factory = get_session_factory(config)
+        _ioc_matcher = IOCMatcher(
+            db_session_factory=factory,
+        )
+    return _ioc_matcher
+
+
+def get_notification_dispatcher():
+    """Get the Notification Dispatcher singleton."""
+    global _notification_dispatcher
+    if _notification_dispatcher is None:
+        from .notifications.dispatcher import NotificationDispatcher
+        config = get_app_config()
+        from .database import get_session_factory
+        factory = get_session_factory(config)
+        _notification_dispatcher = NotificationDispatcher(
+            db_session_factory=factory,
+        )
+    return _notification_dispatcher
+
+
+def get_data_exporter():
+    """Get the Data Exporter singleton."""
+    global _data_exporter
+    if _data_exporter is None:
+        from .export.exporter import DataExporter
+        config = get_app_config()
+        from .database import get_session_factory
+        factory = get_session_factory(config)
+        _data_exporter = DataExporter(
+            db_session_factory=factory,
+            export_dir=config.export_dir,
+        )
+    return _data_exporter

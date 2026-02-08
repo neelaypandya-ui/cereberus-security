@@ -2,14 +2,15 @@
 
 from fastapi import APIRouter, Depends
 
-from ...dependencies import get_current_user, get_file_integrity
+from ...auth.rbac import require_permission, PERM_MANAGE_SETTINGS, PERM_VIEW_DASHBOARD
+from ...dependencies import get_file_integrity
 
 router = APIRouter(prefix="/integrity", tags=["integrity"])
 
 
 @router.get("/baselines")
 async def get_baselines(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get the current file integrity baseline."""
     fi = get_file_integrity()
@@ -18,7 +19,7 @@ async def get_baselines(
 
 @router.post("/scan")
 async def trigger_scan(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),
 ):
     """Trigger a manual file integrity scan."""
     fi = get_file_integrity()
@@ -27,7 +28,7 @@ async def trigger_scan(
 
 @router.get("/changes")
 async def get_changes(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get the results of the last integrity scan."""
     fi = get_file_integrity()

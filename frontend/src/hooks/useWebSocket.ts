@@ -91,6 +91,39 @@ interface TrainingProgress {
   loss: number;
 }
 
+interface IncidentUpdate {
+  event: string;
+  id?: number;
+  title?: string;
+  severity?: string;
+  status?: string;
+  timestamp: string;
+}
+
+interface RemediationActionUpdate {
+  action_type: string;
+  target: string;
+  status: string;
+  details: Record<string, unknown>;
+  timestamp: string;
+}
+
+interface PlaybookTriggerUpdate {
+  rule_id: number;
+  rule_name: string;
+  status: string;
+  actions?: unknown[];
+  timestamp: string;
+}
+
+interface IocMatchUpdate {
+  ioc_type: string;
+  value: string;
+  severity: string;
+  source: string;
+  timestamp: string;
+}
+
 export function useWebSocket() {
   const [vpnStatus, setVpnStatus] = useState<VpnStatus | null>(null);
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
@@ -101,6 +134,10 @@ export function useWebSocket() {
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [predictions, setPredictions] = useState<PredictionUpdate | null>(null);
   const [trainingProgress, setTrainingProgress] = useState<TrainingProgress | null>(null);
+  const [incidentUpdate, setIncidentUpdate] = useState<IncidentUpdate | null>(null);
+  const [remediationAction, setRemediationAction] = useState<RemediationActionUpdate | null>(null);
+  const [playbookTrigger, setPlaybookTrigger] = useState<PlaybookTriggerUpdate | null>(null);
+  const [iocMatch, setIocMatch] = useState<IocMatchUpdate | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WsMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -113,7 +150,6 @@ export function useWebSocket() {
 
     ws.onopen = () => {
       setConnected(true);
-      // Send ping
       ws.send(JSON.stringify({ type: 'ping' }));
     };
 
@@ -141,6 +177,14 @@ export function useWebSocket() {
           setPredictions(msg.data as PredictionUpdate);
         } else if (msg.type === 'training_progress') {
           setTrainingProgress(msg.data as TrainingProgress);
+        } else if (msg.type === 'incident_update') {
+          setIncidentUpdate(msg.data as IncidentUpdate);
+        } else if (msg.type === 'remediation_action') {
+          setRemediationAction(msg.data as RemediationActionUpdate);
+        } else if (msg.type === 'playbook_trigger') {
+          setPlaybookTrigger(msg.data as PlaybookTriggerUpdate);
+        } else if (msg.type === 'ioc_match') {
+          setIocMatch(msg.data as IocMatchUpdate);
         }
       } catch {
         // ignore parse errors
@@ -149,7 +193,6 @@ export function useWebSocket() {
 
     ws.onclose = () => {
       setConnected(false);
-      // Reconnect after 3 seconds
       reconnectTimer.current = window.setTimeout(connect, 3000);
     };
 
@@ -171,5 +214,10 @@ export function useWebSocket() {
     };
   }, [connect]);
 
-  return { vpnStatus, networkStats, alerts, threatLevel, anomalyAlert, resourceStats, aiStatus, predictions, trainingProgress, connected, lastMessage };
+  return {
+    vpnStatus, networkStats, alerts, threatLevel, anomalyAlert, resourceStats,
+    aiStatus, predictions, trainingProgress,
+    incidentUpdate, remediationAction, playbookTrigger, iocMatch,
+    connected, lastMessage,
+  };
 }

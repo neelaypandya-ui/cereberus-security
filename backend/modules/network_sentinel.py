@@ -5,6 +5,7 @@ flags suspicious ports, and provides stats for the API/dashboard.
 """
 
 import asyncio
+import subprocess
 from collections import deque
 from datetime import datetime, timezone
 from typing import Optional
@@ -17,7 +18,14 @@ from .base_module import BaseModule
 # Default suspicious ports associated with backdoors / C2 / common exploit tools
 DEFAULT_SUSPICIOUS_PORTS = {
     4444, 5555, 1337, 31337, 6666, 6667, 12345, 27374,
-    1234, 3127, 3128, 8080, 9090, 4443, 8443,
+    1234, 3127, 3128, 4443, 8443,
+}
+
+# Dangerous service ports — flag if LISTENING on 0.0.0.0 (exposed to network)
+DANGEROUS_LISTEN_PORTS = {
+    21: "FTP", 23: "Telnet", 135: "RPC", 139: "NetBIOS",
+    445: "SMB", 1433: "MSSQL", 3306: "MySQL", 3389: "RDP",
+    5432: "PostgreSQL", 5900: "VNC", 6379: "Redis", 27017: "MongoDB",
 }
 
 
@@ -51,6 +59,14 @@ class NetworkSentinel(BaseModule):
 
         # DB session factory for persisting anomaly events
         self._db_session_factory = None
+
+        # IOC matcher integration (Phase 8)
+        self._ioc_matcher = None
+        self._ioc_matches: list[dict] = []
+
+        # Ports already blocked by Cereberus firewall rules (skip flagging these)
+        self._cereberus_blocked_ports: set[int] = set()
+        self._blocked_ports_last_check: float = 0
 
     async def start(self) -> None:
         """Start the connection monitoring loop."""
@@ -105,6 +121,10 @@ class NetworkSentinel(BaseModule):
     async def _scan_connections(self) -> None:
         """Scan current network connections via psutil."""
         loop = asyncio.get_event_loop()
+
+        # Refresh Cereberus firewall rule cache (every 60s)
+        await loop.run_in_executor(None, self._refresh_cereberus_blocked_ports)
+
         raw_conns = await loop.run_in_executor(
             None, lambda: psutil.net_connections(kind="inet")
         )
@@ -160,6 +180,31 @@ class NetworkSentinel(BaseModule):
                 await self._behavioral_baseline.update("suspicious_connections", float(stats["suspicious"]), ts)
             except Exception as e:
                 self.logger.error("baseline_update_error", error=str(e))
+
+        # Check remote IPs against IOC database
+        if self._ioc_matcher:
+            try:
+                remote_ips = list({
+                    c["remote_addr"] for c in connections
+                    if c["remote_addr"] and c["remote_addr"] not in ("", "0.0.0.0", "127.0.0.1", "::1", "::")
+                })
+                if remote_ips:
+                    matches = await self._ioc_matcher.check_ips(remote_ips)
+                    if matches:
+                        self._ioc_matches = matches
+                        for match in matches:
+                            # Mark matching connections as suspicious
+                            for c in connections:
+                                if c["remote_addr"] == match.get("value"):
+                                    c["suspicious"] = True
+                                    c["ioc_match"] = True
+                            self.logger.warning(
+                                "ioc_match_found",
+                                ip=match.get("value"),
+                                severity=match.get("severity"),
+                            )
+            except Exception as e:
+                self.logger.error("ioc_check_error", error=str(e))
 
         # Run ensemble anomaly detection if available, else fallback to single detector
         if self._ensemble_detector:
@@ -258,6 +303,14 @@ class NetworkSentinel(BaseModule):
 
         suspicious = self._is_suspicious(local_port, remote_port)
 
+        # Flag dangerous services listening on all interfaces (exposed to network)
+        # Skip ports already blocked by Cereberus firewall rules
+        dangerous_service = None
+        if status == "LISTEN" and local_addr in ("0.0.0.0", "::") and local_port in DANGEROUS_LISTEN_PORTS:
+            if local_port not in self._cereberus_blocked_ports:
+                suspicious = True
+                dangerous_service = DANGEROUS_LISTEN_PORTS[local_port]
+
         return {
             "local_addr": local_addr,
             "local_port": local_port,
@@ -267,7 +320,29 @@ class NetworkSentinel(BaseModule):
             "status": status,
             "pid": conn.pid,
             "suspicious": suspicious,
+            "dangerous_service": dangerous_service,
         }
+
+    def _refresh_cereberus_blocked_ports(self) -> None:
+        """Refresh the set of ports blocked by Cereberus firewall rules. Cached for 60s."""
+        import time
+        now = time.monotonic()
+        if now - self._blocked_ports_last_check < 60:
+            return
+        self._blocked_ports_last_check = now
+        blocked = set()
+        for port in DANGEROUS_LISTEN_PORTS:
+            try:
+                rule_name = f"CEREBERUS_BLOCK_PORT_{port}"
+                result = subprocess.run(
+                    f'netsh advfirewall firewall show rule name="{rule_name}"',
+                    shell=True, capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0 and "Action:" in result.stdout:
+                    blocked.add(port)
+            except Exception:
+                pass
+        self._cereberus_blocked_ports = blocked
 
     def _is_suspicious(self, local_port: int | None, remote_port: int | None) -> bool:
         """Check if either port is in the suspicious set."""
@@ -319,6 +394,15 @@ class NetworkSentinel(BaseModule):
         """Attach a DB session factory for anomaly event persistence."""
         self._db_session_factory = factory
         self.logger.info("db_session_factory_attached")
+
+    def set_ioc_matcher(self, matcher) -> None:
+        """Attach an IOCMatcher for checking IPs against threat feeds."""
+        self._ioc_matcher = matcher
+        self.logger.info("ioc_matcher_attached")
+
+    def get_ioc_matches(self) -> list[dict]:
+        """Return recent IOC matches from network scans."""
+        return self._ioc_matches
 
     def get_anomaly_result(self) -> Optional[dict]:
         """Return the most recent anomaly detection result."""

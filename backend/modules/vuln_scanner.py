@@ -6,6 +6,7 @@ installed software versions against known-vulnerable databases.
 
 import asyncio
 import socket
+import subprocess
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -15,6 +16,7 @@ from .base_module import BaseModule
 DANGEROUS_PORTS = {
     21: "FTP",
     23: "Telnet",
+    135: "RPC",
     445: "SMB",
     3389: "RDP",
     1433: "MSSQL",
@@ -150,6 +152,9 @@ class VulnScanner(BaseModule):
         vulns = []
 
         for port, service in DANGEROUS_PORTS.items():
+            already_blocked = await loop.run_in_executor(None, self._is_port_blocked_by_cereberus, port)
+            if already_blocked:
+                continue  # Already remediated by Cereberus firewall rule
             is_open = await loop.run_in_executor(None, self._probe_port, port)
             if is_open:
                 severity = "critical" if service in ("Telnet", "FTP", "SMB") else "high"
@@ -165,6 +170,18 @@ class VulnScanner(BaseModule):
                 })
 
         return vulns
+
+    def _is_port_blocked_by_cereberus(self, port: int) -> bool:
+        """Check if a specific port has a CEREBERUS_BLOCK_PORT firewall rule."""
+        try:
+            rule_name = f"CEREBERUS_BLOCK_PORT_{port}"
+            result = subprocess.run(
+                f'netsh advfirewall firewall show rule name="{rule_name}"',
+                shell=True, capture_output=True, text=True, timeout=5,
+            )
+            return result.returncode == 0 and "Action:" in result.stdout
+        except Exception:
+            return False
 
     def _probe_port(self, port: int, host: str = "127.0.0.1", timeout: float = 1.0) -> bool:
         """Check if a port is open on localhost."""

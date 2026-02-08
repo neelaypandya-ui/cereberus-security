@@ -17,6 +17,7 @@ class EmailAnalyzer(BaseModule):
         super().__init__(name="email_analyzer", config=config)
         self._nlp_analyzer = None
         self._recent_analyses: deque[dict] = deque(maxlen=100)
+        self._ioc_matcher = None
 
     async def start(self) -> None:
         self.running = True
@@ -65,10 +66,29 @@ class EmailAnalyzer(BaseModule):
             **result,
         }
 
+        # Check URLs against IOC database
+        if self._ioc_matcher and urls:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                ioc_matches = loop.run_until_complete(self._ioc_matcher.check_urls(urls))
+                if ioc_matches:
+                    analysis["ioc_matches"] = ioc_matches
+                    analysis["threat_score"] = min(1.0, analysis.get("threat_score", 0) + 0.3)
+            except RuntimeError:
+                pass
+            except Exception:
+                pass
+
         self._recent_analyses.appendleft(analysis)
         self.heartbeat()
 
         return analysis
+
+    def set_ioc_matcher(self, matcher) -> None:
+        """Attach an IOCMatcher for URL checking during analysis."""
+        self._ioc_matcher = matcher
+        self.logger.info("ioc_matcher_attached")
 
     def get_recent_analyses(self, limit: int = 50) -> list[dict]:
         """Get recent analysis results."""

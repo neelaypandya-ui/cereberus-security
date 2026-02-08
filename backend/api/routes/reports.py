@@ -7,8 +7,8 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...auth.rbac import require_permission, PERM_EXPORT_DATA
 from ...dependencies import (
-    get_current_user,
     get_db,
     get_resource_monitor,
     get_threat_intelligence,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 @router.post("/generate")
 async def generate_report(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_EXPORT_DATA)),
 ):
     """Generate a comprehensive security assessment HTML report."""
     # Collect alerts

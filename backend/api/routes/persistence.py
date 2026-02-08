@@ -2,14 +2,15 @@
 
 from fastapi import APIRouter, Depends
 
-from ...dependencies import get_current_user, get_persistence_scanner
+from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
+from ...dependencies import get_persistence_scanner
 
 router = APIRouter(prefix="/persistence", tags=["persistence"])
 
 
 @router.get("/entries")
 async def get_persistence_entries(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get all persistence mechanism entries."""
     scanner = get_persistence_scanner()
@@ -18,7 +19,7 @@ async def get_persistence_entries(
 
 @router.get("/changes")
 async def get_persistence_changes(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get detected changes since baseline."""
     scanner = get_persistence_scanner()
@@ -27,7 +28,7 @@ async def get_persistence_changes(
 
 @router.post("/scan")
 async def trigger_persistence_scan(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Trigger an immediate persistence scan."""
     scanner = get_persistence_scanner()
@@ -37,7 +38,7 @@ async def trigger_persistence_scan(
 
 @router.get("/status")
 async def get_persistence_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get persistence scanner status."""
     scanner = get_persistence_scanner()

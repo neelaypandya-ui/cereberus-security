@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, update, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...auth.rbac import require_permission, PERM_MANAGE_AI, PERM_VIEW_DASHBOARD
 from ...dependencies import (
     get_anomaly_detector,
     get_behavioral_baseline,
-    get_current_user,
     get_db,
     get_ensemble_detector,
     get_isolation_forest_detector,
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 async def train_anomaly_models(
     epochs: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
 ):
     """Train all 3 anomaly detectors on recent baseline data."""
     network_sentinel = get_network_sentinel()
@@ -140,7 +140,7 @@ async def train_anomaly_models(
 async def train_resource_forecaster(
     epochs: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
 ):
     """Train ThreatForecaster LSTM on resource snapshots."""
     resource_monitor = get_resource_monitor()
@@ -181,7 +181,7 @@ async def train_resource_forecaster(
 @router.post("/train/baseline")
 async def train_behavioral_baseline(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
 ):
     """Build behavioral baselines from historical resource data."""
     resource_monitor = get_resource_monitor()
@@ -196,7 +196,7 @@ async def train_behavioral_baseline(
 @router.get("/models")
 async def list_models(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """List all model versions from registry."""
     result = await db.execute(
@@ -224,7 +224,7 @@ async def rollback_model(
     model_name: str,
     version: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
 ):
     """Rollback a model to a previous version."""
     result = await db.execute(
@@ -247,7 +247,7 @@ async def rollback_model(
 
 @router.get("/status")
 async def ai_status(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Comprehensive AI health status."""
     anomaly_detector = get_anomaly_detector()
@@ -296,7 +296,7 @@ async def get_anomaly_events(
     detector_type: str | None = None,
     is_anomaly_only: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Query persisted anomaly events."""
     query = select(AnomalyEvent).order_by(desc(AnomalyEvent.timestamp)).limit(limit)
@@ -327,7 +327,7 @@ async def get_anomaly_events(
 
 @router.get("/predictions")
 async def get_predictions(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Current resource predictions and forecast alerts."""
     forecaster = get_threat_forecaster()
@@ -352,7 +352,7 @@ async def get_predictions(
 
 @router.get("/baselines")
 async def get_baselines(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """All behavioral baselines grouped by metric."""
     baseline = get_behavioral_baseline()
@@ -373,7 +373,7 @@ async def get_baselines(
 
 @router.get("/drift")
 async def get_drift(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Model drift scores."""
     ensemble = get_ensemble_detector()
@@ -386,7 +386,7 @@ async def get_drift(
 @router.get("/feedback-stats")
 async def get_feedback_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """TP/FP counts and accuracy by module."""
     result = await db.execute(

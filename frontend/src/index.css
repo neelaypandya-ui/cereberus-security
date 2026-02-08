@@ -481,4 +481,28 @@ body.threat-active {
   transform-origin: center bottom;
 }
 
+/* R. Threat Neutralization — sweep progress bar */
+@keyframes sweepProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.sweep-progress {
+  height: 2px;
+  background: var(--red-primary);
+  animation: sweepProgress 2s linear forwards;
+}
+
+.threat-neutralized {
+  border-left: 3px solid var(--status-online);
+  color: var(--status-online);
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.threat-failed {
+  border-left: 3px solid var(--amber-primary);
+  color: var(--amber-primary);
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
 /* Notification toast and bell animations — imported from notifications.css */

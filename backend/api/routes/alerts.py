@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...dependencies import get_current_user, get_db
+from ...auth.rbac import require_permission, PERM_MANAGE_ALERTS, PERM_VIEW_DASHBOARD
+from ...dependencies import get_db
 from ...models.alert import Alert
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -19,7 +20,7 @@ async def get_alerts(
     severity: str | None = None,
     unacknowledged_only: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get alerts with optional filtering."""
     query = select(Alert).order_by(Alert.timestamp.desc()).limit(limit)
@@ -55,7 +56,7 @@ class AcknowledgeRequest(BaseModel):
 async def acknowledge_alerts(
     body: AcknowledgeRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
 ):
     """Acknowledge one or more alerts."""
     await db.execute(
@@ -71,7 +72,7 @@ async def acknowledge_alerts(
 async def get_alert(
     alert_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get a specific alert by ID."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
@@ -105,7 +106,7 @@ async def submit_alert_feedback(
     alert_id: int,
     body: FeedbackRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
 ):
     """Submit feedback (true_positive/false_positive) for an alert."""
     if body.feedback not in ("true_positive", "false_positive"):

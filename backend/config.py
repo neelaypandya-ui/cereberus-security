@@ -55,12 +55,15 @@ class CereberusConfig(BaseSettings):
     network_poll_interval: int = 5  # seconds between scans
     network_suspicious_ports: list[int] = [
         4444, 5555, 1337, 31337, 6666, 6667, 12345, 27374,
-        1234, 3127, 3128, 8080, 9090, 4443, 8443,
+        1234, 3127, 3128, 4443, 8443,
     ]
 
     # File Integrity
     file_integrity_scan_interval: int = 300  # seconds between auto-scans
-    file_integrity_watched_paths: list[str] = []
+    file_integrity_watched_paths: list[str] = [
+        r"C:\Windows\System32\drivers\etc",  # hosts file, network config
+        r"C:\Windows\System32\config",        # SAM, SECURITY, SYSTEM hives
+    ]
     file_integrity_exclusion_patterns: list[str] = [
         "*.tmp", "*.log", "*.pyc", "__pycache__", "*.pyo",
         ".git", "*.swp", "*.swo", "node_modules",
@@ -115,8 +118,31 @@ class CereberusConfig(BaseSettings):
     ai_drift_threshold: float = 0.3
 
     # Alerting
-    alert_desktop_notifications: bool = True
+    alert_desktop_notifications: bool = False
     alert_webhook_url: Optional[str] = None
+
+    # Phase 7: Incident Response
+    incident_auto_create_from_correlation: bool = True
+    playbook_execution_enabled: bool = True
+    remediation_require_confirmation_for_critical: bool = True
+    quarantine_vault_dir: str = "quarantine_vault"
+
+    # Phase 8: External Integrations
+    feed_poll_enabled: bool = True
+    feed_default_poll_interval: int = 3600
+    virustotal_api_key: Optional[str] = None
+    abuseipdb_api_key: Optional[str] = None
+    notification_dispatch_enabled: bool = True
+    export_dir: str = "exports"
+    export_max_rows: int = 10000
+
+    # Phase 9: RBAC & Data Lifecycle
+    retention_alerts_days: int = 90
+    retention_audit_days: int = 365
+    retention_anomaly_days: int = 30
+    retention_snapshots_days: int = 7
+    retention_exports_days: int = 30
+    retention_cleanup_interval_hours: int = 24
 
     @field_validator("vpn_kill_switch_mode")
     @classmethod

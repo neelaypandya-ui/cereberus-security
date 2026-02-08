@@ -14,6 +14,12 @@ from ...models.user import User
 from ...utils.rate_limiter import RateLimiter
 from ...utils.security import create_access_token, hash_password, verify_password
 
+# Try to import RBAC role permissions for JWT enrichment
+try:
+    from ...auth.rbac import DEFAULT_ROLES
+except ImportError:
+    DEFAULT_ROLES = {}
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Rate limiter: 5 login attempts per 5-minute window per IP
@@ -99,8 +105,12 @@ async def login(
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
+    # Build permissions list from user role
+    role_def = DEFAULT_ROLES.get(user.role, {})
+    permissions = role_def.get("permissions", [])
+
     token = create_access_token(
-        data={"sub": user.username, "role": user.role},
+        data={"sub": user.username, "role": user.role, "permissions": permissions},
         secret_key=config.secret_key,
         algorithm=config.jwt_algorithm,
         expires_minutes=config.jwt_expiry_minutes,
@@ -136,8 +146,11 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
+    role_def = DEFAULT_ROLES.get(user.role, {})
+    permissions = role_def.get("permissions", [])
+
     token = create_access_token(
-        data={"sub": user.username, "role": user.role},
+        data={"sub": user.username, "role": user.role, "permissions": permissions},
         secret_key=config.secret_key,
         algorithm=config.jwt_algorithm,
         expires_minutes=config.jwt_expiry_minutes,
@@ -150,3 +163,30 @@ async def register(
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current authenticated user info."""
     return current_user
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    config: CereberusConfig = Depends(get_app_config),
+):
+    """Refresh JWT token with updated permissions."""
+    result = await db.execute(
+        select(User).where(User.username == current_user["sub"])
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    role_def = DEFAULT_ROLES.get(user.role, {})
+    permissions = role_def.get("permissions", [])
+
+    token = create_access_token(
+        data={"sub": user.username, "role": user.role, "permissions": permissions},
+        secret_key=config.secret_key,
+        algorithm=config.jwt_algorithm,
+        expires_minutes=config.jwt_expiry_minutes,
+    )
+
+    return TokenResponse(access_token=token)

@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...dependencies import get_current_user, get_db, get_network_sentinel
+from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
+from ...dependencies import get_db, get_network_sentinel
 from ...models.blocked_ip import BlockedIP
 from ...models.settings import NetworkTraffic
 
@@ -16,7 +17,7 @@ async def get_traffic(
     limit: int = Query(50, ge=1, le=500),
     flagged_only: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get recent network traffic entries."""
     query = select(NetworkTraffic).order_by(NetworkTraffic.timestamp.desc()).limit(limit)
@@ -46,7 +47,7 @@ async def get_traffic(
 @router.get("/blocked-ips")
 async def get_blocked_ips(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get all blocked IP addresses."""
     result = await db.execute(
@@ -69,7 +70,7 @@ async def get_blocked_ips(
 
 @router.get("/connections")
 async def get_connections(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get live network connections from Network Sentinel."""
     sentinel = get_network_sentinel()
@@ -78,7 +79,7 @@ async def get_connections(
 
 @router.get("/stats")
 async def get_network_stats(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get network connection statistics."""
     sentinel = get_network_sentinel()
@@ -87,7 +88,7 @@ async def get_network_stats(
 
 @router.get("/flagged")
 async def get_flagged_connections(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get flagged (suspicious) connections."""
     sentinel = get_network_sentinel()
@@ -96,7 +97,7 @@ async def get_flagged_connections(
 
 @router.get("/anomaly")
 async def get_anomaly_result(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get the most recent anomaly detection result."""
     sentinel = get_network_sentinel()
@@ -107,7 +108,7 @@ async def get_anomaly_result(
 @router.get("/anomaly/history")
 async def get_anomaly_history(
     limit: int = Query(50, ge=1, le=200),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get anomaly event history (only anomalous events)."""
     sentinel = get_network_sentinel()

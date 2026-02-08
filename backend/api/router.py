@@ -22,6 +22,17 @@ from .routes.threats import router as threats_router
 from .routes.vulnerabilities import router as vulnerabilities_router
 from .routes.vpn import router as vpn_router
 from .routes.ai import router as ai_router
+from .routes.incidents import router as incidents_router
+from .routes.playbooks import router as playbooks_router
+from .routes.remediation import router as remediation_router
+from .routes.feeds import router as feeds_router
+from .routes.ioc import router as ioc_router
+from .routes.notifications import router as notifications_router
+from .routes.export import router as export_router
+from .routes.users import router as users_router
+from .routes.comments import router as comments_router
+from .routes.layouts import router as layouts_router
+from .routes.maintenance import router as maintenance_router
 from .websockets.events import router as ws_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -46,6 +57,17 @@ api_router.include_router(reports_router)
 api_router.include_router(audit_router)
 api_router.include_router(search_router)
 api_router.include_router(ai_router)
+api_router.include_router(incidents_router)
+api_router.include_router(playbooks_router)
+api_router.include_router(remediation_router)
+api_router.include_router(feeds_router)
+api_router.include_router(ioc_router)
+api_router.include_router(notifications_router)
+api_router.include_router(export_router)
+api_router.include_router(users_router)
+api_router.include_router(comments_router)
+api_router.include_router(layouts_router)
+api_router.include_router(maintenance_router)
 
 # WebSocket router is mounted at root level (no prefix)
 websocket_router = ws_router
