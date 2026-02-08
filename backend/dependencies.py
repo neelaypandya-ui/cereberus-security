@@ -535,6 +535,47 @@ def get_rule_engine():
     return _rule_engine
 
 
+# --- Phase 12: New module singletons ---
+
+_ransomware_detector = None
+_commander_bond = None
+_agent_smith = None
+
+
+def get_ransomware_detector():
+    """Get the Ransomware Detector module singleton."""
+    global _ransomware_detector
+    if _ransomware_detector is None:
+        from .modules.ransomware_detector import RansomwareDetector
+        config = get_app_config()
+        _ransomware_detector = RansomwareDetector(config={
+            "poll_interval": config.ransomware_poll_interval,
+            "canary_content": config.ransomware_canary_content,
+        })
+    return _ransomware_detector
+
+
+def get_commander_bond():
+    """Get the Commander Bond module singleton."""
+    global _commander_bond
+    if _commander_bond is None:
+        from .modules.commander_bond import CommanderBond
+        config = get_app_config()
+        _commander_bond = CommanderBond(config={
+            "scan_interval": config.bond_scan_interval,
+        })
+    return _commander_bond
+
+
+def get_agent_smith():
+    """Get the Agent Smith module singleton."""
+    global _agent_smith
+    if _agent_smith is None:
+        from .modules.agent_smith import AgentSmith
+        _agent_smith = AgentSmith(config={})
+    return _agent_smith
+
+
 # --- Disk Sanitation ---
 
 _disk_analyzer = None

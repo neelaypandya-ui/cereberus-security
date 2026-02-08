@@ -23,6 +23,13 @@ METRICS = [
     "suspicious_connections",
     "process_count",
     "suspicious_process_count",
+    # Phase 12 additions
+    "disk_read_bytes_per_sec",
+    "disk_write_bytes_per_sec",
+    "thread_count",
+    "handle_count",
+    "outbound_connection_count",
+    "dns_query_rate",
 ]
 
 

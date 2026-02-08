@@ -11,6 +11,9 @@ interface Alert {
   description: string;
   vpn_status: string | null;
   acknowledged: boolean;
+  dismissed?: boolean;
+  snoozed_until?: string | null;
+  escalated_to_incident_id?: number | null;
 }
 
 const SEVERITY_LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'info'];
@@ -27,24 +30,38 @@ export function AlertsPanel() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [showSnoozed, setShowSnoozed] = useState(false);
 
   const load = () => {
-    const params: { limit?: number; severity?: string; unacknowledged_only?: boolean } = { limit: 100 };
+    const params: Record<string, unknown> = { limit: 100, show_dismissed: showDismissed, show_snoozed: showSnoozed };
     if (filter !== 'all') params.severity = filter;
-    api.getAlerts(params).then((d: unknown) => setAlerts(d as Alert[])).catch(() => {});
+    api.getAlerts(params as Parameters<typeof api.getAlerts>[0]).then((d: unknown) => setAlerts(d as Alert[])).catch(() => {});
   };
 
   useEffect(() => {
     load();
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
-  }, [filter]);
+  }, [filter, showDismissed, showSnoozed]);
 
   const handleAcknowledge = async (ids: number[]) => {
     try {
       await api.acknowledgeAlerts(ids);
       load();
     } catch { /* ignore */ }
+  };
+
+  const handleDismiss = async (id: number) => {
+    try { await api.dismissAlert(id); load(); } catch { /* ignore */ }
+  };
+
+  const handleEscalate = async (id: number) => {
+    try { await api.escalateAlert(id); load(); } catch { /* ignore */ }
+  };
+
+  const handleSnooze = async (id: number) => {
+    try { await api.snoozeAlert(id); load(); } catch { /* ignore */ }
   };
 
   const severityColor = (s: string) => {
@@ -82,6 +99,18 @@ export function AlertsPanel() {
             {MILITARY_LABELS[level]?.label || 'ALL'}
           </button>
         ))}
+      </div>
+
+      {/* Triage Filters */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} />
+          SHOW DISMISSED
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={showSnoozed} onChange={(e) => setShowSnoozed(e.target.checked)} />
+          SHOW SNOOZED
+        </label>
       </div>
 
       {/* Bulk Acknowledge */}
@@ -197,6 +226,36 @@ export function AlertsPanel() {
                       VPN STATUS: {a.vpn_status}
                     </div>
                   )}
+                  {a.escalated_to_incident_id && (
+                    <div style={{ marginTop: '6px', fontSize: '15px', color: 'var(--cyan-primary)', fontFamily: 'var(--font-mono)' }}>
+                      ESCALATED TO INCIDENT #{a.escalated_to_incident_id}
+                    </div>
+                  )}
+                  {/* Triage Actions */}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    {!a.dismissed && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDismiss(a.id); }}
+                        style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-default)', borderRadius: '2px', cursor: 'pointer' }}
+                      >
+                        DISMISS
+                      </button>
+                    )}
+                    {!a.escalated_to_incident_id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEscalate(a.id); }}
+                        style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--red-dark)', color: '#fff', border: '1px solid var(--severity-critical)', borderRadius: '2px', cursor: 'pointer' }}
+                      >
+                        ESCALATE
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleSnooze(a.id); }}
+                      style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: '#f59e0b', border: '1px solid #f59e0b33', borderRadius: '2px', cursor: 'pointer' }}
+                    >
+                      SNOOZE 1H
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -34,6 +34,10 @@ class ResourceMonitor(BaseModule):
         self._behavioral_baseline = None
         self._poll_task: Optional[asyncio.Task] = None
 
+        # Disk I/O delta tracking (Phase 12)
+        self._last_disk_io: Optional[tuple] = None
+        self._last_disk_io_time: float = 0.0
+
     def set_alert_manager(self, manager) -> None:
         """Attach the alert manager for threshold breach notifications."""
         self._alert_manager = manager
@@ -102,7 +106,9 @@ class ResourceMonitor(BaseModule):
             try:
                 from datetime import datetime, timezone
                 ts = datetime.now(timezone.utc)
-                for metric in ("cpu_percent", "memory_percent", "disk_percent", "net_bytes_sent", "net_bytes_recv"):
+                for metric in ("cpu_percent", "memory_percent", "disk_percent",
+                               "net_bytes_sent", "net_bytes_recv",
+                               "disk_read_bytes_per_sec", "disk_write_bytes_per_sec"):
                     val = snapshot.get(metric)
                     if val is not None:
                         await self._behavioral_baseline.update(metric, float(val), ts)
@@ -112,6 +118,8 @@ class ResourceMonitor(BaseModule):
         self.heartbeat()
 
     def _collect_metrics(self) -> dict:
+        import time as _time
+
         cpu = psutil.cpu_percent(interval=0.5)
         mem = psutil.virtual_memory()
         try:
@@ -119,6 +127,21 @@ class ResourceMonitor(BaseModule):
         except Exception:
             disk = psutil.disk_usage("/")
         net = psutil.net_io_counters()
+
+        # Disk I/O per-second calculation (Phase 12)
+        disk_read_bps = 0.0
+        disk_write_bps = 0.0
+        try:
+            dio = psutil.disk_io_counters()
+            now_ts = _time.monotonic()
+            if self._last_disk_io is not None and (now_ts - self._last_disk_io_time) > 0:
+                elapsed = now_ts - self._last_disk_io_time
+                disk_read_bps = (dio.read_bytes - self._last_disk_io[0]) / elapsed
+                disk_write_bps = (dio.write_bytes - self._last_disk_io[1]) / elapsed
+            self._last_disk_io = (dio.read_bytes, dio.write_bytes)
+            self._last_disk_io_time = now_ts
+        except Exception:
+            pass
 
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -131,6 +154,8 @@ class ResourceMonitor(BaseModule):
             "disk_total_gb": round(disk.total / (1024 ** 3), 2),
             "net_bytes_sent": net.bytes_sent,
             "net_bytes_recv": net.bytes_recv,
+            "disk_read_bytes_per_sec": round(disk_read_bps, 0),
+            "disk_write_bytes_per_sec": round(disk_write_bps, 0),
             "alert_triggered": False,
         }
 

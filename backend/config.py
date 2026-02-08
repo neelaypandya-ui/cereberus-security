@@ -111,6 +111,23 @@ class CereberusConfig(BaseSettings):
     event_log_enable_sysmon: bool = True
     event_log_max_per_query: int = 50
 
+    # Ransomware Detector (Phase 12)
+    module_ransomware_detector: bool = True
+    ransomware_poll_interval: int = 10
+    ransomware_canary_content: str = "CEREBERUS_CANARY_DO_NOT_MODIFY"
+
+    # Commander Bond (Phase 12)
+    module_commander_bond: bool = True
+    bond_scan_interval: int = 21600  # 6 hours
+
+    # Agent Smith (Phase 12)
+    module_agent_smith: bool = True
+
+    # C2 Beaconing Detection (Phase 12)
+    beacon_min_connections: int = 10
+    beacon_interval_tolerance: float = 0.15
+    beacon_analysis_window: int = 600
+
     # Threat Intelligence
     threat_feed_max_events: int = 1000
     threat_correlation_window: float = 1.0  # hours

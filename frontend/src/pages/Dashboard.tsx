@@ -28,6 +28,9 @@ import { PlaybookPanel } from '../components/PlaybookPanel';
 import { IntegrationSettingsPanel } from '../components/IntegrationSettingsPanel';
 import { UserManagementPanel } from '../components/UserManagementPanel';
 import { DiskCleanupPanel } from '../components/DiskCleanupPanel';
+import { DetectionRulesPanel } from '../components/DetectionRulesPanel';
+import { CommanderBondPanel } from '../components/CommanderBondPanel';
+import { AgentSmithPanel } from '../components/AgentSmithPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { StatusTicker } from '../components/ui/StatusTicker';
@@ -65,6 +68,9 @@ const NAV_ITEMS = [
   { id: 'integrations', label: 'SIGNAL RELAY', icon: '\u{1F4E1}', fullLabel: 'Signal Relay' },
   { id: 'personnel', label: 'PERSONNEL', icon: '\u{1F464}', fullLabel: 'Personnel Management', adminOnly: true },
   { id: 'disk', label: 'DISK SANIT', icon: '\u{1F9F9}', fullLabel: 'Disk Sanitation' },
+  { id: 'rules', label: 'DETECT RULES', icon: '\u{1F6E1}', fullLabel: 'Detection Rules' },
+  { id: 'bond', label: 'CMDR BOND', icon: '\u{1F575}', fullLabel: 'Commander Bond' },
+  { id: 'smith', label: 'AGENT SMITH', icon: '\u{1F916}', fullLabel: 'Agent Smith' },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
   { id: 'settings', label: 'SYS CONFIG', icon: '\u2699', fullLabel: 'System Configuration' },
 ] as const;
@@ -88,6 +94,9 @@ const PANEL_CODES: Record<string, string> = {
   integrations: 'SRL-18',
   personnel: 'PER-19',
   disk: 'DSK-20',
+  rules: 'DET-21',
+  bond: 'BND-22',
+  smith: 'SMH-23',
   modules: 'MOD-13',
   settings: 'CFG-14',
 };
@@ -483,6 +492,9 @@ function Dashboard() {
           {activeNav === 'integrations' && <PanelErrorBoundary panelName="SIGNAL RELAY"><IntegrationSettingsPanel /></PanelErrorBoundary>}
           {activeNav === 'personnel' && hasPermission('manage_users') && <PanelErrorBoundary panelName="PERSONNEL"><UserManagementPanel /></PanelErrorBoundary>}
           {activeNav === 'disk' && <PanelErrorBoundary panelName="DISK SANITATION"><DiskCleanupPanel /></PanelErrorBoundary>}
+          {activeNav === 'rules' && <PanelErrorBoundary panelName="DETECTION RULES"><DetectionRulesPanel /></PanelErrorBoundary>}
+          {activeNav === 'bond' && <PanelErrorBoundary panelName="COMMANDER BOND"><CommanderBondPanel /></PanelErrorBoundary>}
+          {activeNav === 'smith' && <PanelErrorBoundary panelName="AGENT SMITH"><AgentSmithPanel /></PanelErrorBoundary>}
           {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}
           {activeNav === 'settings' && <PanelErrorBoundary panelName="SYS CONFIG"><SettingsPanel /></PanelErrorBoundary>}
         </div>

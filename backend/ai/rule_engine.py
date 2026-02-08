@@ -290,6 +290,304 @@ def _r016_large_outbound(event: dict) -> bool:
     return False
 
 
+# -- LOLBin Abuse (Phase 12 Track 1) ----------------------------------------
+
+def _r017_certutil_download(event: dict) -> bool:
+    """Detect certutil used for download or decode operations."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "certutil" not in name and "certutil" not in cmdline:
+        return False
+    return any(flag in cmdline for flag in ("-urlcache", "-decode", "-encode", "-decodehex"))
+
+
+def _r018_mshta_execution(event: dict) -> bool:
+    """Detect mshta executing URLs or script protocols."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "mshta" not in name and "mshta" not in cmdline:
+        return False
+    return any(proto in cmdline for proto in ("http://", "https://", "javascript:", "vbscript:"))
+
+
+_RUNDLL32_SAFE_DLLS = {"shell32", "user32", "kernel32", "advapi32", "ole32", "comctl32", "shlwapi"}
+
+
+def _r019_rundll32_unusual(event: dict) -> bool:
+    """Detect rundll32 loading a DLL not in the safe whitelist."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "rundll32" not in name and "rundll32" not in cmdline:
+        return False
+    for safe in _RUNDLL32_SAFE_DLLS:
+        if safe in cmdline:
+            return False
+    return len(cmdline.split()) > 1  # has arguments beyond just rundll32
+
+
+def _r020_regsvr32_scriptlet(event: dict) -> bool:
+    """Detect regsvr32 Squiblydoo / scriptlet loading."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "regsvr32" not in name and "regsvr32" not in cmdline:
+        return False
+    return any(indicator in cmdline for indicator in ("/s /n /u", "/i:", "scrobj.dll", "http://", "https://"))
+
+
+def _r021_wmic_process_create(event: dict) -> bool:
+    """Detect WMIC process call create for local execution."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "wmic" not in name and "wmic" not in cmdline:
+        return False
+    return "process call create" in cmdline or "process" in cmdline and "create" in cmdline
+
+
+def _r022_bitsadmin_transfer(event: dict) -> bool:
+    """Detect BITSAdmin used for file transfer/download."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "bitsadmin" not in name and "bitsadmin" not in cmdline:
+        return False
+    return any(flag in cmdline for flag in ("/transfer", "/create", "/addfile"))
+
+
+def _r023_msiexec_remote(event: dict) -> bool:
+    """Detect msiexec installing from remote URL in quiet mode."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "msiexec" not in name and "msiexec" not in cmdline:
+        return False
+    has_url = "http://" in cmdline or "https://" in cmdline
+    has_quiet = "/q" in cmdline or "/quiet" in cmdline
+    return has_url and has_quiet
+
+
+def _r024_msbuild_inline(event: dict) -> bool:
+    """Detect MSBuild executing inline tasks from suspicious locations."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "msbuild" not in name and "msbuild" not in cmdline:
+        return False
+    suspicious_paths = ("\\temp\\", "\\tmp\\", "\\appdata\\", "%temp%", "%appdata%")
+    has_project = ".xml" in cmdline or ".csproj" in cmdline
+    from_suspicious = any(p in cmdline for p in suspicious_paths)
+    return has_project and from_suspicious
+
+
+def _r025_powershell_download_cradle(event: dict) -> bool:
+    """Detect PowerShell download cradle patterns."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "powershell" not in name and "pwsh" not in name and "powershell" not in cmdline:
+        return False
+    cradles = ("downloadstring", "downloadfile", "iwr ", "invoke-webrequest",
+               "net.webclient", "start-bitstransfer", "wget ", "curl ")
+    return any(c in cmdline for c in cradles)
+
+
+def _r026_amsi_bypass(event: dict) -> bool:
+    """Detect AMSI bypass attempts."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    combined = cmdline + " " + details
+    return any(indicator in combined for indicator in ("amsiutils", "amsiinitfailed", "amsi.dll", "amsiscanbuffer", "amsiscanstring"))
+
+
+# -- Privilege Escalation (Phase 12 Track 3) ---------------------------------
+
+def _r027_uac_bypass_fodhelper(event: dict) -> bool:
+    """Detect UAC bypass via fodhelper.exe."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "fodhelper" in name or "fodhelper" in cmdline:
+        return True
+    reg_path = r"software\classes\ms-settings\shell\open\command"
+    return reg_path in cmdline or reg_path in details
+
+
+def _r028_uac_bypass_eventvwr(event: dict) -> bool:
+    """Detect UAC bypass via eventvwr.exe registry hijack."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    reg_path = r"software\classes\mscfile\shell\open\command"
+    if reg_path in cmdline or reg_path in details:
+        return True
+    parent_name = (event.get("parent_name") or "").lower()
+    name = (event.get("name") or "").lower()
+    return "eventvwr" in parent_name and ("cmd" in name or "powershell" in name)
+
+
+def _r029_token_manipulation(event: dict) -> bool:
+    """Detect token impersonation / manipulation."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    event_id = event.get("event_id")
+    if event_id == 4672:
+        return True
+    indicators = ("impersonateloggedonuser", "duplicatetokenex", "setthreadtoken",
+                  "adjusttokenprivileges", "sedebugprivilege", "seimpersonateprivilege")
+    combined = cmdline + " " + details
+    return any(i in combined for i in indicators)
+
+
+def _r030_runas_saved_creds(event: dict) -> bool:
+    """Detect runas with saved credentials."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if "runas" not in name and "runas" not in cmdline:
+        return False
+    return "/savecred" in cmdline or "/netonly" in cmdline
+
+
+# -- Reconnaissance (Phase 12 Track 3) --------------------------------------
+
+def _r031_user_group_enum(event: dict) -> bool:
+    """Detect user/group enumeration commands."""
+    cmdline = (event.get("cmdline") or "").lower()
+    enum_cmds = ("net user", "net localgroup", "net group", "whoami /priv",
+                 "whoami /groups", "qwinsta", "query user")
+    return any(cmd in cmdline for cmd in enum_cmds)
+
+
+def _r032_domain_trust_enum(event: dict) -> bool:
+    """Detect domain trust discovery and enumeration."""
+    cmdline = (event.get("cmdline") or "").lower()
+    indicators = ("nltest /domain_trusts", "nltest /dclist", "dsquery trust",
+                  "get-adtrust", "get-addomain", "get-adforest",
+                  "[system.directoryservices.activedirectory")
+    return any(i in cmdline for i in indicators)
+
+
+def _r033_system_discovery(event: dict) -> bool:
+    """Detect system discovery / enumeration commands."""
+    cmdline = (event.get("cmdline") or "").lower()
+    discovery = ("systeminfo", "ipconfig /all", "arp -a", "route print",
+                 "netstat -ano", "tasklist /v", "wmic os get", "wmic computersystem")
+    return any(d in cmdline for d in discovery)
+
+
+# -- Impact (Phase 12 Track 3) -----------------------------------------------
+
+def _r034_shadow_copy_deletion(event: dict) -> bool:
+    """Detect shadow copy / backup deletion (ransomware indicator)."""
+    cmdline = (event.get("cmdline") or "").lower()
+    indicators = ("vssadmin delete shadows", "wmic shadowcopy delete",
+                  "bcdedit /set {default} recoveryenabled no",
+                  "bcdedit /set recoveryenabled no",
+                  "wbadmin delete catalog", "vssadmin resize shadowstorage")
+    return any(i in cmdline for i in indicators)
+
+
+def _r035_security_service_stop(event: dict) -> bool:
+    """Detect mass stopping of security services."""
+    cmdline = (event.get("cmdline") or "").lower()
+    security_services = ("windefend", "mpssvc", "wscsvc", "securityhealthservice",
+                         "sense", "senseir", "wuauserv", "bits", "vss",
+                         "sql", "exchange", "mssql")
+    if "net stop" in cmdline or "sc stop" in cmdline or "stop-service" in cmdline:
+        return any(svc in cmdline for svc in security_services)
+    return False
+
+
+def _r036_disk_wipe(event: dict) -> bool:
+    """Detect disk wipe / destruction commands."""
+    cmdline = (event.get("cmdline") or "").lower()
+    indicators = ("format c:", "cipher /w:", "sdelete", "diskpart",
+                  "clean all", "dd if=/dev/zero", "bootrec /fixmbr")
+    return any(i in cmdline for i in indicators)
+
+
+# -- Collection (Phase 12 Track 3) -------------------------------------------
+
+def _r037_browser_credential_access(event: dict) -> bool:
+    """Detect browser credential file access."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    file_path = (event.get("file_path") or "").lower()
+    combined = cmdline + " " + details + " " + file_path
+    credential_paths = ("login data", "logins.json", "key3.db", "key4.db",
+                        "cookies.sqlite", "web data", "\\vault\\", "credential")
+    return any(p in combined for p in credential_paths)
+
+
+def _r038_keylogger_indicators(event: dict) -> bool:
+    """Detect keylogger-like behavior."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    combined = cmdline + " " + details
+    indicators = ("getasynckeystate", "setwindowshookex", "wh_keyboard",
+                  "rawinputdevice", "keylog", "keystroke")
+    return any(i in combined for i in indicators)
+
+
+# -- Command and Control (Phase 12 Track 3) ----------------------------------
+
+def _r039_dns_tunneling(event: dict) -> bool:
+    """Detect DNS tunneling patterns (high-entropy long subdomains)."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    dns_query = (event.get("dns_query") or "").lower()
+    combined = cmdline + " " + details + " " + dns_query
+    indicators = ("nslookup -type=txt", "resolve-dnsname -type txt",
+                  "dns-over-https", "doh.", "dns2tcp", "iodine", "dnscat")
+    if any(i in combined for i in indicators):
+        return True
+    if dns_query and len(dns_query) > 80:
+        return True
+    return False
+
+
+def _r042_thinkphp_rce(event: dict) -> bool:
+    """Detect ThinkPHP remote code execution exploitation (CVE-2018-20062, CVE-2019-9082)."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    url = (event.get("url") or "").lower()
+    combined = cmdline + " " + details + " " + url
+    indicators = ("invokefunction", "call_user_func_array", "think\\app",
+                  "think\\container", "s=/index/\\think", "thinkphp",
+                  "nonecms", "think\\invoker")
+    return any(i in combined for i in indicators)
+
+
+def _r041_ransomware_mass_rename(event: dict) -> bool:
+    """Detect mass file rename / extension change patterns (ransomware indicator)."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    combined = cmdline + " " + details
+    # Ransomware file extension indicators
+    ransom_extensions = (".encrypted", ".locked", ".crypt", ".enc", ".ransom",
+                         ".lockbit", ".blackcat", ".alphv", ".wncry", ".wcry",
+                         ".cerber", ".locky", ".zepto", ".thor", ".aesir")
+    if any(ext in combined for ext in ransom_extensions):
+        return True
+    # Mass rename commands
+    mass_rename_indicators = ("for %", "forfiles", "ren \"", "rename ",
+                               "mass rename", "rapid extension change",
+                               "mass encryption", "encrypt")
+    return any(i in combined for i in mass_rename_indicators)
+
+
+def _r040_known_c2_tools(event: dict) -> bool:
+    """Detect known C2 framework and malware family signatures."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    details = (event.get("details") or "").lower()
+    combined = cmdline + " " + name + " " + details
+    c2_and_malware = (
+        # C2 frameworks
+        "cobaltstrike", "beacon.dll", "beacon.exe", "empire", "meterpreter",
+        "sliver", "havoc", "brute ratel", "poshc2",
+        "covenant", "merlin", "mythic", "deimosc2",
+        # Known malware families
+        "emotet", "trickbot", "qakbot", "icedid", "bumblebee",
+        "raspberry robin", "asyncrat", "remcos", "njrat", "darkcomet",
+        "agenttesla", "formbook", "lokibot", "raccoon", "redline",
+    )
+    return any(t in combined for t in c2_and_malware)
+
+
 # ---------------------------------------------------------------------------
 # Rule definitions
 # ---------------------------------------------------------------------------
@@ -434,6 +732,230 @@ _BUILTIN_RULES: list[DetectionRule] = [
         category="exfiltration",
         condition=_r016_large_outbound,
     ),
+
+    # LOLBin Abuse (Phase 12)
+    DetectionRule(
+        id="R017",
+        name="Certutil Download/Decode",
+        description="Certutil was used with -urlcache, -decode, or -encode flags, commonly abused to download payloads or decode malicious files (T1105).",
+        severity="high",
+        category="execution",
+        condition=_r017_certutil_download,
+    ),
+    DetectionRule(
+        id="R018",
+        name="MSHTA URL Execution",
+        description="MSHTA was used to execute content from a URL or script protocol, bypassing application whitelisting (T1218.005).",
+        severity="critical",
+        category="defense_evasion",
+        condition=_r018_mshta_execution,
+    ),
+    DetectionRule(
+        id="R019",
+        name="Rundll32 Unusual DLL",
+        description="Rundll32 loaded a DLL not in the standard system whitelist, potentially executing malicious code (T1218.011).",
+        severity="high",
+        category="defense_evasion",
+        condition=_r019_rundll32_unusual,
+    ),
+    DetectionRule(
+        id="R020",
+        name="Regsvr32 Scriptlet Load",
+        description="Regsvr32 was used with scriptlet loading parameters (Squiblydoo attack), bypassing application whitelisting (T1218.010).",
+        severity="critical",
+        category="defense_evasion",
+        condition=_r020_regsvr32_scriptlet,
+    ),
+    DetectionRule(
+        id="R021",
+        name="WMIC Process Create",
+        description="WMIC was used with 'process call create' to spawn a new process, a common execution technique (T1047).",
+        severity="high",
+        category="execution",
+        condition=_r021_wmic_process_create,
+    ),
+    DetectionRule(
+        id="R022",
+        name="BITSAdmin File Transfer",
+        description="BITSAdmin was used with transfer/create/addfile parameters, commonly abused for stealthy file downloads (T1197).",
+        severity="high",
+        category="persistence",
+        condition=_r022_bitsadmin_transfer,
+    ),
+    DetectionRule(
+        id="R023",
+        name="MSIExec Remote Install",
+        description="MSIExec was used to install a package from a remote URL in quiet mode, bypassing user interaction (T1218.007).",
+        severity="high",
+        category="defense_evasion",
+        condition=_r023_msiexec_remote,
+    ),
+    DetectionRule(
+        id="R024",
+        name="MSBuild Inline Task Execution",
+        description="MSBuild was used to execute inline tasks from XML/CSPROJ files in temp/appdata directories (T1127.001).",
+        severity="high",
+        category="defense_evasion",
+        condition=_r024_msbuild_inline,
+    ),
+    DetectionRule(
+        id="R025",
+        name="PowerShell Download Cradle",
+        description="PowerShell used a download cradle pattern (DownloadString, IWR, Net.WebClient) to fetch remote content (T1059.001).",
+        severity="high",
+        category="execution",
+        condition=_r025_powershell_download_cradle,
+    ),
+    DetectionRule(
+        id="R026",
+        name="AMSI Bypass Attempt",
+        description="An attempt to bypass the Antimalware Scan Interface (AMSI) was detected, disabling script-level malware scanning (T1562.001).",
+        severity="critical",
+        category="defense_evasion",
+        condition=_r026_amsi_bypass,
+    ),
+
+    # Privilege Escalation (Phase 12)
+    DetectionRule(
+        id="R027",
+        name="UAC Bypass via Fodhelper",
+        description="A UAC bypass attempt via fodhelper.exe registry hijack was detected, allowing elevation without a UAC prompt.",
+        severity="critical",
+        category="privilege_escalation",
+        condition=_r027_uac_bypass_fodhelper,
+    ),
+    DetectionRule(
+        id="R028",
+        name="UAC Bypass via Event Viewer",
+        description="A UAC bypass attempt via eventvwr.exe mscfile handler hijack was detected.",
+        severity="critical",
+        category="privilege_escalation",
+        condition=_r028_uac_bypass_eventvwr,
+    ),
+    DetectionRule(
+        id="R029",
+        name="Token Manipulation",
+        description="Token impersonation or privilege manipulation was detected, indicating potential privilege escalation.",
+        severity="critical",
+        category="privilege_escalation",
+        condition=_r029_token_manipulation,
+    ),
+    DetectionRule(
+        id="R030",
+        name="Runas with Saved Credentials",
+        description="The runas command was used with /savecred or /netonly flags, potentially abusing stored credentials for escalation.",
+        severity="high",
+        category="privilege_escalation",
+        condition=_r030_runas_saved_creds,
+    ),
+
+    # Reconnaissance (Phase 12)
+    DetectionRule(
+        id="R031",
+        name="User/Group Enumeration",
+        description="User or group enumeration commands were detected (net user, whoami /priv, etc.), common in early-stage reconnaissance.",
+        severity="medium",
+        category="reconnaissance",
+        condition=_r031_user_group_enum,
+    ),
+    DetectionRule(
+        id="R032",
+        name="Domain Trust Enumeration",
+        description="Domain trust discovery tools were detected (nltest, dsquery, Get-ADTrust), indicating Active Directory reconnaissance.",
+        severity="high",
+        category="reconnaissance",
+        condition=_r032_domain_trust_enum,
+    ),
+    DetectionRule(
+        id="R033",
+        name="System Discovery Commands",
+        description="Multiple system discovery commands were detected (systeminfo, ipconfig, arp, netstat), common in initial access reconnaissance.",
+        severity="low",
+        category="reconnaissance",
+        condition=_r033_system_discovery,
+    ),
+
+    # Impact (Phase 12)
+    DetectionRule(
+        id="R034",
+        name="Shadow Copy Deletion",
+        description="Shadow copy or backup deletion was detected (vssadmin, wmic shadowcopy, bcdedit), a critical ransomware indicator.",
+        severity="critical",
+        category="impact",
+        condition=_r034_shadow_copy_deletion,
+    ),
+    DetectionRule(
+        id="R035",
+        name="Security Service Mass Stop",
+        description="Multiple security services were stopped (Defender, firewall, VSS), indicating an attempt to disable defensive tools.",
+        severity="critical",
+        category="impact",
+        condition=_r035_security_service_stop,
+    ),
+    DetectionRule(
+        id="R036",
+        name="Disk Wipe Commands",
+        description="Disk wiping or destruction commands were detected (format, cipher /w, sdelete), indicating potential data destruction.",
+        severity="critical",
+        category="impact",
+        condition=_r036_disk_wipe,
+    ),
+
+    # Collection (Phase 12)
+    DetectionRule(
+        id="R037",
+        name="Browser Credential Access",
+        description="Access to browser credential stores was detected (Login Data, logins.json, key3.db), indicating credential harvesting.",
+        severity="high",
+        category="collection",
+        condition=_r037_browser_credential_access,
+    ),
+    DetectionRule(
+        id="R038",
+        name="Keylogger Indicators",
+        description="Keylogger-like API calls or behavior was detected (GetAsyncKeyState, SetWindowsHookEx, WH_KEYBOARD).",
+        severity="critical",
+        category="collection",
+        condition=_r038_keylogger_indicators,
+    ),
+
+    # Command and Control (Phase 12)
+    DetectionRule(
+        id="R039",
+        name="DNS Tunneling Patterns",
+        description="DNS tunneling indicators were detected (long subdomain queries, DNS-over-HTTPS tools, known DNS C2 tools).",
+        severity="high",
+        category="command_and_control",
+        condition=_r039_dns_tunneling,
+    ),
+    DetectionRule(
+        id="R040",
+        name="Known C2 Tool Signatures",
+        description="A known command-and-control framework or malware family was detected (Cobalt Strike, Empire, Meterpreter, Emotet, etc.).",
+        severity="critical",
+        category="command_and_control",
+        condition=_r040_known_c2_tools,
+    ),
+
+    # Ransomware (Phase 12 — Smith feedback)
+    DetectionRule(
+        id="R041",
+        name="Ransomware Mass File Rename",
+        description="Mass file rename or extension change detected (.encrypted, .locked, .crypt, etc.), a critical ransomware indicator.",
+        severity="critical",
+        category="impact",
+        condition=_r041_ransomware_mass_rename,
+    ),
+
+    # Web Exploitation (Bond intel)
+    DetectionRule(
+        id="R042",
+        name="ThinkPHP RCE Exploitation",
+        description="ThinkPHP remote code execution attempt detected (CVE-2018-20062, CVE-2019-9082). Attacker using invokefunction/call_user_func_array to execute arbitrary code.",
+        severity="critical",
+        category="execution",
+        condition=_r042_thinkphp_rce,
+    ),
 ]
 
 
@@ -458,6 +980,38 @@ _EXPLANATIONS: dict[str, Callable[[dict], str]] = {
     "R014": lambda e: f"Defender disabled: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
     "R015": lambda e: f"Firewall rule modified by '{e.get('name', 'unknown')}': '{(e.get('cmdline') or '')[:120]}'",
     "R016": lambda e: f"Large outbound transfer: {e.get('bytes_sent', e.get('transfer_size', 0))} bytes to {e.get('remote_addr', 'unknown')}",
+    # LOLBin rules
+    "R017": lambda e: f"Certutil download/decode: '{(e.get('cmdline') or '')[:120]}'",
+    "R018": lambda e: f"MSHTA URL execution: '{(e.get('cmdline') or '')[:120]}'",
+    "R019": lambda e: f"Rundll32 unusual DLL: '{(e.get('cmdline') or '')[:120]}'",
+    "R020": lambda e: f"Regsvr32 scriptlet load: '{(e.get('cmdline') or '')[:120]}'",
+    "R021": lambda e: f"WMIC process create: '{(e.get('cmdline') or '')[:120]}'",
+    "R022": lambda e: f"BITSAdmin transfer: '{(e.get('cmdline') or '')[:120]}'",
+    "R023": lambda e: f"MSIExec remote install: '{(e.get('cmdline') or '')[:120]}'",
+    "R024": lambda e: f"MSBuild inline task: '{(e.get('cmdline') or '')[:120]}'",
+    "R025": lambda e: f"PowerShell download cradle: '{(e.get('cmdline') or '')[:120]}'",
+    "R026": lambda e: f"AMSI bypass attempt: '{(e.get('cmdline') or '')[:120]}'",
+    # Privilege Escalation
+    "R027": lambda e: f"UAC bypass via fodhelper: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R028": lambda e: f"UAC bypass via eventvwr: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R029": lambda e: f"Token manipulation: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R030": lambda e: f"Runas with saved creds: '{(e.get('cmdline') or '')[:120]}'",
+    # Reconnaissance
+    "R031": lambda e: f"User/group enumeration: '{(e.get('cmdline') or '')[:120]}'",
+    "R032": lambda e: f"Domain trust enumeration: '{(e.get('cmdline') or '')[:120]}'",
+    "R033": lambda e: f"System discovery: '{(e.get('cmdline') or '')[:120]}'",
+    # Impact
+    "R034": lambda e: f"Shadow copy deletion: '{(e.get('cmdline') or '')[:120]}'",
+    "R035": lambda e: f"Security service stopped: '{(e.get('cmdline') or '')[:120]}'",
+    "R036": lambda e: f"Disk wipe command: '{(e.get('cmdline') or '')[:120]}'",
+    # Collection
+    "R037": lambda e: f"Browser credential access: '{(e.get('cmdline') or e.get('file_path') or '')[:120]}'",
+    "R038": lambda e: f"Keylogger indicators: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    # C2
+    "R039": lambda e: f"DNS tunneling: '{(e.get('cmdline') or e.get('dns_query') or '')[:120]}'",
+    "R040": lambda e: f"C2 tool detected: '{(e.get('cmdline') or e.get('name') or '')[:120]}'",
+    "R041": lambda e: f"Ransomware mass rename: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R042": lambda e: f"ThinkPHP RCE exploit (CVE-2018-20062): '{(e.get('cmdline') or e.get('url') or e.get('details') or '')[:120]}'",
 }
 
 

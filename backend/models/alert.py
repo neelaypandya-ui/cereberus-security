@@ -33,3 +33,10 @@ class Alert(Base):
     feedback: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # true_positive, false_positive
     feedback_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     feedback_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Phase 12: Alert triage fields
+    dismissed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    dismissed_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    dismissed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    snoozed_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    escalated_to_incident_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

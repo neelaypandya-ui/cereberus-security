@@ -1,10 +1,11 @@
 """Network Sentinel Module — monitors live network connections.
 
 Polls psutil.net_connections() at a configurable interval, caches live connections,
-flags suspicious ports, and provides stats for the API/dashboard.
+flags suspicious ports, provides stats, and detects C2 beaconing patterns.
 """
 
 import asyncio
+import math
 import subprocess
 import time
 from collections import deque
@@ -72,6 +73,15 @@ class NetworkSentinel(BaseModule):
         # Warmup grace period — suppress anomaly alerts while model trains on real data
         self._warmup_seconds: int = cfg.get("anomaly_warmup_seconds", 1800)
         self._started_at: float = 0.0
+
+        # C2 Beaconing detection (Phase 12)
+        self._connection_history: deque[dict] = deque(maxlen=10000)
+        self._beacon_min_connections: int = cfg.get("beacon_min_connections", 10)
+        self._beacon_interval_tolerance: float = cfg.get("beacon_interval_tolerance", 0.15)
+        self._beacon_analysis_window: int = cfg.get("beacon_analysis_window", 600)
+        self._detected_beacons: list[dict] = []
+        self._dns_query_count: int = 0
+        self._dns_query_window_start: float = time.monotonic()
 
     async def start(self) -> None:
         """Start the connection monitoring loop."""
@@ -177,6 +187,23 @@ class NetworkSentinel(BaseModule):
         self._stats = stats
         self._last_scan = datetime.now(timezone.utc)
 
+        # Record established non-local connections for beaconing analysis
+        now_ts = time.monotonic()
+        for conn in connections:
+            if conn["status"].lower() == "established" and conn["remote_addr"] and conn["remote_addr"] not in ("", "0.0.0.0", "127.0.0.1", "::1", "::"):
+                self._connection_history.append({
+                    "timestamp": now_ts,
+                    "remote_ip": conn["remote_addr"],
+                    "remote_port": conn["remote_port"],
+                    "pid": conn["pid"],
+                })
+
+        # Run beaconing analysis
+        try:
+            self._detected_beacons = self._analyze_beaconing()
+        except Exception as e:
+            self.logger.error("beaconing_analysis_error", error=str(e))
+
         # Feed behavioral baseline engine with connection counts
         if self._behavioral_baseline:
             try:
@@ -184,6 +211,9 @@ class NetworkSentinel(BaseModule):
                 await self._behavioral_baseline.update("total_connections", float(stats["total"]), ts)
                 await self._behavioral_baseline.update("established_connections", float(stats["established"]), ts)
                 await self._behavioral_baseline.update("suspicious_connections", float(stats["suspicious"]), ts)
+                # Phase 12: outbound connection count + DNS query rate
+                await self._behavioral_baseline.update("outbound_connection_count", float(self.get_outbound_connection_count()), ts)
+                await self._behavioral_baseline.update("dns_query_rate", float(self.get_dns_query_rate()), ts)
             except Exception as e:
                 self.logger.error("baseline_update_error", error=str(e))
 
@@ -505,3 +535,109 @@ class NetworkSentinel(BaseModule):
     def get_flagged_connections(self) -> list[dict]:
         """Return only flagged (suspicious) connections."""
         return self._flagged
+
+    # --- C2 Beaconing Detection (Phase 12) ---
+
+    def _analyze_beaconing(self) -> list[dict]:
+        """Analyze connection history for beaconing patterns.
+
+        Groups connections by (remote_ip, remote_port), computes inter-connection
+        intervals, flags if coefficient of variation < tolerance (very regular = beaconing).
+        """
+        now = time.monotonic()
+        window_start = now - self._beacon_analysis_window
+        beacons = []
+
+        # Group recent connections by (remote_ip, remote_port)
+        groups: dict[tuple[str, int | None], list[float]] = {}
+        for entry in self._connection_history:
+            if entry["timestamp"] < window_start:
+                continue
+            key = (entry["remote_ip"], entry["remote_port"])
+            groups.setdefault(key, []).append(entry["timestamp"])
+
+        for (ip, port), timestamps in groups.items():
+            if len(timestamps) < self._beacon_min_connections:
+                continue
+
+            # Sort and compute intervals
+            timestamps.sort()
+            intervals = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
+
+            if not intervals:
+                continue
+
+            mean_interval = sum(intervals) / len(intervals)
+            if mean_interval <= 0:
+                continue
+
+            # Coefficient of variation
+            variance = sum((x - mean_interval) ** 2 for x in intervals) / len(intervals)
+            std_dev = math.sqrt(variance)
+            cv = std_dev / mean_interval
+
+            if cv < self._beacon_interval_tolerance:
+                beacon = {
+                    "remote_ip": ip,
+                    "remote_port": port,
+                    "connection_count": len(timestamps),
+                    "mean_interval_seconds": round(mean_interval, 2),
+                    "coefficient_of_variation": round(cv, 4),
+                    "first_seen": datetime.fromtimestamp(
+                        timestamps[0] - now + time.time(), tz=timezone.utc
+                    ).isoformat(),
+                    "last_seen": datetime.fromtimestamp(
+                        timestamps[-1] - now + time.time(), tz=timezone.utc
+                    ).isoformat(),
+                    "regularity": "HIGH" if cv < 0.05 else "MEDIUM",
+                }
+                beacons.append(beacon)
+                self.logger.warning(
+                    "beaconing_detected",
+                    ip=ip,
+                    port=port,
+                    interval=round(mean_interval, 2),
+                    cv=round(cv, 4),
+                    connections=len(timestamps),
+                )
+
+        return beacons
+
+    def get_detected_beacons(self) -> list[dict]:
+        """Return detected beaconing patterns."""
+        return self._detected_beacons
+
+    def get_connection_history(self, limit: int = 200) -> list[dict]:
+        """Return recent connection history entries."""
+        now = time.monotonic()
+        entries = []
+        for entry in list(self._connection_history)[-limit:]:
+            entries.append({
+                "remote_ip": entry["remote_ip"],
+                "remote_port": entry["remote_port"],
+                "pid": entry["pid"],
+                "seconds_ago": round(now - entry["timestamp"], 1),
+            })
+        return entries
+
+    def get_dns_query_rate(self) -> float:
+        """Return estimated DNS queries per minute."""
+        now = time.monotonic()
+        elapsed = now - self._dns_query_window_start
+        if elapsed < 1:
+            return 0.0
+        rate = (self._dns_query_count / elapsed) * 60
+        # Reset window every 5 minutes
+        if elapsed > 300:
+            self._dns_query_count = 0
+            self._dns_query_window_start = now
+        return round(rate, 2)
+
+    def get_outbound_connection_count(self) -> int:
+        """Return count of current ESTABLISHED non-local connections."""
+        return sum(
+            1 for c in self._connections
+            if c["status"].lower() == "established"
+            and c["remote_addr"]
+            and c["remote_addr"] not in ("", "0.0.0.0", "127.0.0.1", "::1", "::")
+        )

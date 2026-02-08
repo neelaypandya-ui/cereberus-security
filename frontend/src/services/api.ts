@@ -156,11 +156,13 @@ export const api = {
   getRoutes: () => request('/vpn/routes'),
 
   // Alerts
-  getAlerts: (params?: { limit?: number; severity?: string; unacknowledged_only?: boolean }) => {
+  getAlerts: (params?: { limit?: number; severity?: string; unacknowledged_only?: boolean; show_dismissed?: boolean; show_snoozed?: boolean }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.severity) searchParams.set('severity', params.severity);
     if (params?.unacknowledged_only) searchParams.set('unacknowledged_only', 'true');
+    if (params?.show_dismissed) searchParams.set('show_dismissed', 'true');
+    if (params?.show_snoozed) searchParams.set('show_snoozed', 'true');
     const query = searchParams.toString();
     return request(`/alerts/${query ? '?' + query : ''}`);
   },
@@ -169,6 +171,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ alert_ids: alertIds }),
     }),
+  dismissAlert: (id: number) => request(`/alerts/${id}/dismiss`, { method: 'POST' }),
+  escalateAlert: (id: number) => request(`/alerts/${id}/escalate`, { method: 'POST' }),
+  snoozeAlert: (id: number, hours: number = 1) =>
+    request(`/alerts/${id}/snooze?hours=${hours}`, { method: 'POST' }),
 
   // Modules
   getModules: () => request('/modules/'),
@@ -520,6 +526,7 @@ export const api = {
     const query = limit ? `?limit=${limit}` : '';
     return request(`/detection-rules/matches${query}`);
   },
+  getDetectionRuleStats: () => request('/detection-rules/stats'),
 
   // === Disk Sanitation ===
   getDiskAnalysis: () => request('/disk-cleanup/analysis'),
@@ -534,4 +541,53 @@ export const api = {
   },
   deleteFile: (path: string) =>
     request('/disk-cleanup/file', { method: 'DELETE', body: JSON.stringify({ path }) }),
+
+  // === Phase 12: Ransomware Detection ===
+  getRansomwareStatus: () => request('/ransomware/status'),
+  getRansomwareCanaries: () => request('/ransomware/canaries'),
+  getRansomwareDetections: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/ransomware/detections${query}`);
+  },
+
+  // === Phase 12: Commander Bond ===
+  getBondStatus: () => request('/bond/status'),
+  getBondReports: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/bond/reports${query}`);
+  },
+  getBondReport: (reportId: string) => request(`/bond/reports/${reportId}`),
+  getBondLatest: () => request('/bond/latest'),
+  triggerBondScan: () => request('/bond/scan', { method: 'POST' }),
+  getBondThreats: (params?: { category?: string; severity?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.severity) searchParams.set('severity', params.severity);
+    const query = searchParams.toString();
+    return request(`/bond/threats${query ? '?' + query : ''}`);
+  },
+  neutralizeBondThreat: (threatId: string) =>
+    request(`/bond/threats/${encodeURIComponent(threatId)}/neutralize`, { method: 'POST' }),
+  neutralizeAllBondThreats: () =>
+    request('/bond/threats/neutralize-all', { method: 'POST' }),
+
+  // === Phase 12: Agent Smith ===
+  getSmithStatus: () => request('/smith/status'),
+  engageSmith: (data: { intensity?: number; categories?: string[]; duration?: number }) =>
+    request('/smith/engage', { method: 'POST', body: JSON.stringify(data) }),
+  disengageSmith: () => request('/smith/disengage', { method: 'POST' }),
+  getSmithResults: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/smith/results${query}`);
+  },
+  getSmithResult: (sessionId: string) => request(`/smith/results/${sessionId}`),
+  getSmithAttacks: () => request('/smith/attacks'),
+  getSmithCategories: () => request('/smith/categories'),
+
+  // === Phase 12: Network Beaconing ===
+  getBeaconingDetections: () => request('/network/beaconing'),
+  getConnectionHistory: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/network/connection-history${query}`);
+  },
 };

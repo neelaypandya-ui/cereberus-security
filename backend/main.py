@@ -22,10 +22,12 @@ from .middleware.csrf import CSRFMiddleware
 from .middleware.security_headers import ShieldWallMiddleware
 from .middleware.rate_limit import GatekeeperMiddleware
 from .dependencies import (
+    get_agent_smith,
     get_alert_manager,
     get_anomaly_detector,
     get_behavioral_baseline,
     get_brute_force_shield,
+    get_commander_bond,
     get_data_exporter,
     get_email_analyzer,
     get_ensemble_detector,
@@ -40,6 +42,7 @@ from .dependencies import (
     get_persistence_scanner,
     get_playbook_executor,
     get_process_analyzer,
+    get_ransomware_detector,
     get_remediation_engine,
     get_resource_monitor,
     get_rule_engine,
@@ -268,6 +271,13 @@ async def lifespan(app: FastAPI):
     await _migrate_add_column("remediation_actions", "verified_at", "DATETIME", "NULL")
     await _migrate_add_column("remediation_actions", "verification_attempts", "INTEGER", "0")
 
+    # Phase 12: Alert triage columns
+    await _migrate_add_column("alerts", "dismissed", "BOOLEAN NOT NULL", "0")
+    await _migrate_add_column("alerts", "dismissed_by", "VARCHAR(100)", "NULL")
+    await _migrate_add_column("alerts", "dismissed_at", "DATETIME", "NULL")
+    await _migrate_add_column("alerts", "snoozed_until", "DATETIME", "NULL")
+    await _migrate_add_column("alerts", "escalated_to_incident_id", "INTEGER", "NULL")
+
     logger.info("database_initialized")
 
     # Seed default admin user if none exists
@@ -471,6 +481,7 @@ async def lifespan(app: FastAPI):
     process_analyzer = None
     if config.module_process_analyzer:
         process_analyzer = get_process_analyzer()
+        process_analyzer.set_behavioral_baseline(behavioral_baseline)
         try:
             task = asyncio.create_task(process_analyzer.start())
             _module_tasks.append(task)
@@ -538,6 +549,51 @@ async def lifespan(app: FastAPI):
     # Initialize Rule Engine (Phase 11)
     rule_engine = get_rule_engine()
     logger.info("rule_engine_initialized", rules=len(rule_engine.get_rules()))
+
+    # Start Ransomware Detector (Phase 12)
+    ransomware_detector = None
+    if config.module_ransomware_detector:
+        ransomware_detector = get_ransomware_detector()
+        ransomware_detector.set_alert_manager(alert_manager)
+        if process_analyzer:
+            ransomware_detector.set_process_analyzer(process_analyzer)
+        if file_integrity:
+            ransomware_detector.set_file_integrity(file_integrity)
+        try:
+            task = asyncio.create_task(ransomware_detector.start())
+            _module_tasks.append(task)
+            logger.info("ransomware_detector_launched")
+        except Exception as e:
+            logger.error("ransomware_detector_launch_failed", error=str(e))
+
+    # Start Commander Bond (Phase 12)
+    commander_bond = None
+    if config.module_commander_bond:
+        commander_bond = get_commander_bond()
+        commander_bond.set_alert_manager(alert_manager)
+        try:
+            task = asyncio.create_task(commander_bond.start())
+            _module_tasks.append(task)
+            logger.info("commander_bond_launched")
+        except Exception as e:
+            logger.error("commander_bond_launch_failed", error=str(e))
+
+    # Initialize Agent Smith (Phase 12) — manual activation only
+    agent_smith = None
+    if config.module_agent_smith:
+        agent_smith = get_agent_smith()
+        agent_smith._alert_manager = alert_manager
+        agent_smith._process_analyzer = process_analyzer
+        agent_smith._network_sentinel = network_sentinel
+        agent_smith._rule_engine = rule_engine
+        agent_smith._ransomware_detector = ransomware_detector
+        agent_smith._incident_manager = get_incident_manager()
+        try:
+            task = asyncio.create_task(agent_smith.start())
+            _module_tasks.append(task)
+            logger.info("agent_smith_initialized")
+        except Exception as e:
+            logger.error("agent_smith_init_failed", error=str(e))
 
     # Start Threat Intelligence (LAST — needs refs to other modules)
     threat_intelligence = None
@@ -706,6 +762,9 @@ async def lifespan(app: FastAPI):
         (resource_monitor, "resource_monitor"),
         (persistence_scanner, "persistence_scanner"),
         (event_log_monitor, "event_log_monitor"),
+        (ransomware_detector, "ransomware_detector"),
+        (commander_bond, "commander_bond"),
+        (agent_smith, "agent_smith"),
         (threat_intelligence, "threat_intelligence"),
     ]:
         if module is not None:
@@ -726,7 +785,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CEREBERUS",
     description="AI-Powered Cybersecurity Defense System",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan,
 )
 
@@ -817,6 +876,18 @@ async def health():
     if config.module_threat_intelligence:
         ti = get_threat_intelligence()
         modules["threat_intelligence"] = await ti.health_check()
+
+    if config.module_ransomware_detector:
+        rd = get_ransomware_detector()
+        modules["ransomware_detector"] = await rd.health_check()
+
+    if config.module_commander_bond:
+        bond = get_commander_bond()
+        modules["commander_bond"] = await bond.health_check()
+
+    if config.module_agent_smith:
+        smith = get_agent_smith()
+        modules["agent_smith"] = await smith.health_check()
 
     return {
         "status": "healthy",

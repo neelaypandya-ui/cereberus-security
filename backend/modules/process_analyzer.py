@@ -22,7 +22,19 @@ TRUSTED_DIRS = {
 
 # PIDs that are core Windows processes and should never be flagged suspicious
 SYSTEM_PIDS = {0, 4}  # 0 = System Idle Process, 4 = System
-CEREBERUS_PIDS = {os.getpid(), os.getppid()}  # Self + parent launcher
+_CEREBERUS_ROOT_PID = os.getpid()
+
+
+def _get_cereberus_pids() -> set[int]:
+    """Collect Cereberus PID + parent + all descendant PIDs dynamically."""
+    pids = {_CEREBERUS_ROOT_PID, os.getppid()}
+    try:
+        parent = psutil.Process(_CEREBERUS_ROOT_PID)
+        for child in parent.children(recursive=True):
+            pids.add(child.pid)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    return pids
 
 
 class ProcessAnalyzer(BaseModule):
@@ -44,6 +56,11 @@ class ProcessAnalyzer(BaseModule):
         self._scan_task: Optional[asyncio.Task] = None
         self._last_scan: Optional[datetime] = None
         self._previous_pids: set[int] = set()
+
+        # Phase 12: aggregate metrics for behavioral baseline
+        self._total_thread_count: int = 0
+        self._total_handle_count: int = 0
+        self._behavioral_baseline = None
 
     async def start(self) -> None:
         self.running = True
@@ -108,10 +125,26 @@ class ProcessAnalyzer(BaseModule):
         self._last_scan = datetime.now(timezone.utc)
         self.heartbeat()
 
+        # Feed thread/handle counts into behavioral baseline
+        if self._behavioral_baseline:
+            ts = self._last_scan
+            try:
+                await self._behavioral_baseline.update("thread_count", float(self._total_thread_count), ts)
+                await self._behavioral_baseline.update("handle_count", float(self._total_handle_count), ts)
+            except Exception:
+                pass
+
     def _collect_processes(self) -> dict[int, dict]:
         procs = {}
         attrs = ["pid", "name", "exe", "username", "cpu_percent", "memory_percent",
-                 "status", "create_time", "ppid"]
+                 "status", "create_time", "ppid", "num_threads"]
+
+        # Phase 12: aggregate counters
+        total_threads = 0
+        total_handles = 0
+
+        # Collect Cereberus PIDs once per scan (dynamic — catches workers/children)
+        cereberus_pids = _get_cereberus_pids()
 
         for proc in psutil.process_iter(attrs=attrs):
             try:
@@ -122,11 +155,21 @@ class ProcessAnalyzer(BaseModule):
                 cpu = info.get("cpu_percent") or 0.0
                 mem = info.get("memory_percent") or 0.0
 
+                # Accumulate thread/handle counts (Phase 12)
+                try:
+                    total_threads += info.get("num_threads") or 0
+                except Exception:
+                    pass
+                try:
+                    total_handles += proc.num_handles()
+                except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
+                    pass
+
                 suspicious = False
                 suspicious_reasons = []
 
                 # Skip core Windows system processes and Cereberus's own processes
-                if pid in SYSTEM_PIDS or pid in CEREBERUS_PIDS or info.get("ppid") in CEREBERUS_PIDS:
+                if pid in SYSTEM_PIDS or pid in cereberus_pids or info.get("ppid") in cereberus_pids:
                     procs[pid] = {
                         "pid": pid,
                         "name": info.get("name") or "",
@@ -188,6 +231,10 @@ class ProcessAnalyzer(BaseModule):
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
 
+        # Store aggregates for behavioral baseline (Phase 12)
+        self._total_thread_count = total_threads
+        self._total_handle_count = total_handles
+
         return procs
 
     # --- Public API ---
@@ -220,3 +267,16 @@ class ProcessAnalyzer(BaseModule):
                 self.get_process_tree(c["pid"]) or c for c in children
             ],
         }
+
+    def get_thread_count(self) -> int:
+        """Return total thread count across all processes."""
+        return self._total_thread_count
+
+    def get_handle_count(self) -> int:
+        """Return total handle count across all processes (Windows)."""
+        return self._total_handle_count
+
+    def set_behavioral_baseline(self, engine) -> None:
+        """Attach behavioral baseline engine for metric feeding."""
+        self._behavioral_baseline = engine
+        self.logger.info("behavioral_baseline_attached")

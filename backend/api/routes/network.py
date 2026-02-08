@@ -113,3 +113,22 @@ async def get_anomaly_history(
     """Get anomaly event history (only anomalous events)."""
     sentinel = get_network_sentinel()
     return sentinel.get_anomaly_events(limit=limit)
+
+
+@router.get("/beaconing")
+async def get_beaconing(
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
+):
+    """Get detected C2 beaconing patterns."""
+    sentinel = get_network_sentinel()
+    return sentinel.get_detected_beacons()
+
+
+@router.get("/connection-history")
+async def get_connection_history(
+    limit: int = Query(200, ge=1, le=1000),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
+):
+    """Get recent connection log for beaconing analysis."""
+    sentinel = get_network_sentinel()
+    return sentinel.get_connection_history(limit=limit)
