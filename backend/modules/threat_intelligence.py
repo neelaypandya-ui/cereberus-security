@@ -5,6 +5,7 @@ them into the ThreatCorrelator for pattern matching and threat level assessment.
 """
 
 import asyncio
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -32,6 +33,10 @@ class ThreatIntelligence(BaseModule):
 
         # Track already-reported suspicious PIDs to avoid re-alerting
         self._seen_suspicious_pids: set[int] = set()
+
+        # Anomaly alert dedup — don't re-alert for the same event type within cooldown
+        self._anomaly_alert_cooldown: float = 1800.0  # 30 minutes
+        self._last_anomaly_alert_time: dict[str, float] = {}
 
         # Phase 7 integrations
         self._playbook_executor = None
@@ -144,19 +149,23 @@ class ThreatIntelligence(BaseModule):
             except Exception:
                 pass
 
-            # Collect anomaly results
+            # Collect anomaly results (with 30-min cooldown to prevent alert spam)
             try:
                 anomaly = ns.get_anomaly_result() if hasattr(ns, "get_anomaly_result") else None
                 if anomaly and anomaly.get("is_anomaly"):
-                    events.append({
-                        "event_type": "anomaly_detected",
-                        "source_module": "network_sentinel",
-                        "severity": "high",
-                        "details": {
-                            "anomaly_score": anomaly.get("anomaly_score"),
-                            "threshold": anomaly.get("threshold"),
-                        },
-                    })
+                    now = time.monotonic()
+                    last = self._last_anomaly_alert_time.get("network_sentinel", 0)
+                    if now - last >= self._anomaly_alert_cooldown:
+                        self._last_anomaly_alert_time["network_sentinel"] = now
+                        events.append({
+                            "event_type": "anomaly_detected",
+                            "source_module": "network_sentinel",
+                            "severity": "high",
+                            "details": {
+                                "anomaly_score": anomaly.get("anomaly_score"),
+                                "threshold": anomaly.get("threshold"),
+                            },
+                        })
             except Exception:
                 pass
 

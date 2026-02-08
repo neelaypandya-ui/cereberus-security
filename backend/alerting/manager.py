@@ -52,8 +52,12 @@ class AlertManager:
         self._notification_dispatcher = dispatcher
 
     def _alert_dedup_key(self, severity: str, module_source: str, title: str, details: dict | None) -> str:
-        """Create an MD5 hash deduplication key from alert fields."""
-        raw = f"{severity}|{module_source}|{title}|{json.dumps(details, sort_keys=True, default=str)}"
+        """Create an MD5 hash deduplication key from alert fields.
+
+        Uses severity + module + title only (excludes volatile details like
+        anomaly scores) so repeated alerts of the same type are properly deduped.
+        """
+        raw = f"{severity}|{module_source}|{title}"
         return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
     def register_ws(self, ws) -> None:

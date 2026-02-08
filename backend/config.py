@@ -116,10 +116,10 @@ class CereberusConfig(BaseSettings):
     threat_correlation_window: float = 1.0  # hours
 
     # AI
-    ai_anomaly_threshold: float = 0.5
+    ai_anomaly_threshold: float = 2.0
     ai_model_dir: str = "models"
     ai_ensemble_weights: list[float] = [0.4, 0.35, 0.25]
-    ai_consensus_threshold: int = 2
+    ai_consensus_threshold: int = 3
     ai_baseline_learning_hours: int = 24
     ai_auto_retrain_interval_hours: int = 24
     ai_forecast_horizon_minutes: int = 60

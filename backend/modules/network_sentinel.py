@@ -70,7 +70,7 @@ class NetworkSentinel(BaseModule):
         self._blocked_ports_last_check: float = 0
 
         # Warmup grace period — suppress anomaly alerts while model trains on real data
-        self._warmup_seconds: int = cfg.get("anomaly_warmup_seconds", 600)
+        self._warmup_seconds: int = cfg.get("anomaly_warmup_seconds", 1800)
         self._started_at: float = 0.0
 
     async def start(self) -> None:
