@@ -13,8 +13,8 @@ function Login() {
     setLoading(true);
 
     try {
-      const data = await api.login(username, password);
-      localStorage.setItem('cereberus_token', data.access_token);
+      await api.login(username, password);
+      // JWT is now in httpOnly cookie, CSRF token in memory — no localStorage needed
       window.location.href = '/dashboard';
     } catch {
       setError('Invalid credentials');
@@ -101,7 +101,7 @@ function Login() {
         </form>
 
         <div style={{ marginTop: '32px', color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
-          CEREBERUS v0.1.0 // AI-POWERED DEFENSE
+          CEREBERUS v1.1.0 // AI-POWERED DEFENSE
         </div>
       </div>
     </div>

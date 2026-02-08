@@ -5,13 +5,14 @@ import re
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import CereberusConfig
 from ...dependencies import get_app_config, get_current_user, get_db
+from ...models.burned_token import BurnedToken
 from ...models.user import User
 from ...utils.rate_limiter import RateLimiter
 from ...utils.security import create_access_token, decode_access_token, hash_password, verify_password
@@ -27,28 +28,42 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Rate limiter: 5 login attempts per 5-minute window per IP
 _login_limiter = RateLimiter(max_attempts=5, window_seconds=300)
 
-# Burn list — maps token SHA-256 hash to expiry timestamp
-_burn_list: dict[str, float] = {}
 
-
-def is_token_burned(token: str) -> bool:
-    """Check if a token has been burned (revoked). Also prunes up to 50 expired entries."""
+async def is_token_burned(token: str, db: AsyncSession) -> bool:
+    """Check if a token has been burned (revoked) by querying the database."""
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    now = time.time()
+    now = datetime.now(timezone.utc)
 
-    # Prune up to 50 expired entries
-    pruned = 0
-    expired_keys = []
-    for k, exp in _burn_list.items():
-        if exp < now:
-            expired_keys.append(k)
-            pruned += 1
-            if pruned >= 50:
-                break
-    for k in expired_keys:
-        _burn_list.pop(k, None)
+    result = await db.execute(
+        select(BurnedToken).where(
+            BurnedToken.token_hash == token_hash,
+            BurnedToken.expires_at >= now,
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
-    return token_hash in _burn_list and _burn_list[token_hash] >= now
+
+async def burn_token(token: str, expires_at: datetime, db: AsyncSession) -> None:
+    """Add a token to the burn list (persist to DB)."""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    # Upsert — ignore if already burned
+    existing = await db.execute(
+        select(BurnedToken).where(BurnedToken.token_hash == token_hash)
+    )
+    if existing.scalar_one_or_none() is None:
+        db.add(BurnedToken(token_hash=token_hash, expires_at=expires_at))
+        await db.commit()
+
+
+async def cleanup_expired_tokens(db: AsyncSession) -> int:
+    """Remove expired tokens from the burn list. Returns count deleted."""
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        delete(BurnedToken).where(BurnedToken.expires_at < now)
+    )
+    await db.commit()
+    return result.rowcount
 
 
 def _get_client_ip(request: Request) -> str:
@@ -95,16 +110,18 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     must_change_password: bool = False
+    csrf_token: str | None = None
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
     body: LoginRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     config: CereberusConfig = Depends(get_app_config),
 ):
-    """Authenticate user and return JWT token."""
+    """Authenticate user and return JWT token (set as httpOnly cookie + CSRF token)."""
     client_ip = _get_client_ip(request)
 
     # Check rate limit
@@ -142,10 +159,26 @@ async def login(
         expires_minutes=config.jwt_expiry_minutes,
     )
 
-    return TokenResponse(
-        access_token=token,
-        must_change_password=getattr(user, "must_change_password", False),
+    # Set JWT as httpOnly cookie (immune to XSS)
+    response.set_cookie(
+        key="cereberus_session",
+        value=token,
+        httponly=True,
+        samesite="strict",
+        secure=False,  # Set True in production with HTTPS
+        max_age=config.jwt_expiry_minutes * 60,
+        path="/",
     )
+
+    # Generate CSRF token (hash of JWT + secret — not the JWT itself)
+    csrf_token = hashlib.sha256(f"{token}:{config.secret_key}:csrf".encode()).hexdigest()
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "must_change_password": getattr(user, "must_change_password", False),
+        "csrf_token": csrf_token,
+    }
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
@@ -196,6 +229,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
+    request: Request,
+    response: Response,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     config: CereberusConfig = Depends(get_app_config),
@@ -218,7 +253,25 @@ async def refresh_token(
         expires_minutes=config.jwt_expiry_minutes,
     )
 
-    return TokenResponse(access_token=token)
+    # Update httpOnly cookie
+    response.set_cookie(
+        key="cereberus_session",
+        value=token,
+        httponly=True,
+        samesite="strict",
+        secure=False,
+        max_age=config.jwt_expiry_minutes * 60,
+        path="/",
+    )
+
+    csrf_token = hashlib.sha256(f"{token}:{config.secret_key}:csrf".encode()).hexdigest()
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "must_change_password": False,
+        "csrf_token": csrf_token,
+    }
 
 
 class ChangePasswordRequest(BaseModel):
@@ -259,25 +312,35 @@ async def change_password(
 @router.post("/logout")
 async def logout(
     request: Request,
+    response: Response,
     current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     config: CereberusConfig = Depends(get_app_config),
 ):
     """Logout — burn the current token so it cannot be reused."""
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        raw_token = auth_header[7:]
-    else:
-        raise HTTPException(status_code=400, detail="No bearer token found")
+    # Extract token from cookie or Authorization header
+    raw_token = request.cookies.get("cereberus_session")
+    if not raw_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_token = auth_header[7:]
+
+    if not raw_token:
+        raise HTTPException(status_code=400, detail="No token found")
 
     # Decode token to get expiry
     payload = decode_access_token(raw_token, config.secret_key, config.jwt_algorithm)
     if payload and "exp" in payload:
-        expiry = float(payload["exp"])
+        expiry = datetime.fromtimestamp(float(payload["exp"]), tz=timezone.utc)
     else:
         # Default: burn for 1 hour
-        expiry = time.time() + 3600
+        expiry = datetime.now(timezone.utc).replace(second=0)
+        from datetime import timedelta
+        expiry = expiry + timedelta(hours=1)
 
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    _burn_list[token_hash] = expiry
+    await burn_token(raw_token, expiry, db)
+
+    # Clear httpOnly cookie
+    response.delete_cookie("cereberus_session", path="/", httponly=True, samesite="strict")
 
     return {"message": "Burn notice issued"}

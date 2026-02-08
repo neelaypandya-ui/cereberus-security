@@ -33,6 +33,8 @@ from .routes.users import router as users_router
 from .routes.comments import router as comments_router
 from .routes.layouts import router as layouts_router
 from .routes.maintenance import router as maintenance_router
+from .routes.event_log import router as event_log_router
+from .routes.detection_rules import router as detection_rules_router
 from .websockets.events import router as ws_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -68,6 +70,8 @@ api_router.include_router(users_router)
 api_router.include_router(comments_router)
 api_router.include_router(layouts_router)
 api_router.include_router(maintenance_router)
+api_router.include_router(event_log_router)
+api_router.include_router(detection_rules_router)
 
 # WebSocket router is mounted at root level (no prefix)
 websocket_router = ws_router

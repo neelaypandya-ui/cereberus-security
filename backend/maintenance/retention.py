@@ -205,6 +205,21 @@ class RetentionManager:
                 cutoff_days=retention_days,
             )
 
+            # --- Burned Tokens (expired — safe to purge) ---
+            try:
+                from ..models.burned_token import BurnedToken
+                result = await session.execute(
+                    delete(BurnedToken).where(BurnedToken.expires_at < now)
+                )
+                summary["burned_tokens"] = result.rowcount
+                logger.info(
+                    "retention_cleanup",
+                    table="burned_tokens",
+                    deleted=result.rowcount,
+                )
+            except Exception as e:
+                logger.warning("retention_burned_tokens_skipped", error=str(e))
+
             await session.commit()
 
         logger.info("retention_cleanup_complete", summary=summary)

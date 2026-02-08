@@ -31,6 +31,12 @@ class RemediationAction(Base):
     result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     executed_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     rollback_data_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    verification_status: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )  # pending_verification, verified, failed_verification, skipped
+    verification_result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    verification_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

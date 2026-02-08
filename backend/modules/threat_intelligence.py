@@ -38,6 +38,9 @@ class ThreatIntelligence(BaseModule):
         self._incident_manager = None
         self._alert_manager = None
 
+        # Phase 11: Rule engine for immediate detection
+        self._rule_engine = None
+
     def set_module_refs(self, refs: dict) -> None:
         """Set references to other running modules.
 
@@ -62,6 +65,11 @@ class ThreatIntelligence(BaseModule):
         """Attach the AlertManager for creating persistent alerts."""
         self._alert_manager = manager
         self.logger.info("alert_manager_attached")
+
+    def set_rule_engine(self, engine) -> None:
+        """Attach the RuleEngine for rule-based detection."""
+        self._rule_engine = engine
+        self.logger.info("rule_engine_attached")
 
     def _ensure_correlator(self):
         if self._correlator is None:
@@ -251,6 +259,59 @@ class ThreatIntelligence(BaseModule):
                     })
             except Exception:
                 pass
+
+        # Collect from Event Log Monitor (Phase 11)
+        elm = self._module_refs.get("event_log_monitor")
+        if elm:
+            try:
+                critical_events = elm.get_recent_critical(limit=10)
+                for evt in critical_events:
+                    events.append({
+                        "event_type": f"event_log_{evt.get('event_id', 'unknown')}",
+                        "source_module": "event_log_monitor",
+                        "severity": evt.get("severity", "high"),
+                        "details": evt,
+                    })
+            except Exception:
+                pass
+
+        # Run Rule Engine on process and event log data (Phase 11)
+        if self._rule_engine:
+            try:
+                # Evaluate process events
+                if pa:
+                    for proc in (pa.get_suspicious() or []):
+                        matches = self._rule_engine.evaluate(proc)
+                        for match in matches:
+                            events.append({
+                                "event_type": f"rule_match_{match.rule_id}",
+                                "source_module": "rule_engine",
+                                "severity": match.severity,
+                                "details": {
+                                    "rule_id": match.rule_id,
+                                    "rule_name": match.rule_name,
+                                    "category": match.category,
+                                    "explanation": match.explanation,
+                                },
+                            })
+                # Evaluate event log events
+                if elm:
+                    for evt in (elm.get_events(limit=20) or []):
+                        matches = self._rule_engine.evaluate(evt)
+                        for match in matches:
+                            events.append({
+                                "event_type": f"rule_match_{match.rule_id}",
+                                "source_module": "rule_engine",
+                                "severity": match.severity,
+                                "details": {
+                                    "rule_id": match.rule_id,
+                                    "rule_name": match.rule_name,
+                                    "category": match.category,
+                                    "explanation": match.explanation,
+                                },
+                            })
+            except Exception as re:
+                self.logger.error("rule_engine_eval_error", error=str(re))
 
         # Feed events to correlator
         if events:

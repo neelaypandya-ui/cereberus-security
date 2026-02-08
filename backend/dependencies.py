@@ -46,6 +46,10 @@ _ioc_matcher = None
 _notification_dispatcher = None
 _data_exporter = None
 
+# Phase 11 singletons
+_event_log_monitor = None
+_rule_engine = None
+
 
 def get_app_config() -> CereberusConfig:
     """Get the application config singleton."""
@@ -127,8 +131,12 @@ async def get_current_user(
             detail="Invalid or expired API key",
         )
 
-    # Fall back to JWT Bearer token
-    if credentials is None:
+    # Extract token: try httpOnly cookie first, then Bearer header
+    raw_token = request.cookies.get("cereberus_session")
+    if not raw_token and credentials:
+        raw_token = credentials.credentials
+
+    if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -136,7 +144,7 @@ async def get_current_user(
         )
 
     payload = decode_access_token(
-        credentials.credentials,
+        raw_token,
         config.secret_key,
         config.jwt_algorithm,
     )
@@ -147,14 +155,16 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check burn list (token revocation)
+    # Check burn list (token revocation) — DB-backed
     from .api.routes.auth import is_token_burned
-    if is_token_burned(credentials.credentials):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token revoked \u2014 burn notice active",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    factory = get_session_factory(config)
+    async with factory() as db:
+        if await is_token_burned(raw_token, db):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revoked \u2014 burn notice active",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     return payload
 
@@ -497,3 +507,29 @@ def get_data_exporter():
             export_dir=config.export_dir,
         )
     return _data_exporter
+
+
+# --- Phase 11: New module singletons ---
+
+def get_event_log_monitor():
+    """Get the Event Log Monitor module singleton."""
+    global _event_log_monitor
+    if _event_log_monitor is None:
+        from .modules.event_log_monitor import EventLogMonitor
+        config = get_app_config()
+        _event_log_monitor = EventLogMonitor(config={
+            "poll_interval": getattr(config, "event_log_poll_interval", 15),
+            "max_events": getattr(config, "event_log_max_events", 500),
+            "enable_sysmon": getattr(config, "event_log_enable_sysmon", True),
+            "max_events_per_query": getattr(config, "event_log_max_per_query", 50),
+        })
+    return _event_log_monitor
+
+
+def get_rule_engine():
+    """Get the Rule Engine singleton."""
+    global _rule_engine
+    if _rule_engine is None:
+        from .ai.rule_engine import RuleEngine
+        _rule_engine = RuleEngine()
+    return _rule_engine

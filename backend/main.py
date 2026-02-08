@@ -18,6 +18,7 @@ from .api.websockets.events import manager as ws_manager
 from .config import get_config
 from .database import close_engine, create_tables, get_engine, get_session_factory
 from .middleware.audit import AuditMiddleware
+from .middleware.csrf import CSRFMiddleware
 from .middleware.security_headers import ShieldWallMiddleware
 from .middleware.rate_limit import GatekeeperMiddleware
 from .dependencies import (
@@ -28,6 +29,7 @@ from .dependencies import (
     get_data_exporter,
     get_email_analyzer,
     get_ensemble_detector,
+    get_event_log_monitor,
     get_feed_manager,
     get_file_integrity,
     get_incident_manager,
@@ -40,6 +42,7 @@ from .dependencies import (
     get_process_analyzer,
     get_remediation_engine,
     get_resource_monitor,
+    get_rule_engine,
     get_threat_forecaster,
     get_threat_intelligence,
     get_vpn_guardian,
@@ -259,6 +262,11 @@ async def lifespan(app: FastAPI):
 
     await _migrate_add_column("users", "must_change_password", "BOOLEAN NOT NULL", "0")
     await _migrate_add_column("audit_logs", "semantic_event", "VARCHAR(100)", "NULL")
+    # Phase 11: Remediation verification columns
+    await _migrate_add_column("remediation_actions", "verification_status", "VARCHAR(20)", "NULL")
+    await _migrate_add_column("remediation_actions", "verification_result_json", "TEXT", "NULL")
+    await _migrate_add_column("remediation_actions", "verified_at", "DATETIME", "NULL")
+    await _migrate_add_column("remediation_actions", "verification_attempts", "INTEGER", "0")
 
     logger.info("database_initialized")
 
@@ -295,6 +303,7 @@ async def lifespan(app: FastAPI):
     remediation_engine = get_remediation_engine()
     remediation_engine.set_db_session_factory(factory)
     remediation_engine.set_ws_broadcast(ws_manager.broadcast)
+    remediation_engine.start_verification_loop()
     logger.info("remediation_engine_initialized")
 
     incident_manager = get_incident_manager()
@@ -515,6 +524,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("persistence_scanner_launch_failed", error=str(e))
 
+    # Start Event Log Monitor (Phase 11)
+    event_log_monitor = None
+    if config.module_event_log_monitor:
+        event_log_monitor = get_event_log_monitor()
+        try:
+            task = asyncio.create_task(event_log_monitor.start())
+            _module_tasks.append(task)
+            logger.info("event_log_monitor_launched")
+        except Exception as e:
+            logger.error("event_log_monitor_launch_failed", error=str(e))
+
+    # Initialize Rule Engine (Phase 11)
+    rule_engine = get_rule_engine()
+    logger.info("rule_engine_initialized", rules=len(rule_engine.get_rules()))
+
     # Start Threat Intelligence (LAST — needs refs to other modules)
     threat_intelligence = None
     if config.module_threat_intelligence:
@@ -535,7 +559,10 @@ async def lifespan(app: FastAPI):
             module_refs["resource_monitor"] = resource_monitor
         if persistence_scanner:
             module_refs["persistence_scanner"] = persistence_scanner
+        if event_log_monitor:
+            module_refs["event_log_monitor"] = event_log_monitor
         threat_intelligence.set_module_refs(module_refs)
+        threat_intelligence.set_rule_engine(rule_engine)
 
         # Wire Phase 7 engines + alert manager
         threat_intelligence.set_playbook_executor(playbook_executor)
@@ -657,6 +684,9 @@ async def lifespan(app: FastAPI):
     # --- Shutdown ---
     logger.info("cereberus_shutting_down")
 
+    # Stop verification loop
+    remediation_engine.stop_verification_loop()
+
     # Stop feed manager
     if _feed_manager_instance:
         try:
@@ -675,6 +705,7 @@ async def lifespan(app: FastAPI):
         (email_analyzer, "email_analyzer"),
         (resource_monitor, "resource_monitor"),
         (persistence_scanner, "persistence_scanner"),
+        (event_log_monitor, "event_log_monitor"),
         (threat_intelligence, "threat_intelligence"),
     ]:
         if module is not None:
@@ -695,7 +726,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CEREBERUS",
     description="AI-Powered Cybersecurity Defense System",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -709,8 +740,11 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-CSRF-Token"],
 )
+
+# CSRF protection — validates X-CSRF-Token on state-changing requests
+app.add_middleware(CSRFMiddleware)
 
 # The Shield Wall — security headers on every response
 app.add_middleware(ShieldWallMiddleware)
@@ -775,6 +809,10 @@ async def health():
     if config.module_persistence_scanner:
         ps = get_persistence_scanner()
         modules["persistence_scanner"] = await ps.health_check()
+
+    if config.module_event_log_monitor:
+        elm = get_event_log_monitor()
+        modules["event_log_monitor"] = await elm.health_check()
 
     if config.module_threat_intelligence:
         ti = get_threat_intelligence()

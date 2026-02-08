@@ -104,6 +104,13 @@ class CereberusConfig(BaseSettings):
     module_persistence_scanner: bool = True
     persistence_scan_interval: int = 600
 
+    # Event Log Monitor (Phase 11)
+    module_event_log_monitor: bool = True
+    event_log_poll_interval: int = 15
+    event_log_max_events: int = 500
+    event_log_enable_sysmon: bool = True
+    event_log_max_per_query: int = 50
+
     # Threat Intelligence
     threat_feed_max_events: int = 1000
     threat_correlation_window: float = 1.0  # hours

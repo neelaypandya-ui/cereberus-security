@@ -2,38 +2,43 @@ const API_BASE = '/api/v1';
 
 let _refreshPromise: Promise<string | null> | null = null;
 
+// CSRF token received from login — stored in memory only (not localStorage)
+let _csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null) {
+  _csrfToken = token;
+}
+
+export function getCsrfToken(): string | null {
+  return _csrfToken;
+}
+
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const token = localStorage.getItem('cereberus_token');
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // Include CSRF token on state-changing requests
+  if (_csrfToken) {
+    headers['X-CSRF-Token'] = _csrfToken;
   }
   return headers;
 }
 
 async function _attemptTokenRefresh(): Promise<string | null> {
   try {
-    const token = localStorage.getItem('cereberus_token');
-    if (!token) return null;
-
     const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      credentials: 'include',
+      headers: getHeaders(),
     });
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    if (data.access_token) {
-      localStorage.setItem('cereberus_token', data.access_token);
-      return data.access_token;
+    if (data.csrf_token) {
+      _csrfToken = data.csrf_token;
     }
-    return null;
+    return data.access_token || null;
   } catch {
     return null;
   }
@@ -42,26 +47,22 @@ async function _attemptTokenRefresh(): Promise<string | null> {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: { ...getHeaders(), ...options.headers as Record<string, string> },
   });
 
   if (response.status === 401) {
-    // Don't try refresh for auth endpoints — credentials expired, return to base
     const isAuthEndpoint = path.startsWith('/auth/');
     if (!isAuthEndpoint) {
-      // Requesting second wind — singleton refresh promise prevents concurrent calls
       if (!_refreshPromise) {
         _refreshPromise = _attemptTokenRefresh().finally(() => { _refreshPromise = null; });
       }
       const newToken = await _refreshPromise;
       if (newToken) {
-        // Retry original request with new token
         const retryResponse = await fetch(`${API_BASE}${path}`, {
           ...options,
-          headers: {
-            ...getHeaders(),
-            ...options.headers as Record<string, string>,
-          },
+          credentials: 'include',
+          headers: { ...getHeaders(), ...options.headers as Record<string, string> },
         });
         if (retryResponse.ok) {
           return retryResponse.json();
@@ -69,8 +70,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       }
     }
 
-    // Credentials expired, returning to base
-    localStorage.removeItem('cereberus_token');
+    // Session expired — clear CSRF and redirect
+    _csrfToken = null;
     window.location.href = '/login';
     throw new Error('Unauthorized');
   }
@@ -85,11 +86,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  login: (username: string, password: string) =>
-    request<{ access_token: string; token_type: string; must_change_password?: boolean }>('/auth/login', {
+  login: async (username: string, password: string) => {
+    const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
-    }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Login failed' }));
+      throw new Error(error.detail || 'Login failed');
+    }
+    const data = await response.json();
+    // Store CSRF token in memory (JWT is in httpOnly cookie)
+    if (data.csrf_token) {
+      _csrfToken = data.csrf_token;
+    }
+    return data;
+  },
 
   register: (username: string, password: string) =>
     request<{ access_token: string; token_type: string }>('/auth/register', {
@@ -101,7 +115,12 @@ export const api = {
 
   refreshToken: () => request('/auth/refresh', { method: 'POST' }),
 
-  logout: () => request('/auth/logout', { method: 'POST' }).catch(() => {}),
+  logout: async () => {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch { /* ignore */ }
+    _csrfToken = null;
+  },
 
   changePassword: (currentPassword: string, newPassword: string) =>
     request('/auth/change-password', {
@@ -242,6 +261,7 @@ export const api = {
   generateReport: async () => {
     const response = await fetch(`${API_BASE}/reports/generate`, {
       method: 'POST',
+      credentials: 'include',
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Report generation failed');
@@ -408,7 +428,10 @@ export const api = {
   getExportJobs: () => request('/export/'),
   getExportJob: (id: number) => request(`/export/${id}`),
   downloadExport: async (id: number) => {
-    const response = await fetch(`${API_BASE}/export/${id}/download`, { headers: getHeaders() });
+    const response = await fetch(`${API_BASE}/export/${id}/download`, {
+      credentials: 'include',
+      headers: getHeaders(),
+    });
     if (!response.ok) throw new Error('Download failed');
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -461,4 +484,22 @@ export const api = {
   listBackups: () => request('/maintenance/backups'),
   triggerCleanup: () => request('/maintenance/cleanup', { method: 'POST' }),
   getRetentionConfig: () => request('/maintenance/retention'),
+
+  // === Phase 11: Event Log ===
+  getEventLogEntries: (params?: { limit?: number; event_type?: string; severity?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.event_type) searchParams.set('event_type', params.event_type);
+    if (params?.severity) searchParams.set('severity', params.severity);
+    const query = searchParams.toString();
+    return request(`/event-log/${query ? '?' + query : ''}`);
+  },
+  getEventLogStats: () => request('/event-log/stats'),
+
+  // === Phase 11: Detection Rules ===
+  getDetectionRules: () => request('/detection-rules/'),
+  getDetectionRuleMatches: (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    return request(`/detection-rules/matches${query}`);
+  },
 };

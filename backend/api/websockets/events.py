@@ -68,8 +68,8 @@ async def websocket_events(websocket: WebSocket):
         "timestamp": "ISO 8601"
     }
     """
-    # Authenticate via JWT token in query params
-    token = websocket.query_params.get("token")
+    # Authenticate via JWT token in query params or session cookie
+    token = websocket.query_params.get("token") or websocket.cookies.get("cereberus_session")
     if not token:
         await websocket.close(code=4001)
         return
@@ -78,6 +78,15 @@ async def websocket_events(websocket: WebSocket):
     if payload is None:
         await websocket.close(code=4001)
         return
+
+    # Check burn list — reject revoked tokens
+    from ...api.routes.auth import is_token_burned
+    from ...database import get_session_factory
+    factory = get_session_factory(config)
+    async with factory() as db:
+        if await is_token_burned(token, db):
+            await websocket.close(code=4001)
+            return
 
     await manager.connect(websocket)
 

@@ -38,6 +38,7 @@ class RemediationEngine:
         self._base_dir = Path(base_dir)
         self._vault_dir = self._base_dir / "quarantine_vault"
         self._ws_broadcast = ws_broadcast_fn
+        self._verification_task: Optional[asyncio.Task] = None
 
     def set_db_session_factory(self, factory) -> None:
         self._db_session_factory = factory
@@ -77,6 +78,7 @@ class RemediationEngine:
                     executed_by=executed_by,
                     executed_at=now if status != "pending" else None,
                     completed_at=now if status in ("completed", "failed") else None,
+                    verification_status="pending_verification" if status == "completed" else None,
                 )
                 session.add(action)
                 await session.commit()
@@ -103,6 +105,8 @@ class RemediationEngine:
                         row.result_json = json.dumps(result)
                     if status in ("completed", "failed", "rolled_back"):
                         row.completed_at = datetime.now(timezone.utc)
+                    if status == "completed":
+                        row.verification_status = "pending_verification"
                     await session.commit()
         except Exception as e:
             logger.error("update_action_status_failed", error=str(e))
@@ -681,3 +685,284 @@ class RemediationEngine:
                 return result
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Remediation Verification System
+    # ------------------------------------------------------------------
+
+    async def verify_action(self, action_id: int) -> dict:
+        """Main verification dispatcher. Loads action from DB and calls
+        the appropriate verification method based on action_type."""
+        if not self._db_session_factory:
+            return {"success": False, "error": "No database session"}
+
+        try:
+            from ..models.remediation_action import RemediationAction
+            from sqlalchemy import select
+
+            async with self._db_session_factory() as session:
+                action = (await session.execute(
+                    select(RemediationAction).where(RemediationAction.id == action_id)
+                )).scalar_one_or_none()
+
+                if not action:
+                    return {"success": False, "error": "Action not found"}
+                if action.status != "completed":
+                    return {"success": False, "error": f"Cannot verify action with status: {action.status}"}
+
+                parameters = json.loads(action.parameters_json) if action.parameters_json else {}
+                verification_result: dict = {"verified": False, "error": "Unsupported action type for verification"}
+
+                if action.action_type == "block_ip":
+                    verification_result = await self._verify_block_ip(action.target, parameters)
+                elif action.action_type == "kill_process":
+                    verification_result = await self._verify_kill_process(action.target)
+                elif action.action_type == "quarantine_file":
+                    verification_result = await self._verify_quarantine_file(action.target, parameters)
+                elif action.action_type == "isolate_network":
+                    verification_result = await self._verify_isolate_network(action.target)
+                else:
+                    # Action types without verification support get skipped
+                    verification_result = {"verified": True, "skipped": True, "reason": f"No verification logic for {action.action_type}"}
+                    action.verification_status = "skipped"
+                    action.verification_result_json = json.dumps(verification_result)
+                    action.verified_at = datetime.now(timezone.utc)
+                    action.verification_attempts = action.verification_attempts + 1
+                    await session.commit()
+                    logger.info("verify_action_skipped", action_id=action_id, action_type=action.action_type)
+                    return {"success": True, **verification_result}
+
+                # Update verification fields
+                action.verification_attempts = action.verification_attempts + 1
+                action.verification_result_json = json.dumps(verification_result)
+
+                if verification_result.get("verified"):
+                    action.verification_status = "verified"
+                    action.verified_at = datetime.now(timezone.utc)
+                    logger.info("verify_action_passed", action_id=action_id, action_type=action.action_type)
+                else:
+                    if action.verification_attempts >= 3:
+                        action.verification_status = "failed_verification"
+                        logger.warning("verify_action_failed_final", action_id=action_id, action_type=action.action_type, attempts=action.verification_attempts)
+                    else:
+                        action.verification_status = "pending_verification"
+                        logger.info("verify_action_retry", action_id=action_id, action_type=action.action_type, attempts=action.verification_attempts)
+
+                await session.commit()
+                return {"success": True, **verification_result}
+
+        except Exception as e:
+            logger.error("verify_action_error", action_id=action_id, error=str(e))
+            return {"success": False, "error": str(e)}
+
+    async def _verify_block_ip(self, target: str, parameters: dict) -> dict:
+        """Check if the IP is still being blocked by the firewall rule."""
+        try:
+            rule_name = sanitize_firewall_rule_name(
+                parameters.get("rule_name", f"CEREBERUS_REMEDIATION_{target.replace('.', '_').replace(':', '_')}")
+            )
+
+            # Check if the firewall rule exists and is blocking
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _run_cmd([
+                    "netsh", "advfirewall", "firewall", "show", "rule",
+                    f"name={rule_name}",
+                ], timeout=10)
+            )
+            rule_exists = result.returncode == 0 and "Action:" in result.stdout
+            action_is_block = "Block" in result.stdout if rule_exists else False
+
+            # Check for active connections from that IP using psutil
+            import psutil
+            active_connections = 0
+            try:
+                for conn in psutil.net_connections(kind="inet"):
+                    if conn.raddr and conn.raddr.ip == target:
+                        active_connections += 1
+            except (psutil.AccessDenied, PermissionError):
+                pass  # May need elevated privileges
+
+            verified = rule_exists and action_is_block
+            return {
+                "verified": verified,
+                "rule_exists": rule_exists,
+                "action_is_block": action_is_block,
+                "active_connections": active_connections,
+            }
+        except Exception as e:
+            logger.error("verify_block_ip_error", target=target, error=str(e))
+            return {"verified": False, "error": str(e)}
+
+    async def _verify_kill_process(self, target: str) -> dict:
+        """Check if the process is dead (no longer running)."""
+        try:
+            import psutil
+            process_alive = False
+            details = ""
+
+            if target.isdigit():
+                pid = int(target)
+                process_alive = psutil.pid_exists(pid)
+                details = f"PID {pid} {'still exists' if process_alive else 'no longer exists'}"
+            else:
+                # Check if any process with that name exists
+                for proc in psutil.process_iter(["name"]):
+                    try:
+                        if proc.info["name"] and proc.info["name"].lower() == target.lower():
+                            process_alive = True
+                            break
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+                details = f"Process '{target}' {'still running' if process_alive else 'not found'}"
+
+            # Verification passes if the process is NOT alive
+            verified = not process_alive
+            return {
+                "verified": verified,
+                "process_alive": process_alive,
+                "details": details,
+            }
+        except Exception as e:
+            logger.error("verify_kill_process_error", target=target, error=str(e))
+            return {"verified": False, "process_alive": True, "details": str(e)}
+
+    async def _verify_quarantine_file(self, target: str, parameters: dict) -> dict:
+        """Check if the file is quarantined (original gone or replaced with stub)."""
+        try:
+            original_path = Path(target)
+            original_accessible = original_path.exists()
+            is_stub = False
+
+            if original_accessible:
+                try:
+                    content = original_path.read_text(errors="ignore")
+                    is_stub = "[QUARANTINED BY CEREBERUS]" in content
+                except Exception:
+                    is_stub = False
+
+            # Verified if original is gone OR original is a stub
+            verified = (not original_accessible) or is_stub
+            return {
+                "verified": verified,
+                "original_accessible": original_accessible,
+                "is_stub": is_stub,
+            }
+        except Exception as e:
+            logger.error("verify_quarantine_file_error", target=target, error=str(e))
+            return {"verified": False, "original_accessible": True, "is_stub": False, "error": str(e)}
+
+    async def _verify_isolate_network(self, target: str) -> dict:
+        """Check if the network interface is disabled."""
+        try:
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _run_cmd([
+                    "netsh", "interface", "show", "interface",
+                    f"name={target}",
+                ], timeout=10)
+            )
+
+            output = result.stdout
+            interface_state = "unknown"
+
+            # Parse the output for admin state
+            for line in output.splitlines():
+                stripped = line.strip()
+                if "Admin State" in stripped or "Administrative state" in stripped:
+                    if "Disabled" in stripped:
+                        interface_state = "disabled"
+                    elif "Enabled" in stripped:
+                        interface_state = "enabled"
+                    break
+            else:
+                # Fallback: check entire output for common patterns
+                if "Disabled" in output:
+                    interface_state = "disabled"
+                elif "Enabled" in output:
+                    interface_state = "enabled"
+
+            verified = interface_state == "disabled"
+            return {
+                "verified": verified,
+                "interface_state": interface_state,
+            }
+        except Exception as e:
+            logger.error("verify_isolate_network_error", target=target, error=str(e))
+            return {"verified": False, "interface_state": "error", "error": str(e)}
+
+    async def _run_verification_loop(self) -> None:
+        """Background loop that verifies completed remediation actions.
+        Runs every 30 seconds. Retries up to 3 times before marking as
+        failed_verification and creating an alert."""
+        logger.info("verification_loop_started")
+        while True:
+            try:
+                await asyncio.sleep(30)
+
+                if not self._db_session_factory:
+                    continue
+
+                from ..models.remediation_action import RemediationAction
+                from sqlalchemy import select, or_
+
+                async with self._db_session_factory() as session:
+                    stmt = select(RemediationAction).where(
+                        RemediationAction.status == "completed",
+                        or_(
+                            RemediationAction.verification_status.is_(None),
+                            RemediationAction.verification_status == "pending_verification",
+                        ),
+                        RemediationAction.verification_attempts < 3,
+                    )
+                    rows = (await session.execute(stmt)).scalars().all()
+                    action_ids = [row.id for row in rows]
+
+                # Process each action outside the session to avoid long-held locks
+                for aid in action_ids:
+                    try:
+                        result = await self.verify_action(aid)
+                        if not result.get("verified", False) and not result.get("skipped", False):
+                            # Check if we hit the max attempts threshold
+                            async with self._db_session_factory() as session:
+                                action = (await session.execute(
+                                    select(RemediationAction).where(RemediationAction.id == aid)
+                                )).scalar_one_or_none()
+                                if action and action.verification_status == "failed_verification":
+                                    await self._broadcast(
+                                        "verification_failed",
+                                        action.target,
+                                        "alert",
+                                        {
+                                            "action_id": aid,
+                                            "action_type": action.action_type,
+                                            "verification_attempts": action.verification_attempts,
+                                            "message": f"Remediation action {action.action_type} on {action.target} failed verification after {action.verification_attempts} attempts",
+                                        },
+                                    )
+                                    logger.warning(
+                                        "verification_failed_alert",
+                                        action_id=aid,
+                                        action_type=action.action_type,
+                                        target=action.target,
+                                    )
+                    except Exception as e:
+                        logger.error("verification_loop_action_error", action_id=aid, error=str(e))
+
+            except asyncio.CancelledError:
+                logger.info("verification_loop_cancelled")
+                break
+            except Exception as e:
+                logger.error("verification_loop_error", error=str(e))
+                await asyncio.sleep(5)
+
+    def start_verification_loop(self) -> None:
+        """Create and start the background verification loop task."""
+        if self._verification_task is None or self._verification_task.done():
+            self._verification_task = asyncio.create_task(self._run_verification_loop())
+            logger.info("verification_loop_task_created")
+
+    def stop_verification_loop(self) -> None:
+        """Cancel the background verification loop task."""
+        if self._verification_task and not self._verification_task.done():
+            self._verification_task.cancel()
+            logger.info("verification_loop_task_cancelled")
+            self._verification_task = None
