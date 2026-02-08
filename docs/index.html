@@ -570,7 +570,7 @@ td code { font-size: 13px; }
       <div class="online-dot"></div>
       <span class="online-text">DOCUMENTATION</span>
     </div>
-    <div class="version">VERSION 1.1.0</div>
+    <div class="version">VERSION 1.2.0</div>
   </div>
 
   <div class="nav-section">
@@ -602,6 +602,9 @@ td code { font-size: 13px; }
     <a href="#ops-board" class="nav-link">OPS BOARD</a>
     <a href="#sys-config" class="nav-link">SYS CONFIG</a>
     <a href="#disk-san" class="nav-link">DISK SAN</a>
+    <a href="#detect-rules" class="nav-link">DETECT RULES</a>
+    <a href="#cmdr-bond" class="nav-link">CMDR BOND</a>
+    <a href="#agent-smith" class="nav-link">AGENT SMITH</a>
   </div>
 
   <div class="nav-section">
@@ -611,6 +614,8 @@ td code { font-size: 13px; }
     <a href="#security" class="nav-link">Security Hardening</a>
     <a href="#event-log" class="nav-link">Event Log Monitor</a>
     <a href="#detection-rules" class="nav-link">Detection Rules</a>
+    <a href="#ransomware-detect" class="nav-link">Ransomware Detection</a>
+    <a href="#c2-beaconing" class="nav-link">C2 Beaconing</a>
     <a href="#roles" class="nav-link">User Roles</a>
     <a href="#glossary" class="nav-link">Glossary</a>
   </div>
@@ -636,12 +641,13 @@ td code { font-size: 13px; }
   <div class="logo">CEREBERUS</div>
   <div class="subtitle">AI-Powered Cybersecurity Defense System</div>
   <div class="defense-net">DEFENSE NETWORK</div>
-  <div class="ver">v1.1.0 &mdash; System Documentation &amp; User Guide</div>
+  <div class="ver">v1.2.0 &mdash; System Documentation &amp; User Guide</div>
   <div style="margin-top: 16px; display: inline-flex; gap: 12px;">
     <span class="stamp-badge stamp-cleared">ACTIVE</span>
-    <span class="stamp-badge stamp-routine">20 PANELS</span>
+    <span class="stamp-badge stamp-routine">23 PANELS</span>
     <span class="stamp-badge stamp-routine">32 DB TABLES</span>
-    <span class="stamp-badge stamp-routine">11 MODULES</span>
+    <span class="stamp-badge stamp-routine">14 MODULES</span>
+    <span class="stamp-badge stamp-routine">42 DETECTION RULES</span>
   </div>
 </div>
 
@@ -667,11 +673,14 @@ td code { font-size: 13px; }
   <li><strong>VPN leaks</strong> &mdash; Gaps in your encrypted tunnel that could expose your real IP address</li>
   <li><strong>File tampering</strong> &mdash; Unauthorized changes to critical system files</li>
   <li><strong>Suspicious processes</strong> &mdash; Programs behaving in unusual or potentially dangerous ways</li>
+  <li><strong>Ransomware</strong> &mdash; Programs that encrypt your files and demand payment, detected via canary files, shadow copy deletion, and mass encryption patterns</li>
+  <li><strong>LOLBin abuse</strong> &mdash; Attackers using legitimate Windows tools (certutil, mshta, rundll32, etc.) for malicious purposes</li>
+  <li><strong>C2 beaconing</strong> &mdash; Malware phoning home to command-and-control servers at regular intervals</li>
 </ul>
 
 <h3>Tech stack (for developers)</h3>
 <ul>
-  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (32 database tables)</li>
+  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (32 database tables), aiohttp (OSINT feeds)</li>
   <li><strong>Frontend:</strong> React 18 + TypeScript, Recharts for visualization</li>
   <li><strong>AI/ML:</strong> PyTorch (Autoencoder, LSTM), scikit-learn (Isolation Forest), Z-Score statistics</li>
   <li><strong>Real-time:</strong> WebSocket for live updates across all panels</li>
@@ -698,7 +707,7 @@ td code { font-size: 13px; }
 <h3>Dashboard Layout</h3>
 <p>Once logged in, you'll see the Cereberus dashboard with these key areas:</p>
 <ul>
-  <li><strong>Left Sidebar</strong> &mdash; Navigation menu with 20 panels. Each panel has a green, amber, or red dot showing its health status. Click any item to switch panels.</li>
+  <li><strong>Left Sidebar</strong> &mdash; Navigation menu with 23 panels. Each panel has a green, amber, or red dot showing its health status. Click any item to switch panels.</li>
   <li><strong>Top Bar</strong> &mdash; Shows the current panel name, a search bar, a UTC clock, system uptime counter, and the notification bell.</li>
   <li><strong>Main Area</strong> &mdash; The content of whichever panel you've selected.</li>
   <li><strong>Bottom Ticker</strong> &mdash; A scrolling feed of the most recent security events.</li>
@@ -1363,6 +1372,127 @@ td code { font-size: 13px; }
 </section>
 
 <!-- ============================================================ -->
+<!-- DETECTION RULES PANEL -->
+<!-- ============================================================ -->
+<section id="detect-rules">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">DET-21</span>
+    <span class="panel-label">DETECT RULES</span>
+    <span class="panel-name">Detection Rules</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>A dashboard for Cereberus's 42 hardcoded detection rules mapped to the MITRE ATT&amp;CK framework. View every rule, see recent matches in real time, and analyze detection patterns across categories.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a command center display board showing every sensor in the building &mdash; which ones have been triggered, how often, and what category of threat they detected.</p></div>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>RULES tab</strong> &mdash; Table of all 42 rules with ID, name, severity badge, MITRE category, and description. Covers 11 MITRE ATT&amp;CK categories: credential access, lateral movement, persistence, execution, defense evasion, exfiltration, privilege escalation, reconnaissance, impact, collection, and command &amp; control.</li>
+    <li><strong>MATCHES tab</strong> &mdash; Live feed of recent rule matches with timestamp, rule ID, matched event details, and explanation. Auto-refreshes every 10 seconds.</li>
+    <li><strong>ANALYTICS tab</strong> &mdash; Bar chart of match counts by category and severity breakdown, showing which types of threats are being detected most frequently.</li>
+  </ul>
+
+  <div class="tip-box"><p style="margin:0">Use this panel to verify that rules are actually firing. After running Agent Smith (adversary simulator), check the MATCHES tab to see which rules caught the simulated attacks and which didn't.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- COMMANDER BOND PANEL -->
+<!-- ============================================================ -->
+<section id="cmdr-bond">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">BND-22</span>
+    <span class="panel-label">CMDR BOND</span>
+    <span class="panel-name">Commander Bond</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>An autonomous threat intelligence operative that scans six open-source threat feeds every 6 hours. Bond identifies new vulnerabilities, malware samples, botnet C2 servers, and indicators of compromise &mdash; then delivers intelligence briefings with actionable Cereberus upgrade prompts. All feeds are free and require no API keys.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like having a field agent who reads every intelligence bulletin from six different agencies, identifies the threats relevant to your operation, writes a concise brief, and recommends exactly what countermeasures to deploy.</p></div>
+
+  <h4>Intelligence Sources</h4>
+  <ul>
+    <li><strong>CISA KEV</strong> &mdash; Known Exploited Vulnerabilities catalog (confirmed actively exploited CVEs)</li>
+    <li><strong>NVD CVE</strong> &mdash; National Vulnerability Database (high-severity Windows-relevant CVEs, CVSS &ge; 7.0)</li>
+    <li><strong>URLhaus</strong> &mdash; Malware distribution URLs from abuse.ch</li>
+    <li><strong>Feodo Tracker</strong> &mdash; Botnet command &amp; control server IPs</li>
+    <li><strong>ThreatFox</strong> &mdash; Indicators of compromise (hashes, IPs, domains)</li>
+    <li><strong>MalwareBazaar</strong> &mdash; Recent malware samples with signatures and hashes</li>
+  </ul>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Status Header</strong> &mdash; Bond's operational state (IN THE FIELD / STANDING BY / OFFLINE), last scan time, countdown to next scan, and active threat count.</li>
+    <li><strong>BRIEFING tab</strong> &mdash; Latest intelligence report with Bond's summary, threat dossier cards showing severity, category, source, Bond's assessment text, collapsible IOC lists, and copy-paste Cereberus remediation prompts. Includes a <strong>NEUTRALIZE ALL</strong> button to clear reviewed threats.</li>
+    <li><strong>DOSSIERS tab</strong> &mdash; Historical reports table filterable by category and severity. Expand any report to see individual threat cards. Each threat has a <strong>NEUTRALIZE</strong> button to remove it from the UI after you've addressed it.</li>
+    <li><strong>OPERATIONS tab</strong> &mdash; <strong>DEPLOY BOND</strong> button for on-demand scans, scan interval display, and mission history log.</li>
+  </ul>
+
+  <h4>Threat Neutralization</h4>
+  <p>Once you've reviewed a threat and taken the recommended action (added detection rules, updated IOC database, etc.), click <strong>NEUTRALIZE</strong> on that threat to remove it from all Bond views. Use <strong>NEUTRALIZE ALL</strong> to clear the entire dossier after a full review. Neutralized threats stay in memory but are hidden from the UI to avoid confusion.</p>
+
+  <div class="tip-box"><p style="margin:0">Each threat dossier includes a <strong>CEREBERUS PROMPT</strong> &mdash; a ready-to-paste instruction for Claude Code that tells it exactly what detection rules, IOC entries, or scanner signatures to add. Click COPY and paste it into your next Claude Code session.</p></div>
+
+  <div class="warning-box"><p style="margin:0">Bond creates <strong>CRITICAL alerts</strong> on the Threat Board for every critical-severity threat found. These are real alerts from real threat feeds. Review them promptly.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- AGENT SMITH PANEL -->
+<!-- ============================================================ -->
+<section id="agent-smith">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">SMH-23</span>
+    <span class="panel-label">AGENT SMITH</span>
+    <span class="panel-name">Agent Smith</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>A controlled adversary simulator that generates synthetic attacks to stress test Cereberus's detection and response capabilities. Smith injects fake malware signatures, simulated C2 beaconing, mock ransomware behavior, and other attack patterns to measure your detection rate. Like a vaccine &mdash; exposing the immune system to harmless versions of threats so it can identify weaknesses.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like a fire drill for your security system. A trained professional simulates real attacks using realistic techniques, then scores how many the security team detected and how quickly they responded. No actual damage occurs &mdash; it's all controlled simulation.</p></div>
+
+  <h4>Attack Simulation Categories</h4>
+  <ul>
+    <li><strong>Malware</strong> &mdash; Fake process entries mimicking Mimikatz, Cobalt Strike, Emotet, Meterpreter</li>
+    <li><strong>C2 Beaconing</strong> &mdash; Simulated periodic callbacks matching real C2 framework timing patterns</li>
+    <li><strong>Ransomware</strong> &mdash; Shadow copy deletion, mass file renames, recovery disabling (confined to sandbox)</li>
+    <li><strong>LOLBin Abuse</strong> &mdash; Certutil downloads, MSHTA scriptlets, Regsvr32 Squiblydoo, WMIC lateral movement</li>
+    <li><strong>Credential Dumping</strong> &mdash; LSASS access, SAM hive export, DCSync, Comsvcs.dll MiniDump</li>
+    <li><strong>Lateral Movement</strong> &mdash; PsExec service creation, WMI remote exec, Pass-the-Hash, RDP brute force</li>
+    <li><strong>Data Exfiltration</strong> &mdash; Large outbound transfers, DNS tunneling, archive staging, cloud exfil</li>
+  </ul>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>ACTIVATE toggle</strong> &mdash; Large centered button to enable Smith. When off, shows past session results. When on, reveals configuration controls.</li>
+    <li><strong>Configuration</strong> &mdash; Intensity slider (1-5: Probe / Skirmish / Assault / Siege / EVERYTHING), category checkboxes, duration selector (1-10 minutes), and ENGAGE button with confirmation step.</li>
+    <li><strong>Live Session</strong> &mdash; Real-time attack feed showing each simulated attack as it happens, detection scoreboard (detected / missed / pending), Smith's commentary per attack, and remaining time.</li>
+    <li><strong>Results</strong> &mdash; Session history with detection rate, per-attack breakdown, Smith's verdict and recommendations for missed detections.</li>
+    <li><strong>EMERGENCY KILL</strong> &mdash; Always visible red button that immediately stops all simulations and cleans up.</li>
+  </ul>
+
+  <h4>Safety Controls</h4>
+  <p>Agent Smith has <strong>four layers of containment</strong> ensuring zero real damage:</p>
+  <ul>
+    <li><strong>Architectural</strong> &mdash; Zero shell execution, zero filesystem writes outside sandbox, zero network calls, zero process creation. All "attacks" are pure data injection into in-memory lists.</li>
+    <li><strong>Operational</strong> &mdash; Manual activation only, admin-only (RBAC gated), time-limited sessions (10 min hard cap), blocked during real incidents, max 30 events per session.</li>
+    <li><strong>Data Separation</strong> &mdash; All injected data tagged with <code>_smith_simulation: True</code>, stored in separate <code>_simulated_*</code> lists, never written to the database, excluded from real alert counts.</li>
+    <li><strong>Breach Protocol</strong> &mdash; Automatic disengage on any containment violation, watchdog timer, post-session cleanup audit verifying all injected data was removed.</li>
+  </ul>
+
+  <div class="action-box"><p style="margin:0">Start with <strong>intensity 1</strong> (Probe) to validate that basic detection rules fire. Gradually increase to intensity 5 (EVERYTHING) and review Smith's recommendations for any missed detections. Use the DETECT RULES panel to verify which rules matched.</p></div>
+
+  <div class="warning-box"><p style="margin:0">Agent Smith is <strong>admin-only</strong>. It cannot run while real incidents are active. All simulation data lives in memory only and is lost on restart. No real processes are created, no real files are modified, and no real network connections are made.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
 <!-- HOW THE AI WORKS -->
 <!-- ============================================================ -->
 <section id="how-ai-works">
@@ -1397,7 +1527,7 @@ td code { font-size: 13px; }
 </div>
 
 <h3>Learning What "Normal" Looks Like</h3>
-<p>Cereberus builds <strong>behavioral baselines</strong> &mdash; a profile of what your computer's normal activity looks like. How many connections do you typically have? What's your normal CPU usage? How much network traffic is typical? Once it knows "normal," it can spot "abnormal."</p>
+<p>Cereberus builds <strong>behavioral baselines</strong> using <strong>16 metrics</strong> &mdash; a profile of what your computer's normal activity looks like. It tracks CPU usage, memory, network bytes in/out, connection count, process count, active ports, bandwidth, disk read/write rates, thread count, handle count, outbound connection count, and DNS query rate. Once it knows "normal," it can spot "abnormal." Any metric that deviates more than 3 standard deviations from its baseline triggers an anomaly flag.</p>
 
 <div class="tip-box"><p style="margin:0">Baselines improve over time as the system collects more data. After running for a few days, the AI becomes much more accurate because it has a better picture of what your specific "normal" looks like.</p></div>
 
@@ -1405,7 +1535,7 @@ td code { font-size: 13px; }
 <p>The <strong>LSTM (Long Short-Term Memory) forecaster</strong> is an AI that looks at patterns in past data to predict what might happen next. If it sees a pattern that historically preceded an attack, it can warn you before the attack happens.</p>
 
 <h3>Rule-Based Detection</h3>
-<p>Alongside the AI models, Cereberus runs <strong>16 hardcoded detection rules</strong> mapped to the MITRE ATT&amp;CK framework. While the AI catches unknown anomalies, these rules catch known attack patterns instantly &mdash; credential dumping tools, encoded PowerShell commands, event log tampering, and more. See the <a href="#detection-rules">Detection Rules</a> section for the full list.</p>
+<p>Alongside the AI models, Cereberus runs <strong>42 hardcoded detection rules</strong> mapped to the MITRE ATT&amp;CK framework across <strong>11 categories</strong>. While the AI catches unknown anomalies, these rules catch known attack patterns instantly &mdash; credential dumping tools, LOLBin abuse, ransomware indicators, C2 tool signatures, encoded PowerShell commands, event log tampering, and more. See the <a href="#detection-rules">Detection Rules</a> section for the full list.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -1454,34 +1584,181 @@ td code { font-size: 13px; }
 <section id="detection-rules">
 <h2>Rule-Based Detection Engine</h2>
 
-<p>In addition to the AI-based anomaly detection, Cereberus includes 16 hardcoded detection rules that catch known attack patterns instantly. These rules are mapped to the <strong>MITRE ATT&amp;CK</strong> framework &mdash; the industry-standard catalog of cyberattack techniques.</p>
+<p>In addition to the AI-based anomaly detection, Cereberus includes <strong>42 hardcoded detection rules</strong> across <strong>11 MITRE ATT&amp;CK categories</strong> that catch known attack patterns instantly. These rules are the backbone of Cereberus's deterministic detection layer.</p>
 
-<div class="analogy-box"><p style="margin:0">The AI guards detect unknown anomalies &mdash; things that just "feel wrong." The rule engine catches known attack signatures &mdash; like a wanted poster that says "if you see someone carrying lockpicks near the vault, sound the alarm immediately."</p></div>
+<div class="analogy-box"><p style="margin:0">The AI guards detect unknown anomalies &mdash; things that just "feel wrong." The rule engine catches known attack signatures &mdash; like wanted posters: "if you see someone carrying lockpicks near the vault, sound the alarm immediately."</p></div>
 
-<h3>The 16 Detection Rules</h3>
+<h3>Credential Access (R001&ndash;R003)</h3>
 <table>
-  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>Category</th></tr>
-  <tr><td>R001</td><td>Credential Dumping Tool Detected</td><td style="color:var(--red)">Critical</td><td>Credential Access</td></tr>
-  <tr><td>R002</td><td>LSASS Memory Access</td><td style="color:var(--red)">Critical</td><td>Credential Access</td></tr>
-  <tr><td>R003</td><td>SAM Database Access</td><td style="color:#ff6600">High</td><td>Credential Access</td></tr>
-  <tr><td>R004</td><td>PsExec Usage Detected</td><td style="color:#ff6600">High</td><td>Lateral Movement</td></tr>
-  <tr><td>R005</td><td>WMI Remote Execution</td><td style="color:#ff6600">High</td><td>Lateral Movement</td></tr>
-  <tr><td>R006</td><td>RDP from Unusual Source</td><td style="color:var(--amber)">Medium</td><td>Lateral Movement</td></tr>
-  <tr><td>R007</td><td>New Service Created</td><td style="color:var(--amber)">Medium</td><td>Persistence</td></tr>
-  <tr><td>R008</td><td>Registry Run Key Modification</td><td style="color:#ff6600">High</td><td>Persistence</td></tr>
-  <tr><td>R009</td><td>Scheduled Task Created</td><td style="color:var(--amber)">Medium</td><td>Persistence</td></tr>
-  <tr><td>R010</td><td>PowerShell Encoded Command</td><td style="color:#ff6600">High</td><td>Execution</td></tr>
-  <tr><td>R011</td><td>CMD Spawned from Office App</td><td style="color:var(--red)">Critical</td><td>Execution</td></tr>
-  <tr><td>R012</td><td>Script Execution from Temp</td><td style="color:#ff6600">High</td><td>Execution</td></tr>
-  <tr><td>R013</td><td>Event Log Cleared</td><td style="color:var(--red)">Critical</td><td>Defense Evasion</td></tr>
-  <tr><td>R014</td><td>Windows Defender Disabled</td><td style="color:var(--red)">Critical</td><td>Defense Evasion</td></tr>
-  <tr><td>R015</td><td>Firewall Rule Modified</td><td style="color:#ff6600">High</td><td>Defense Evasion</td></tr>
-  <tr><td>R016</td><td>Large Outbound Data Transfer</td><td style="color:#ff6600">High</td><td>Exfiltration</td></tr>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R001</td><td>Credential Dumping Tool Detected</td><td style="color:var(--red)">Critical</td><td>T1003</td></tr>
+  <tr><td>R002</td><td>LSASS Memory Access</td><td style="color:var(--red)">Critical</td><td>T1003.001</td></tr>
+  <tr><td>R003</td><td>SAM Database Access</td><td style="color:#ff6600">High</td><td>T1003.002</td></tr>
 </table>
 
-<div class="tip-box"><p style="margin:0">These rules run automatically in the background. No configuration is needed. When a rule matches, it creates an alert on the Threat Board with the rule name, matched event details, and a human-readable explanation of what was detected.</p></div>
+<h3>Lateral Movement (R004&ndash;R006)</h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R004</td><td>PsExec Usage Detected</td><td style="color:#ff6600">High</td><td>T1570</td></tr>
+  <tr><td>R005</td><td>WMI Remote Execution</td><td style="color:#ff6600">High</td><td>T1047</td></tr>
+  <tr><td>R006</td><td>RDP from Unusual Source</td><td style="color:var(--amber)">Medium</td><td>T1021.001</td></tr>
+</table>
 
-<div class="warning-box"><p style="margin:0">Rules R001 and R002 (credential dumping) trigger on tools like <strong>mimikatz</strong>, <strong>lazagne</strong>, and <strong>procdump</strong> accessing LSASS memory. If you see these alerts, treat them as a potential active compromise and investigate immediately.</p></div>
+<h3>Persistence (R007&ndash;R009)</h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R007</td><td>New Service Created</td><td style="color:var(--amber)">Medium</td><td>T1543.003</td></tr>
+  <tr><td>R008</td><td>Registry Run Key Modification</td><td style="color:#ff6600">High</td><td>T1547.001</td></tr>
+  <tr><td>R009</td><td>Scheduled Task Created</td><td style="color:var(--amber)">Medium</td><td>T1053.005</td></tr>
+</table>
+
+<h3>Execution (R010&ndash;R012)</h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R010</td><td>PowerShell Encoded Command</td><td style="color:#ff6600">High</td><td>T1059.001</td></tr>
+  <tr><td>R011</td><td>CMD Spawned from Office App</td><td style="color:var(--red)">Critical</td><td>T1204.002</td></tr>
+  <tr><td>R012</td><td>Script Execution from Temp</td><td style="color:#ff6600">High</td><td>T1059</td></tr>
+</table>
+
+<h3>Defense Evasion (R013&ndash;R015)</h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R013</td><td>Event Log Cleared</td><td style="color:var(--red)">Critical</td><td>T1070.001</td></tr>
+  <tr><td>R014</td><td>Windows Defender Disabled</td><td style="color:var(--red)">Critical</td><td>T1562.001</td></tr>
+  <tr><td>R015</td><td>Firewall Rule Modified</td><td style="color:#ff6600">High</td><td>T1562.004</td></tr>
+</table>
+
+<h3>Exfiltration (R016)</h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R016</td><td>Large Outbound Data Transfer (&gt;50 MB)</td><td style="color:#ff6600">High</td><td>T1048</td></tr>
+</table>
+
+<h3>LOLBin Abuse (R017&ndash;R026) &mdash; <em>New in v1.2.0</em></h3>
+<p>Living-Off-the-Land Binaries &mdash; legitimate Windows tools abused for malicious purposes.</p>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R017</td><td>Certutil Download/Decode</td><td style="color:#ff6600">High</td><td>T1105</td></tr>
+  <tr><td>R018</td><td>MSHTA URL Execution</td><td style="color:var(--red)">Critical</td><td>T1218.005</td></tr>
+  <tr><td>R019</td><td>Rundll32 Unusual DLL</td><td style="color:#ff6600">High</td><td>T1218.011</td></tr>
+  <tr><td>R020</td><td>Regsvr32 Scriptlet Execution</td><td style="color:var(--red)">Critical</td><td>T1218.010</td></tr>
+  <tr><td>R021</td><td>WMIC Process Create</td><td style="color:#ff6600">High</td><td>T1047</td></tr>
+  <tr><td>R022</td><td>BITSAdmin Transfer</td><td style="color:#ff6600">High</td><td>T1197</td></tr>
+  <tr><td>R023</td><td>MSIExec Remote Install</td><td style="color:#ff6600">High</td><td>T1218.007</td></tr>
+  <tr><td>R024</td><td>MSBuild Inline Task</td><td style="color:#ff6600">High</td><td>T1127.001</td></tr>
+  <tr><td>R025</td><td>PowerShell Download Cradle</td><td style="color:#ff6600">High</td><td>T1059.001</td></tr>
+  <tr><td>R026</td><td>AMSI Bypass Attempt</td><td style="color:var(--red)">Critical</td><td>T1562.001</td></tr>
+</table>
+
+<h3>Privilege Escalation (R027&ndash;R030) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R027</td><td>UAC Bypass via Fodhelper</td><td style="color:var(--red)">Critical</td><td>T1548.002</td></tr>
+  <tr><td>R028</td><td>UAC Bypass via Eventvwr</td><td style="color:var(--red)">Critical</td><td>T1548.002</td></tr>
+  <tr><td>R029</td><td>Token Manipulation</td><td style="color:var(--red)">Critical</td><td>T1134</td></tr>
+  <tr><td>R030</td><td>Runas with Saved Credentials</td><td style="color:#ff6600">High</td><td>T1134.002</td></tr>
+</table>
+
+<h3>Reconnaissance (R031&ndash;R033) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R031</td><td>User/Group Enumeration</td><td style="color:var(--amber)">Medium</td><td>T1087</td></tr>
+  <tr><td>R032</td><td>Domain Trust Enumeration</td><td style="color:#ff6600">High</td><td>T1482</td></tr>
+  <tr><td>R033</td><td>System Discovery Commands</td><td style="color:var(--text-muted)">Low</td><td>T1082</td></tr>
+</table>
+
+<h3>Impact (R034&ndash;R036) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R034</td><td>Shadow Copy Deletion</td><td style="color:var(--red)">Critical</td><td>T1490</td></tr>
+  <tr><td>R035</td><td>Security Service Mass Stop</td><td style="color:var(--red)">Critical</td><td>T1489</td></tr>
+  <tr><td>R036</td><td>Disk Wipe Commands</td><td style="color:var(--red)">Critical</td><td>T1561</td></tr>
+</table>
+
+<h3>Collection (R037&ndash;R038) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R037</td><td>Browser Credential Access</td><td style="color:#ff6600">High</td><td>T1555.003</td></tr>
+  <tr><td>R038</td><td>Keylogger Indicators</td><td style="color:var(--red)">Critical</td><td>T1056.001</td></tr>
+</table>
+
+<h3>Command &amp; Control (R039&ndash;R040) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R039</td><td>DNS Tunneling Patterns</td><td style="color:#ff6600">High</td><td>T1071.004</td></tr>
+  <tr><td>R040</td><td>Known C2 Tool &amp; Malware Signatures (25+ families)</td><td style="color:var(--red)">Critical</td><td>T1219</td></tr>
+</table>
+
+<h3>Ransomware &amp; Exploit Detection (R041&ndash;R042) &mdash; <em>New in v1.2.0</em></h3>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R041</td><td>Ransomware Mass File Rename</td><td style="color:var(--red)">Critical</td><td>T1486</td></tr>
+  <tr><td>R042</td><td>ThinkPHP RCE Exploitation</td><td style="color:var(--red)">Critical</td><td>T1190</td></tr>
+</table>
+
+<div class="tip-box"><p style="margin:0">These rules run automatically in the background. No configuration needed. When a rule matches, it creates an alert on the Threat Board with the rule name, matched event details, and a human-readable explanation. View all rules and matches in the <a href="#detect-rules">DETECT RULES</a> panel.</p></div>
+
+<div class="warning-box"><p style="margin:0">Rules R001&ndash;R002 (credential dumping) and R034&ndash;R036 (shadow copy deletion, service mass stop, disk wipe) are the highest-priority alerts. If you see these, treat them as a potential active compromise and investigate immediately.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- RANSOMWARE DETECTION -->
+<!-- ============================================================ -->
+<section id="ransomware-detect">
+<h2>Ransomware Detection</h2>
+
+<p>Cereberus v1.2.0 includes a dedicated <strong>Ransomware Detector</strong> module with three independent detection subsystems that work together to catch ransomware at every stage of the kill chain.</p>
+
+<div class="analogy-box"><p style="margin:0">Like setting up three different types of tripwires around your valuables. One watches for anyone tampering with decoy files (canaries). Another listens for the sound of backup destruction (shadow copy deletion). The third watches for the rapid chaos of mass encryption. Any single tripwire is enough to sound the alarm.</p></div>
+
+<h3>Detection Subsystems</h3>
+<div class="module-grid">
+  <div class="module-card">
+    <div class="module-callsign">SUBSYSTEM 1 &mdash; CANARY FILES</div>
+    <h4>Tripwire Detection</h4>
+    <p>Hidden <code>.cereberus_canary</code> files are deployed in Documents, Desktop, and Downloads. These decoy files are polled every 10 seconds. Any modification, deletion, or rename triggers a <strong>CRITICAL</strong> alert &mdash; only ransomware or tampering would touch these hidden files.</p>
+  </div>
+  <div class="module-card">
+    <div class="module-callsign">SUBSYSTEM 2 &mdash; SHADOW COPY</div>
+    <h4>Backup Destruction Detection</h4>
+    <p>Watches for commands that delete Volume Shadow Copies or disable Windows recovery: <code>vssadmin delete shadows</code>, <code>wmic shadowcopy delete</code>, <code>bcdedit /set recoveryenabled no</code>, <code>wbadmin delete catalog</code>. Ransomware almost always destroys backups before encrypting.</p>
+  </div>
+  <div class="module-card">
+    <div class="module-callsign">SUBSYSTEM 3 &mdash; MASS ENCRYPTION</div>
+    <h4>Encryption Pattern Detection</h4>
+    <p>Tracks file modification rates. If more than 20 files are renamed with new extensions in 60 seconds, the module calculates Shannon entropy. High entropy combined with mass renames is the signature of active encryption.</p>
+  </div>
+</div>
+
+<div class="tip-box"><p style="margin:0">The ransomware detector is tested by Agent Smith's ransomware simulation category. Run Smith at any intensity to verify all three subsystems fire correctly.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- C2 BEACONING DETECTION -->
+<!-- ============================================================ -->
+<section id="c2-beaconing">
+<h2>C2 Beaconing Detection</h2>
+
+<p>Command &amp; Control (C2) beaconing is the hallmark of compromised systems. Malware phones home to its operator at regular intervals &mdash; checking for new commands, exfiltrating data, or confirming the implant is alive. Cereberus v1.2.0 detects these patterns automatically.</p>
+
+<div class="analogy-box"><p style="margin:0">Imagine a spy in an office building who walks to the payphone at the same time every hour to call headquarters. Normal employees don't visit payphones on a precise schedule. The beaconing detector watches for this suspicious regularity.</p></div>
+
+<h3>How It Works</h3>
+<ul>
+  <li><strong>Connection History Buffer</strong> &mdash; A rolling buffer of the last 10,000 connections (timestamp, remote IP, port, PID) for every ESTABLISHED non-local connection.</li>
+  <li><strong>Interval Analysis</strong> &mdash; Connections are grouped by (remote IP, port). For each group with 10+ connections, the detector computes inter-connection intervals and their <strong>coefficient of variation (CV)</strong>.</li>
+  <li><strong>Beaconing Threshold</strong> &mdash; If the CV is below 15% (meaning connections happen at very regular intervals), it's flagged as beaconing. Real human traffic is irregular; only automated callbacks maintain this precision.</li>
+</ul>
+
+<h3>Configuration</h3>
+<table>
+  <tr><th>Parameter</th><th>Default</th><th>What it controls</th></tr>
+  <tr><td><code>beacon_min_connections</code></td><td>10</td><td>Minimum connections before analyzing a (IP, port) pair</td></tr>
+  <tr><td><code>beacon_interval_tolerance</code></td><td>0.15</td><td>CV threshold &mdash; lower = stricter (fewer false positives)</td></tr>
+  <tr><td><code>beacon_analysis_window</code></td><td>600s</td><td>Time window for grouping connections</td></tr>
+</table>
+
+<div class="warning-box"><p style="margin:0">VPN connections may trigger beaconing alerts due to their regular keepalive intervals. If you use a VPN (like NordVPN), expect to see some beaconing warnings for VPN server IPs. These are false positives and can be safely noted.</p></div>
 </section>
 
 <!-- ============================================================ -->
@@ -1525,6 +1802,45 @@ td code { font-size: 13px; }
   <li>After resolving the root cause, mark as <strong>RESOLVED</strong> then <strong>CLOSED</strong></li>
 </ol>
 
+<h3>How to triage alerts</h3>
+<p>The Threat Board now supports full alert triage with three actions beyond simple acknowledgment:</p>
+<ol>
+  <li>Click <strong>THREAT BOARD</strong> in the sidebar</li>
+  <li>Review each alert's severity, source module, and description</li>
+  <li>For each alert, choose one of three actions:
+    <ul>
+      <li><strong>DISMISS</strong> &mdash; Mark as not actionable (false positive or already handled). Dismissed alerts are hidden from the default view but can be shown with the "Show dismissed" toggle.</li>
+      <li><strong>ESCALATE</strong> &mdash; Create a formal incident from the alert and link them. Use this for confirmed threats requiring investigation.</li>
+      <li><strong>SNOOZE 1H</strong> &mdash; Hide the alert for 1 hour, then it reappears. Use this for alerts you want to deal with later.</li>
+    </ul>
+  </li>
+  <li>Use the filter toggles to show/hide dismissed and snoozed alerts as needed</li>
+</ol>
+
+<h3>How to review Bond intelligence and neutralize threats</h3>
+<ol>
+  <li>Click <strong>CMDR BOND</strong> in the sidebar</li>
+  <li>Review the <strong>BRIEFING</strong> tab for Bond's latest intelligence report</li>
+  <li>For each threat dossier, read Bond's assessment and the recommended Cereberus actions</li>
+  <li>Click <strong>COPY</strong> on the Cereberus Prompt to copy the recommended actions to your clipboard</li>
+  <li>Paste the prompt into Claude Code to implement the recommended detection rules, IOC entries, or scanner updates</li>
+  <li>Once you've addressed a threat, click <strong>NEUTRALIZE</strong> to remove it from the UI</li>
+  <li>After reviewing all threats, click <strong>NEUTRALIZE ALL</strong> to clear the entire dossier</li>
+</ol>
+
+<h3>How to run Agent Smith (adversary simulation)</h3>
+<ol>
+  <li>Click <strong>AGENT SMITH</strong> in the sidebar (admin only)</li>
+  <li>Click the <strong>ACTIVATE AGENT SMITH</strong> toggle</li>
+  <li>Set intensity (start with 1 &mdash; Probe), select categories, and choose duration</li>
+  <li>Click <strong>ENGAGE</strong>, then confirm on the second prompt</li>
+  <li>Watch the live attack feed and detection scoreboard</li>
+  <li>After the session ends, review Smith's results &mdash; detection rate, per-attack breakdown, and recommendations</li>
+  <li>Check the <strong>DETECT RULES</strong> panel to see which rules fired</li>
+  <li>Address any missed detections based on Smith's recommendations</li>
+  <li>Gradually increase intensity to 5 (EVERYTHING) as you close gaps</li>
+</ol>
+
 <h3>How to check if your VPN is leaking</h3>
 <ol>
   <li>Click <strong>SEC COMMS</strong> in the sidebar</li>
@@ -1542,7 +1858,7 @@ td code { font-size: 13px; }
 <section id="security">
 <h2>Security Hardening</h2>
 
-<p>Cereberus v1.1.0 includes comprehensive security hardening across the entire stack. These protections operate automatically and require no configuration.</p>
+<p>Cereberus includes comprehensive security hardening across the entire stack. These protections operate automatically and require no configuration.</p>
 
 <h3>Input Validation &amp; Command Injection Prevention</h3>
 <p>All user-supplied inputs (IP addresses, ports, hostnames, file paths, process targets) are validated through a centralized validation layer before reaching any system command. Every subprocess call uses argument lists instead of shell strings, eliminating command injection entirely.</p>
@@ -1667,6 +1983,9 @@ td code { font-size: 13px; }
   <div class="concept"><strong>Correlation</strong><span>Connecting related events to identify a bigger threat. Like connecting witnesses' stories to solve a case.</span></div>
   <div class="concept"><strong>CSRF</strong><span>Cross-Site Request Forgery. An attack that tricks your browser into making unwanted requests to Cereberus. Blocked automatically with token validation.</span></div>
   <div class="concept"><strong>DEFCON</strong><span>Defense Condition. A 1-5 scale showing current threat severity. 5 = peaceful, 1 = emergency.</span></div>
+  <div class="concept"><strong>C2 Beaconing</strong><span>Malware periodically contacting its command server at regular intervals. Detected by analyzing connection timing patterns.</span></div>
+  <div class="concept"><strong>Canary File</strong><span>A hidden decoy file placed in common directories. If modified or deleted, it triggers a ransomware alert. Like a tripwire.</span></div>
+  <div class="concept"><strong>Commander Bond</strong><span>Cereberus's autonomous threat intelligence operative that scans 6 OSINT feeds every 6 hours for new threats.</span></div>
   <div class="concept"><strong>DNS Leak</strong><span>When your website lookups bypass your VPN, revealing which sites you visit to your ISP.</span></div>
   <div class="concept"><strong>Event Log</strong><span>Windows' built-in diary of security events &mdash; logins, process starts, service installs. Cereberus monitors it for signs of compromise.</span></div>
   <div class="concept"><strong>Ensemble</strong><span>Multiple AI models working together and voting. Reduces false alarms dramatically.</span></div>
@@ -1676,20 +1995,26 @@ td code { font-size: 13px; }
   <div class="concept"><strong>IOC</strong><span>Indicator of Compromise. A known fingerprint of a threat &mdash; a bad IP, a malware file hash, or a phishing URL.</span></div>
   <div class="concept"><strong>Isolation Forest</strong><span>An AI model that finds outliers by trying to separate each data point from the rest.</span></div>
   <div class="concept"><strong>JWT</strong><span>JSON Web Token. The login token that proves your identity when you access the system.</span></div>
+  <div class="concept"><strong>KEV</strong><span>Known Exploited Vulnerabilities. A CISA-maintained list of CVEs confirmed to be actively exploited in the wild.</span></div>
   <div class="concept"><strong>Kill Switch</strong><span>An emergency feature that blocks all internet traffic if your VPN disconnects, preventing data leaks.</span></div>
   <div class="concept"><strong>Lateral Movement</strong><span>An attacker moving from one computer to another inside your network after initial compromise.</span></div>
-  <div class="concept"><strong>MITRE ATT&amp;CK</strong><span>An industry-standard knowledge base of real-world cyberattack techniques. Cereberus maps its 16 detection rules to this framework.</span></div>
+  <div class="concept"><strong>LOLBin</strong><span>Living-Off-the-Land Binary. Legitimate Windows tools (certutil, mshta, rundll32) abused by attackers to avoid detection.</span></div>
+  <div class="concept"><strong>MITRE ATT&amp;CK</strong><span>An industry-standard knowledge base of real-world cyberattack techniques. Cereberus maps its 42 detection rules across 11 categories to this framework.</span></div>
   <div class="concept"><strong>LSTM</strong><span>Long Short-Term Memory. An AI that predicts future threats by analyzing patterns in past events.</span></div>
+  <div class="concept"><strong>Neutralize</strong><span>Marking a Bond threat or vulnerability as handled, removing it from the active UI to avoid confusion.</span></div>
   <div class="concept"><strong>Persistence</strong><span>Techniques malware uses to survive computer restarts by hiding in startup locations.</span></div>
   <div class="concept"><strong>Phishing</strong><span>Fake emails or messages designed to trick you into revealing passwords or clicking malware links.</span></div>
   <div class="concept"><strong>Playbook</strong><span>An automated response rule: "if this threat appears, take this action." Like standing orders.</span></div>
   <div class="concept"><strong>Port</strong><span>A numbered channel for network communication. Like apartment numbers &mdash; 443 = secure web, 445 = file sharing.</span></div>
   <div class="concept"><strong>RBAC</strong><span>Role-Based Access Control. Different users get different permissions based on their assigned role.</span></div>
-  <div class="concept"><strong>Rule Engine</strong><span>Hardcoded pattern-matching rules that catch known attack signatures instantly, without requiring AI/ML training.</span></div>
+  <div class="concept"><strong>Ransomware</strong><span>Malware that encrypts your files and demands payment for decryption. Cereberus detects it via canary files, shadow copy deletion, and mass encryption patterns.</span></div>
+  <div class="concept"><strong>Rule Engine</strong><span>42 hardcoded pattern-matching rules across 11 MITRE ATT&amp;CK categories that catch known attack signatures instantly.</span></div>
   <div class="concept"><strong>Remediation</strong><span>Taking action to fix a security problem. Like patching a hole in a fence.</span></div>
   <div class="concept"><strong>RPC</strong><span>Remote Procedure Call. A Windows service that lets programs communicate. Can be exploited if exposed.</span></div>
   <div class="concept"><strong>SMB</strong><span>Server Message Block. Windows file sharing protocol. Notoriously exploitable (WannaCry, EternalBlue).</span></div>
   <div class="concept"><strong>Sysmon</strong><span>A free Microsoft tool that logs detailed process, network, and file/registry activity. Provides deeper visibility than built-in Windows logs.</span></div>
+  <div class="concept"><strong>Shannon Entropy</strong><span>A measure of randomness in data. Encrypted files have high entropy (near random). Used to detect active ransomware encryption.</span></div>
+  <div class="concept"><strong>Agent Smith</strong><span>Cereberus's controlled adversary simulator. Injects fake attack data to test detection capabilities without causing real damage.</span></div>
   <div class="concept"><strong>Threat Feed</strong><span>An external database of known threats that's updated regularly, like a wanted list from the FBI.</span></div>
   <div class="concept"><strong>VPN</strong><span>Virtual Private Network. Encrypts your internet traffic so nobody between you and the destination can read it.</span></div>
   <div class="concept"><strong>Z-Score</strong><span>A statistical measure of how unusual a number is compared to the average. High Z-Score = very unusual.</span></div>
@@ -1960,6 +2285,53 @@ td code { font-size: 13px; }
   <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/disk-cleanup/file</code></td><td>EXECUTE_REMEDIATION</td><td>Delete a single file</td></tr>
 </table>
 
+<h3>Alerts (Extended &mdash; v1.2.0)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/alerts/{id}/dismiss</code></td><td>MANAGE_ALERTS</td><td>Dismiss alert (hide from default view)</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/alerts/{id}/escalate</code></td><td>MANAGE_ALERTS</td><td>Escalate alert to incident</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/alerts/{id}/snooze</code></td><td>MANAGE_ALERTS</td><td>Snooze alert for 1 hour</td></tr>
+</table>
+
+<h3>Network (Extended &mdash; v1.2.0)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/beaconing</code></td><td>VIEW_DASHBOARD</td><td>Detected C2 beaconing patterns</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/network/connection-history</code></td><td>VIEW_DASHBOARD</td><td>Recent connection log</td></tr>
+</table>
+
+<h3>Ransomware Detector</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ransomware/status</code></td><td>VIEW_DASHBOARD</td><td>Module status and canary health</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ransomware/canaries</code></td><td>VIEW_DASHBOARD</td><td>List deployed canary files</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/ransomware/detections</code></td><td>VIEW_DASHBOARD</td><td>Recent ransomware detections</td></tr>
+</table>
+
+<h3>Commander Bond</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/status</code></td><td>VIEW_DASHBOARD</td><td>Bond's operational status</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/reports</code></td><td>VIEW_DASHBOARD</td><td>All intelligence reports</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/reports/{id}</code></td><td>VIEW_DASHBOARD</td><td>Specific report by ID</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/latest</code></td><td>VIEW_DASHBOARD</td><td>Most recent intelligence report</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/scan</code></td><td>MANAGE_SETTINGS</td><td>Deploy Bond for immediate scan</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/threats</code></td><td>VIEW_DASHBOARD</td><td>All threats (filterable by category/severity)</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/threats/{id}/neutralize</code></td><td>MANAGE_SETTINGS</td><td>Mark threat as neutralized</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/threats/neutralize-all</code></td><td>MANAGE_SETTINGS</td><td>Neutralize all threats</td></tr>
+</table>
+
+<h3>Agent Smith</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/smith/engage</code></td><td>MANAGE_SETTINGS</td><td>Start adversary simulation</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/smith/disengage</code></td><td>MANAGE_SETTINGS</td><td>Emergency stop all simulations</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/smith/status</code></td><td>VIEW_DASHBOARD</td><td>Current session status</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/smith/results</code></td><td>VIEW_DASHBOARD</td><td>All session results</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/smith/results/{session_id}</code></td><td>VIEW_DASHBOARD</td><td>Specific session report</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/smith/categories</code></td><td>VIEW_DASHBOARD</td><td>Available attack categories</td></tr>
+</table>
+
 <h3>Modules, Settings, Analytics, Audit, Search, Reports, Comments, Layouts, Maintenance</h3>
 <table>
   <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
@@ -2026,7 +2398,7 @@ docker-compose logs -f cereberus</code></pre>
   &mdash; END OF DOCUMENT &mdash;
 </p>
 <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 8px; font-family: var(--font-mono); letter-spacing: 1px;">
-  CEREBERUS v1.1.0 &bull; AI-Powered Cybersecurity Defense System &bull; DEFENSE NETWORK
+  CEREBERUS v1.2.0 &bull; AI-Powered Cybersecurity Defense System &bull; DEFENSE NETWORK
 </p>
 
 </div>
