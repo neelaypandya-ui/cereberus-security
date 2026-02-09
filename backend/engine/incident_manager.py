@@ -250,18 +250,65 @@ class IncidentManager:
             created_by="threat_correlator",
         )
 
+    async def link_alerts(self, incident_id: int, alert_ids: list[int]) -> dict:
+        """Link alerts to an incident."""
+        from ..models.alert import Alert
+        from ..models.incident import Incident
+        async with self._db_session_factory() as session:
+            result = await session.execute(
+                select(Incident).where(Incident.id == incident_id)
+            )
+            incident = result.scalar_one_or_none()
+            if not incident:
+                return {"error": "Incident not found"}
+
+            linked = 0
+            for alert_id in alert_ids:
+                result = await session.execute(
+                    select(Alert).where(Alert.id == alert_id)
+                )
+                alert = result.scalar_one_or_none()
+                if alert and not alert.escalated_to_incident_id:
+                    alert.escalated_to_incident_id = incident_id
+                    linked += 1
+
+            await session.commit()
+            return {"incident_id": incident_id, "linked": linked}
+
+    async def get_linked_alerts(self, incident_id: int) -> list[dict]:
+        """Get all alerts linked to an incident."""
+        from ..models.alert import Alert
+        async with self._db_session_factory() as session:
+            result = await session.execute(
+                select(Alert).where(Alert.escalated_to_incident_id == incident_id)
+                .order_by(Alert.timestamp.desc())
+            )
+            alerts = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "timestamp": a.timestamp.isoformat(),
+                    "severity": a.severity,
+                    "module_source": a.module_source,
+                    "title": a.title,
+                    "acknowledged": a.acknowledged,
+                }
+                for a in alerts
+            ]
+
     async def list_incidents(
         self,
         status: str | None = None,
         severity: str | None = None,
         assigned_to: str | None = None,
         limit: int = 50,
+        offset: int = 0,
     ) -> list[dict]:
         """List incidents with optional filters."""
         from ..models.incident import Incident
 
         async with self._db_session_factory() as session:
-            query = select(Incident).order_by(Incident.created_at.desc()).limit(limit)
+            query = select(Incident).order_by(Incident.created_at.desc()).limit(limit).offset(offset)
             if status:
                 query = query.where(Incident.status == status)
             if severity:

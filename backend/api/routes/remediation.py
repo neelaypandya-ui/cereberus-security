@@ -162,12 +162,13 @@ async def execute_remediation_action(
 @router.get("/actions")
 async def list_remediation_actions(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """List remediation actions with optional status filter."""
-    query = select(RemediationAction).order_by(desc(RemediationAction.created_at)).limit(limit)
+    query = select(RemediationAction).order_by(desc(RemediationAction.created_at)).limit(limit).offset(offset)
     if status:
         valid_statuses = ("pending", "executing", "completed", "failed", "rolled_back")
         if status not in valid_statuses:
@@ -251,12 +252,14 @@ async def rollback_remediation_action(
 
 @router.get("/quarantine")
 async def list_quarantined_files(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
-    """List all quarantined files."""
+    """List quarantined files with pagination."""
     result = await db.execute(
-        select(QuarantineEntry).order_by(desc(QuarantineEntry.quarantined_at))
+        select(QuarantineEntry).order_by(desc(QuarantineEntry.quarantined_at)).limit(limit).offset(offset)
     )
     rows = result.scalars().all()
     return [

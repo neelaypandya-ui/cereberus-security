@@ -32,7 +32,7 @@ export function SearchBar({ onNavigate }: SearchBarProps) {
     api.search(q, 10).then((d: unknown) => {
       setResults(d as SearchResult);
       setOpen(true);
-    }).catch(() => {});
+    }).catch((err) => console.error('[CEREBERUS]', err));
   }, []);
 
   useEffect(() => {

@@ -10,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import CereberusConfig, get_config
 from .database import get_session, get_session_factory
+from .utils.logging import get_logger
 from .utils.security import decode_access_token
+
+_dep_logger = get_logger("dependencies")
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -49,6 +52,11 @@ _data_exporter = None
 # Phase 11 singletons
 _event_log_monitor = None
 _rule_engine = None
+
+# Phase 15 singletons
+_yara_scanner = None
+_memory_scanner = None
+_event_bus = None
 
 
 def get_app_config() -> CereberusConfig:
@@ -110,7 +118,8 @@ async def _validate_api_key(api_key: str, config: CereberusConfig) -> Optional[d
                 "permissions": permissions,
                 "auth_method": "api_key",
             }
-    except Exception:
+    except Exception as e:
+        _dep_logger.debug("api_key_validation_failed", error=str(e))
         return None
 
 
@@ -157,6 +166,7 @@ async def get_current_user(
 
     # Check burn list (token revocation) — DB-backed
     from .api.routes.auth import is_token_burned
+    from .models.user import User
     factory = get_session_factory(config)
     async with factory() as db:
         if await is_token_burned(raw_token, db):
@@ -165,6 +175,18 @@ async def get_current_user(
                 detail="Token revoked \u2014 burn notice active",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        # Enforce must_change_password — block all endpoints except password change/me/logout
+        result = await db.execute(select(User).where(User.username == payload.get("sub")))
+        user = result.scalar_one_or_none()
+        if user and getattr(user, "must_change_password", False):
+            path = request.url.path
+            allowed_paths = ("/api/v1/auth/change-password", "/api/v1/auth/me", "/api/v1/auth/logout")
+            if not any(path.endswith(p) for p in allowed_paths):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Password change required",
+                )
 
     return payload
 
@@ -476,6 +498,7 @@ def get_ioc_matcher():
         factory = get_session_factory(config)
         _ioc_matcher = IOCMatcher(
             db_session_factory=factory,
+            config=config,
         )
     return _ioc_matcher
 
@@ -588,3 +611,47 @@ def get_disk_analyzer():
         from .modules.disk_analyzer import DiskAnalyzer
         _disk_analyzer = DiskAnalyzer()
     return _disk_analyzer
+
+
+# --- Phase 15 ---
+
+def get_yara_scanner():
+    """Get the YARA Scanner singleton."""
+    global _yara_scanner
+    if _yara_scanner is None:
+        from .intel.yara_scanner import YaraScanner
+        config = get_app_config()
+        import os
+        rules_dir = config.yara_rules_dir
+        if not os.path.isabs(rules_dir):
+            rules_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), rules_dir)
+        _yara_scanner = YaraScanner(
+            rules_dir=rules_dir,
+            scan_timeout=config.yara_scan_timeout,
+            max_file_size=config.yara_max_file_size,
+        )
+    return _yara_scanner
+
+
+def get_memory_scanner():
+    """Get the Memory Scanner module singleton."""
+    global _memory_scanner
+    if _memory_scanner is None:
+        from .modules.memory_scanner import MemoryScanner
+        config = get_app_config()
+        _memory_scanner = MemoryScanner(config={
+            "scan_interval": config.memory_scan_interval,
+            "max_processes": config.memory_scan_max_processes,
+            "rwx_alert_threshold": config.memory_rwx_alert_threshold,
+        })
+    return _memory_scanner
+
+
+def get_event_bus():
+    """Get the EventBus singleton."""
+    global _event_bus
+    if _event_bus is None:
+        from .utils.event_bus import EventBus
+        config = get_app_config()
+        _event_bus = EventBus(queue_size=config.event_bus_queue_size)
+    return _event_bus

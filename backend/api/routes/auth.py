@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import CereberusConfig
@@ -15,7 +15,7 @@ from ...dependencies import get_app_config, get_current_user, get_db
 from ...models.burned_token import BurnedToken
 from ...models.user import User
 from ...utils.rate_limiter import RateLimiter
-from ...utils.security import create_access_token, decode_access_token, hash_password, verify_password
+from ...utils.security import create_access_token, decode_access_token, hash_password, verify_password, validate_password_strength
 
 # Try to import RBAC role permissions for JWT enrichment
 try:
@@ -75,23 +75,13 @@ def _get_client_ip(request: Request) -> str:
 
 
 def _validate_password_strength(password: str, min_length: int = 12) -> None:
-    """Validate password meets strength requirements."""
-    errors = []
-    if len(password) < min_length:
-        errors.append(f"at least {min_length} characters")
-    if not re.search(r"[A-Z]", password):
-        errors.append("an uppercase letter")
-    if not re.search(r"[a-z]", password):
-        errors.append("a lowercase letter")
-    if not re.search(r"\d", password):
-        errors.append("a digit")
-    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]", password):
-        errors.append("a special character")
-
-    if errors:
+    """Validate password meets strength requirements. Wraps shared utility."""
+    try:
+        validate_password_strength(password, min_length=min_length)
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Password must contain {', '.join(errors)}",
+            detail=str(e),
         )
 
 
@@ -103,7 +93,7 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
-    role: str = "admin"
+    role: str = "viewer"
 
 
 class TokenResponse(BaseModel):
@@ -152,11 +142,14 @@ async def login(
     role_def = DEFAULT_ROLES.get(user.role, {})
     permissions = role_def.get("permissions", [])
 
+    # Short expiry if password change required
+    expiry = 5 if getattr(user, "must_change_password", False) else config.jwt_expiry_minutes
+
     token = create_access_token(
         data={"sub": user.username, "role": user.role, "permissions": permissions},
         secret_key=config.secret_key,
         algorithm=config.jwt_algorithm,
-        expires_minutes=config.jwt_expiry_minutes,
+        expires_minutes=expiry,
     )
 
     # Set JWT as httpOnly cookie (immune to XSS)
@@ -165,8 +158,8 @@ async def login(
         value=token,
         httponly=True,
         samesite="strict",
-        secure=False,  # Set True in production with HTTPS
-        max_age=config.jwt_expiry_minutes * 60,
+        secure=config.cookie_secure,
+        max_age=expiry * 60,
         path="/",
     )
 
@@ -184,10 +177,25 @@ async def login(
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(
     body: RegisterRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     config: CereberusConfig = Depends(get_app_config),
 ):
-    """Register a new user. For initial setup only."""
+    """Register a new user. First-run allows unauthenticated; after that, requires admin."""
+    # Gate: if any user exists, require authenticated admin
+    user_count = await db.scalar(select(func.count()).select_from(User))
+    if user_count and user_count > 0:
+        # Must be authenticated with manage_users permission
+        try:
+            from ...auth.rbac import require_permission, PERM_MANAGE_USERS
+            auth_dep = require_permission(PERM_MANAGE_USERS)
+            await auth_dep(request=request, config=config)
+        except HTTPException:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration locked — requires admin authentication",
+            )
+
     # Validate password strength
     _validate_password_strength(body.password, min_length=config.min_password_length)
 
@@ -259,7 +267,7 @@ async def refresh_token(
         value=token,
         httponly=True,
         samesite="strict",
-        secure=False,
+        secure=config.cookie_secure,
         max_age=config.jwt_expiry_minutes * 60,
         path="/",
     )

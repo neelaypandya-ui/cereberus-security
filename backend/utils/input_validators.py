@@ -91,14 +91,24 @@ def validate_process_target(value: str) -> str:
     return value
 
 
-def validate_file_path(value: str) -> str:
-    """Validate a file path — reject shell metacharacters."""
+def validate_file_path(value: str, allowed_base: str | None = None) -> str:
+    """Validate a file path — reject shell metacharacters, traversal, and null bytes."""
     if _SHELL_META.search(value):
         raise ValueError(
             f"File path contains forbidden characters (shell metacharacters): {value!r}"
         )
     if len(value) > 500:
         raise ValueError(f"File path too long (max 500 chars): {len(value)}")
+    if ".." in value:
+        raise ValueError("Path traversal not allowed")
+    if "\x00" in value:
+        raise ValueError("Null bytes not allowed in file path")
+    if allowed_base:
+        from pathlib import Path
+        resolved = str(Path(value).resolve())
+        base_resolved = str(Path(allowed_base).resolve())
+        if not resolved.startswith(base_resolved):
+            raise ValueError(f"Path must be within {allowed_base}")
     return value
 
 

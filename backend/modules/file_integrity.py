@@ -43,6 +43,9 @@ class FileIntegrity(BaseModule):
         self._ioc_matcher = None
         self._ioc_matches: list[dict] = []
 
+        # YARA scanner integration (Phase 15)
+        self._yara_scanner = None
+
     async def start(self) -> None:
         """Start the file integrity monitoring loop."""
         self.running = True
@@ -293,6 +296,11 @@ class FileIntegrity(BaseModule):
         """Attach an IOCMatcher for checking file hashes against threat feeds."""
         self._ioc_matcher = matcher
         self.logger.info("ioc_matcher_attached")
+
+    def set_yara_scanner(self, scanner) -> None:
+        """Attach YARA scanner for auto-scanning changed files."""
+        self._yara_scanner = scanner
+        self.logger.info("yara_scanner_attached")
 
     def get_ioc_matches(self) -> list[dict]:
         """Return IOC hash matches from the last scan."""

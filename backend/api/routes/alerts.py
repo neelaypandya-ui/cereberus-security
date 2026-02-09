@@ -8,6 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_MANAGE_ALERTS, PERM_VIEW_DASHBOARD
+from ...bridge import validate_and_log, AlertResponse
 from ...dependencies import get_db, get_incident_manager
 from ...models.alert import Alert
 
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 @router.get("/")
 async def get_alerts(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     severity: str | None = None,
     unacknowledged_only: bool = False,
     show_dismissed: bool = False,
@@ -25,7 +27,7 @@ async def get_alerts(
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get alerts with optional filtering. Dismissed and snoozed alerts hidden by default."""
-    query = select(Alert).order_by(Alert.timestamp.desc()).limit(limit)
+    query = select(Alert).order_by(Alert.timestamp.desc()).limit(limit).offset(offset)
 
     if severity:
         query = query.where(Alert.severity == severity)
@@ -41,7 +43,7 @@ async def get_alerts(
 
     result = await db.execute(query)
     rows = result.scalars().all()
-    return [
+    data = [
         {
             "id": r.id,
             "timestamp": r.timestamp.isoformat(),
@@ -58,6 +60,7 @@ async def get_alerts(
         }
         for r in rows
     ]
+    return validate_and_log(data, AlertResponse, "GET /alerts")
 
 
 class AcknowledgeRequest(BaseModel):

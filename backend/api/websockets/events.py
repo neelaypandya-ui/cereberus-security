@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -26,35 +27,98 @@ router = APIRouter()
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections."""
+    """Manages active WebSocket connections with backpressure and heartbeat."""
 
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
+    def __init__(self, max_connections: int = 100, queue_size: int = 50, heartbeat_interval: int = 30):
+        self._connections: dict[WebSocket, asyncio.Queue] = {}
+        self._writer_tasks: dict[WebSocket, asyncio.Task] = {}
+        self._max_connections = max_connections
+        self._queue_size = queue_size
+        self._heartbeat_interval = heartbeat_interval
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocket) -> bool:
+        """Accept connection if under limit. Returns False if rejected."""
+        if len(self._connections) >= self._max_connections:
+            await websocket.close(code=1013)  # Try Again Later
+            logger.warning("ws_connection_rejected", reason="max_connections", total=len(self._connections))
+            return False
         await websocket.accept()
-        self.active_connections.append(websocket)
-        logger.info("ws_client_connected", total=len(self.active_connections))
+        queue: asyncio.Queue = asyncio.Queue(maxsize=self._queue_size)
+        self._connections[websocket] = queue
+        # Start writer task for this connection
+        task = asyncio.create_task(self._writer(websocket, queue))
+        self._writer_tasks[websocket] = task
+        logger.info("ws_client_connected", total=len(self._connections))
+        return True
 
-    def disconnect(self, websocket: WebSocket) -> None:
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info("ws_client_disconnected", total=len(self.active_connections))
+    async def disconnect(self, websocket: WebSocket) -> None:
+        """Remove connection and cancel its writer task."""
+        self._connections.pop(websocket, None)
+        task = self._writer_tasks.pop(websocket, None)
+        if task and not task.done():
+            task.cancel()
+        try:
+            await websocket.close()
+        except Exception as e:
+            logger.debug("ws_close_failed", error=str(e))
+        logger.info("ws_client_disconnected", total=len(self._connections))
 
     async def broadcast(self, message: dict) -> None:
-        """Broadcast a message to all connected clients."""
+        """Non-blocking broadcast: enqueue message to all connections."""
         text = json.dumps(message)
         disconnected = []
-        for connection in self.active_connections:
+        for ws, queue in list(self._connections.items()):
             try:
-                await connection.send_text(text)
-            except Exception:
-                disconnected.append(connection)
-        for conn in disconnected:
-            self.disconnect(conn)
+                queue.put_nowait(text)
+            except asyncio.QueueFull:
+                # Client can't keep up — disconnect
+                disconnected.append(ws)
+                logger.warning("ws_client_backpressure_disconnect")
+        for ws in disconnected:
+            await self.disconnect(ws)
+
+    async def close_all(self) -> None:
+        """Close all connections gracefully."""
+        for ws in list(self._connections.keys()):
+            await self.disconnect(ws)
+
+    @property
+    def connection_count(self) -> int:
+        return len(self._connections)
+
+    async def _writer(self, websocket: WebSocket, queue: asyncio.Queue) -> None:
+        """Per-connection writer coroutine that drains the queue."""
+        last_activity = time.monotonic()
+        try:
+            while True:
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=self._heartbeat_interval)
+                    await websocket.send_text(message)
+                    last_activity = time.monotonic()
+                except asyncio.TimeoutError:
+                    # No messages for heartbeat_interval — send ping
+                    try:
+                        await websocket.send_text(json.dumps({
+                            "type": "heartbeat",
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }))
+                        last_activity = time.monotonic()
+                    except Exception as e:
+                        logger.debug("ws_heartbeat_failed", error=str(e))
+                        break
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            logger.debug("ws_writer_error", error=str(e))
+            return
 
 
-manager = ConnectionManager()
+config = get_config()
+manager = ConnectionManager(
+    max_connections=config.ws_max_connections,
+    queue_size=config.ws_queue_size,
+    heartbeat_interval=config.ws_heartbeat_interval,
+)
 
 
 @router.websocket("/ws/events")
@@ -63,7 +127,7 @@ async def websocket_events(websocket: WebSocket):
 
     Sends events in JSON format:
     {
-        "type": "alert" | "vpn_status" | "event" | "heartbeat" | "network_stats" | "threat_level",
+        "type": "batch_update" | "alert" | "vpn_status" | "event" | "heartbeat" | "network_stats" | "threat_level",
         "data": { ... },
         "timestamp": "ISO 8601"
     }
@@ -73,8 +137,8 @@ async def websocket_events(websocket: WebSocket):
     if not token:
         await websocket.close(code=4001)
         return
-    config = get_config()
-    payload = decode_access_token(token, config.secret_key, config.jwt_algorithm)
+    cfg = get_config()
+    payload = decode_access_token(token, cfg.secret_key, cfg.jwt_algorithm)
     if payload is None:
         await websocket.close(code=4001)
         return
@@ -82,13 +146,15 @@ async def websocket_events(websocket: WebSocket):
     # Check burn list — reject revoked tokens
     from ...api.routes.auth import is_token_burned
     from ...database import get_session_factory
-    factory = get_session_factory(config)
+    factory = get_session_factory(cfg)
     async with factory() as db:
         if await is_token_burned(token, db):
             await websocket.close(code=4001)
             return
 
-    await manager.connect(websocket)
+    connected = await manager.connect(websocket)
+    if not connected:
+        return
 
     # Register with alert manager for broadcasting
     alert_mgr = get_alert_manager()
@@ -96,86 +162,59 @@ async def websocket_events(websocket: WebSocket):
 
     try:
         while True:
-            # Send periodic heartbeat with VPN status
-            vpn = get_vpn_guardian()
-            status = vpn.detector.state.to_dict()
+            # Collect all data into a single batch message
+            batch_data = {}
+            timestamp = datetime.now(timezone.utc).isoformat()
 
-            await websocket.send_text(json.dumps({
-                "type": "vpn_status",
-                "data": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }))
+            # VPN status
+            try:
+                vpn = get_vpn_guardian()
+                batch_data["vpn_status"] = vpn.detector.state.to_dict()
+            except Exception as e:
+                logger.debug("ws_vpn_status_failed", error=str(e))
 
-            # Send network stats
+            # Network stats
             try:
                 sentinel = get_network_sentinel()
-                net_stats = sentinel.get_stats()
-                await websocket.send_text(json.dumps({
-                    "type": "network_stats",
-                    "data": net_stats,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }))
-            except Exception:
-                pass
-
-            # Send anomaly alert if detected
-            try:
-                sentinel = get_network_sentinel()
+                batch_data["network_stats"] = sentinel.get_stats()
                 anomaly = sentinel.get_anomaly_result()
                 if anomaly and anomaly.get("is_anomaly"):
-                    await websocket.send_text(json.dumps({
-                        "type": "anomaly_alert",
-                        "data": anomaly,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }))
-            except Exception:
-                pass
+                    batch_data["anomaly_alert"] = anomaly
+            except Exception as e:
+                logger.debug("ws_network_stats_failed", error=str(e))
 
-            # Send resource stats
+            # Resource stats
             try:
                 rm = get_resource_monitor()
                 current = rm.get_current()
                 if current:
-                    await websocket.send_text(json.dumps({
-                        "type": "resource_stats",
-                        "data": current,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }))
-            except Exception:
-                pass
+                    batch_data["resource_stats"] = current
+            except Exception as e:
+                logger.debug("ws_resource_stats_failed", error=str(e))
 
-            # Send threat level
+            # Threat level
             try:
                 ti = get_threat_intelligence()
-                threat_level = ti.get_threat_level()
-                await websocket.send_text(json.dumps({
-                    "type": "threat_level",
-                    "data": {"level": threat_level},
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }))
-            except Exception:
-                pass
+                batch_data["threat_level"] = {"level": ti.get_threat_level()}
+            except Exception as e:
+                logger.debug("ws_threat_level_failed", error=str(e))
 
-            # Send AI status (ensemble health, baseline progress, drift)
+            # AI status
             try:
                 ensemble = get_ensemble_detector()
                 baseline = get_behavioral_baseline()
                 last_result = ensemble.get_last_result()
-                await websocket.send_text(json.dumps({
-                    "type": "ai_status",
-                    "data": {
-                        "ensemble_score": last_result.get("ensemble_score") if last_result else None,
-                        "is_anomaly": last_result.get("is_anomaly") if last_result else None,
-                        "drift_score": ensemble.get_drift_score(),
-                        "baseline_progress": baseline.get_learning_progress(),
-                        "detector_scores": last_result.get("detector_scores") if last_result else {},
-                    },
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }))
-            except Exception:
-                pass
+                batch_data["ai_status"] = {
+                    "ensemble_score": last_result.get("ensemble_score") if last_result else None,
+                    "is_anomaly": last_result.get("is_anomaly") if last_result else None,
+                    "drift_score": ensemble.get_drift_score(),
+                    "baseline_progress": baseline.get_learning_progress(),
+                    "detector_scores": last_result.get("detector_scores") if last_result else {},
+                }
+            except Exception as e:
+                logger.debug("ws_ai_status_failed", error=str(e))
 
-            # Send prediction update
+            # Prediction update
             try:
                 forecaster = get_threat_forecaster()
                 if forecaster.initialized and forecaster.model is not None:
@@ -184,21 +223,32 @@ async def websocket_events(websocket: WebSocket):
                     if len(history) >= 30:
                         trend = await forecaster.predict_trend(history, steps=6)
                         alerts = forecaster.check_forecast_alerts(trend)
-                        await websocket.send_text(json.dumps({
-                            "type": "prediction_update",
-                            "data": {
-                                "predictions": trend,
-                                "forecast_alerts": alerts,
-                            },
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        }))
-            except Exception:
-                pass
+                        batch_data["prediction_update"] = {
+                            "predictions": trend,
+                            "forecast_alerts": alerts,
+                        }
+            except Exception as e:
+                logger.debug("ws_prediction_failed", error=str(e))
 
-            # Wait for client messages or timeout for next heartbeat
+            # Send batch
+            if batch_data:
+                await websocket.send_text(json.dumps({
+                    "type": "batch_update",
+                    "data": batch_data,
+                    "timestamp": timestamp,
+                }))
+
+                # Also send individual messages for backward compat
+                for msg_type, data in batch_data.items():
+                    await websocket.send_text(json.dumps({
+                        "type": msg_type,
+                        "data": data,
+                        "timestamp": timestamp,
+                    }))
+
+            # Wait for client messages or timeout
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
-                # Handle client commands (future: subscribe to specific events)
                 try:
                     msg = json.loads(data)
                     if msg.get("type") == "ping":
@@ -207,15 +257,14 @@ async def websocket_events(websocket: WebSocket):
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         }))
                 except json.JSONDecodeError:
-                    pass
+                    logger.debug("ws_invalid_json_from_client")
             except asyncio.TimeoutError:
-                # No message from client, continue loop
-                pass
+                pass  # Expected — no client message within timeout
 
     except WebSocketDisconnect:
         pass
     except Exception as e:
         logger.error("ws_error", error=str(e))
     finally:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
         alert_mgr.unregister_ws(websocket)

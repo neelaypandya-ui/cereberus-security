@@ -23,4 +23,16 @@ class ShieldWallMiddleware(BaseHTTPMiddleware):
             "connect-src 'self' ws: wss:; "
             "font-src 'self'"
         )
+
+        # Cache-Control based on endpoint
+        path = request.url.path
+        if request.method != "GET":
+            response.headers["Cache-Control"] = "no-store"
+        elif "/health" in path or "/dashboard/summary" in path:
+            response.headers["Cache-Control"] = "private, max-age=10"
+        elif "/analytics/" in path:
+            response.headers["Cache-Control"] = "private, max-age=30"
+        elif path.startswith("/api/v1/"):
+            response.headers["Cache-Control"] = "private, no-cache"
+
         return response

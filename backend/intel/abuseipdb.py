@@ -14,20 +14,28 @@ _ABUSEIPDB_BASE_URL = "https://api.abuseipdb.com"
 class AbuseIPDBProvider:
     """AbuseIPDB API v2 provider for IP reputation checks and blacklist retrieval."""
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: Optional[str] = None, config=None) -> None:
         self.api_key = api_key
+        self._config = config
 
     def _headers(self) -> dict:
         """Build request headers with API key."""
         return {"Key": self.api_key or "", "Accept": "application/json"}
 
     def _severity_from_score(self, abuse_confidence_score: int) -> str:
-        """Derive severity from AbuseIPDB confidence score (0-100)."""
-        if abuse_confidence_score >= 80:
+        """Derive severity from AbuseIPDB confidence score (0-100).
+
+        Thresholds are read from config if available, otherwise use defaults.
+        """
+        critical = getattr(self._config, "abuse_critical_threshold", 80) if self._config else 80
+        high = getattr(self._config, "abuse_high_threshold", 50) if self._config else 50
+        medium = getattr(self._config, "abuse_medium_threshold", 25) if self._config else 25
+
+        if abuse_confidence_score >= critical:
             return "critical"
-        if abuse_confidence_score >= 50:
+        if abuse_confidence_score >= high:
             return "high"
-        if abuse_confidence_score >= 25:
+        if abuse_confidence_score >= medium:
             return "medium"
         if abuse_confidence_score > 0:
             return "low"

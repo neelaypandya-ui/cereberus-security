@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -7,6 +7,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { PanelErrorBoundary } from '../components/PanelErrorBoundary';
+import { KeyboardShortcutsOverlay } from '../components/KeyboardShortcutsOverlay';
 import { VpnStatusPanel } from '../components/VpnStatusPanel/VpnStatusPanel';
 import { OverviewPanel } from '../components/OverviewPanel';
 import { NetworkPanel } from '../components/NetworkPanel';
@@ -31,6 +32,7 @@ import { DiskCleanupPanel } from '../components/DiskCleanupPanel';
 import { DetectionRulesPanel } from '../components/DetectionRulesPanel';
 import { CommanderBondPanel } from '../components/CommanderBondPanel';
 import { AgentSmithPanel } from '../components/AgentSmithPanel';
+import { MemoryScannerPanel } from '../components/MemoryScannerPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { StatusTicker } from '../components/ui/StatusTicker';
@@ -71,9 +73,26 @@ const NAV_ITEMS = [
   { id: 'rules', label: 'DETECT RULES', icon: '\u{1F6E1}', fullLabel: 'Detection Rules' },
   { id: 'bond', label: 'CMDR BOND', icon: '\u{1F575}', fullLabel: 'Commander Bond' },
   { id: 'smith', label: 'AGENT SMITH', icon: '\u{1F916}', fullLabel: 'Agent Smith' },
+  { id: 'memory', label: 'MEM RECON', icon: '\u{1F9EC}', fullLabel: 'Memory Reconnaissance' },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
   { id: 'settings', label: 'SYS CONFIG', icon: '\u2699', fullLabel: 'System Configuration' },
 ] as const;
+
+const NAV_GROUPS = {
+  COMMAND: { label: 'COMMAND', icon: '\u25C6', items: ['overview', 'alerts', 'analytics'] },
+  INTELLIGENCE: { label: 'INTELLIGENCE', icon: '\u26A1', items: ['network', 'threats', 'email', 'rules', 'bond', 'memory'] },
+  DEFENSE: { label: 'DEFENSE', icon: '\u{1F6E1}', items: ['incidents', 'playbooks', 'smith'] },
+  OPERATIONS: { label: 'OPERATIONS', icon: '\u2699', items: ['processes', 'vulnerabilities', 'resources', 'persistence', 'vpn', 'aiops', 'disk', 'modules'] },
+  ADMIN: { label: 'ADMIN', icon: '\u{1F512}', items: ['audit', 'integrations', 'personnel', 'settings'] },
+} as const;
+
+// Build a lookup from nav id -> group key
+const NAV_ID_TO_GROUP: Record<string, string> = {};
+for (const [groupKey, group] of Object.entries(NAV_GROUPS)) {
+  for (const itemId of group.items) {
+    NAV_ID_TO_GROUP[itemId] = groupKey;
+  }
+}
 
 const PANEL_CODES: Record<string, string> = {
   overview: 'SEC-01',
@@ -97,6 +116,7 @@ const PANEL_CODES: Record<string, string> = {
   rules: 'DET-21',
   bond: 'BND-22',
   smith: 'SMH-23',
+  memory: 'MEM-25',
   modules: 'MOD-13',
   settings: 'CFG-14',
 };
@@ -127,7 +147,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('overview');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, aiStatus, predictions, trainingProgress } = useWebSocket();
+  const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, aiStatus, predictions, trainingProgress, connected: wsConnected, connecting: wsConnecting } = useWebSocket();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { hasPermission, role } = usePermissions();
   const utcTime = useUtcClock();
@@ -136,10 +156,56 @@ function Dashboard() {
   const prevAlertCount = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // --- 5A: Collapsible group state ---
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('cereberus_collapsed_groups');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cereberus_collapsed_groups', JSON.stringify(collapsedGroups));
+  }, [collapsedGroups]);
+
+  const toggleGroup = useCallback((groupKey: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  }, []);
+
+  // --- 5B: Collapsible sidebar ---
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('cereberus_sidebar_collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cereberus_sidebar_collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // --- 5C: Favorites / pinning ---
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('cereberus_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cereberus_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+  }, []);
+
+  // --- 5D: Sidebar panel filter ---
+  const [navFilter, setNavFilter] = useState('');
+
+  // --- 5E: Keyboard shortcuts overlay ---
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
   // Ghost Protocol — session self-destructs after 15 min inactivity
   useSessionTimeout(() => {
-    api.logout().catch(() => {});
-    localStorage.removeItem('cereberus_token');
+    api.logout().catch((err) => console.error('[SESSION] Logout failed:', err));
     navigate('/login');
   });
 
@@ -151,6 +217,9 @@ function Dashboard() {
       if (index < filteredNav.length) setActiveNav(filteredNav[index].id);
     },
     onExport: () => setActiveNav('integrations'),
+    onToggleSidebar: () => setSidebarCollapsed(prev => !prev),
+    onShowShortcuts: () => setShortcutsOpen(prev => !prev),
+    onCloseModal: () => { if (shortcutsOpen) setShortcutsOpen(false); },
   });
 
   // Build ticker events from recent WS alerts
@@ -190,8 +259,7 @@ function Dashboard() {
   };
 
   const handleLogout = () => {
-    api.logout().catch(() => {});
-    localStorage.removeItem('cereberus_token');
+    api.logout().catch((err) => console.error('[SESSION] Logout failed:', err));
     navigate('/login');
   };
 
@@ -230,7 +298,74 @@ function Dashboard() {
   });
 
   const currentNav = NAV_ITEMS.find((n) => n.id === activeNav);
+  const currentGroup = NAV_ID_TO_GROUP[activeNav];
+  const currentGroupLabel = currentGroup ? NAV_GROUPS[currentGroup as keyof typeof NAV_GROUPS]?.label : '';
   const utcStr = utcTime.toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' });
+
+  // --- Render a single nav item ---
+  const renderNavItem = (item: typeof NAV_ITEMS[number]) => {
+    const isActive = activeNav === item.id;
+    const health = getModuleHealth(item.id);
+    const isFavorite = favorites.includes(item.id);
+
+    return (
+      <button
+        key={item.id}
+        onClick={() => setActiveNav(item.id)}
+        className={isActive ? 'nav-item-active' : ''}
+        title={sidebarCollapsed ? item.fullLabel : undefined}
+        aria-label={item.fullLabel}
+        aria-current={isActive ? 'page' : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          width: '100%',
+          padding: '8px 10px',
+          background: isActive ? undefined : 'transparent',
+          border: 'none',
+          borderLeft: isActive ? undefined : '2px solid transparent',
+          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+          fontSize: sidebarCollapsed ? '18px' : '13px',
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '1px',
+          cursor: 'pointer',
+          borderRadius: '0 2px 2px 0',
+          textAlign: 'left',
+          justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+          transition: 'all 0.15s ease',
+          position: 'relative',
+        }}
+      >
+        <span style={{ fontSize: '14px', width: '16px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+        {!sidebarCollapsed && <span style={{ flex: 1 }}>{item.label}</span>}
+        {!sidebarCollapsed && (
+          <span
+            onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+            style={{
+              opacity: isFavorite ? 1 : 0,
+              color: isFavorite ? 'var(--amber-primary)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'opacity 0.15s',
+            }}
+            className="nav-favorite-star"
+          >
+            {isFavorite ? '\u2605' : '\u2606'}
+          </span>
+        )}
+        {!sidebarCollapsed && health !== 'none' && health !== 'transparent' && (
+          <div style={{
+            width: '5px',
+            height: '5px',
+            borderRadius: '50%',
+            backgroundColor: healthDotColor(health),
+            flexShrink: 0,
+          }} />
+        )}
+      </button>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -238,50 +373,60 @@ function Dashboard() {
       <div className="scan-line-overlay" />
       <div className="hex-grid-overlay" />
 
+      {/* Keyboard shortcuts overlay */}
+      <KeyboardShortcutsOverlay isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
       {/* Toast notifications disabled — alerts visible on THREAT BOARD */}
 
       {/* Sidebar */}
       <aside style={{
-        width: 'var(--sidebar-width)',
+        width: sidebarCollapsed ? '56px' : 'var(--sidebar-width)',
         background: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border-default)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
         zIndex: 10,
+        transition: 'width 0.2s ease',
+        position: 'relative',
       }}>
         {/* Logo */}
         <div style={{
-          padding: '16px 16px 12px',
+          padding: sidebarCollapsed ? '12px 4px 10px' : '16px 16px 12px',
           borderBottom: '1px solid var(--border-default)',
           textAlign: 'center',
+          overflow: 'hidden',
         }}>
           <div style={{ display: 'inline-block' }} className="logo-ring">
             <img
               src="/logo.jpg"
               alt="CEREBERUS"
-              style={{ width: '44px', borderRadius: '50%' }}
+              style={{ width: sidebarCollapsed ? '32px' : '44px', borderRadius: '50%', transition: 'width 0.2s ease' }}
             />
           </div>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '20px',
-            fontWeight: 700,
-            letterSpacing: '4px',
-            color: 'var(--status-online)',
-            marginTop: '8px',
-          }}>
-            CEREBERUS
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '14px',
-            letterSpacing: '3px',
-            color: 'var(--text-muted)',
-            marginTop: '2px',
-          }}>
-            DEFENSE NETWORK
-          </div>
+          {!sidebarCollapsed && (
+            <>
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '20px',
+                fontWeight: 700,
+                letterSpacing: '4px',
+                color: 'var(--status-online)',
+                marginTop: '8px',
+              }}>
+                CEREBERUS
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '14px',
+                letterSpacing: '3px',
+                color: 'var(--text-muted)',
+                marginTop: '2px',
+              }}>
+                DEFENSE NETWORK
+              </div>
+            </>
+          )}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -295,66 +440,128 @@ function Dashboard() {
               borderRadius: '50%',
               backgroundColor: 'var(--status-online)',
             }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '14px',
-              letterSpacing: '2px',
-              color: 'var(--status-online)',
-            }}>
-              ONLINE
-            </span>
+            {!sidebarCollapsed && (
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '14px',
+                letterSpacing: '2px',
+                color: 'var(--status-online)',
+              }}>
+                ONLINE
+              </span>
+            )}
           </div>
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
-          {visibleNavItems.map((item) => {
-            const isActive = activeNav === item.id;
-            const health = getModuleHealth(item.id);
+        <nav role="navigation" aria-label="Main navigation" style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
+          {/* Filter input (expanded only) */}
+          {!sidebarCollapsed && (
+            <input
+              type="text"
+              placeholder="Filter panels..."
+              value={navFilter}
+              onChange={e => setNavFilter(e.target.value)}
+              className="terminal-input"
+              style={{ width: '100%', padding: '4px 8px', fontSize: '12px', marginBottom: '8px' }}
+            />
+          )}
+
+          {/* Favorites group */}
+          {favorites.length > 0 && !navFilter && (
+            <div>
+              {!sidebarCollapsed && (
+                <div
+                  onClick={() => toggleGroup('FAVORITES')}
+                  className="nav-group-header"
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '6px 10px', cursor: 'pointer',
+                    color: 'var(--amber-primary)', fontSize: '11px',
+                    fontFamily: 'var(--font-mono)', letterSpacing: '2px',
+                    marginTop: '0px',
+                  }}
+                >
+                  <span>{'\u2605'} FAVORITES</span>
+                  <span style={{ fontSize: '8px' }}>{collapsedGroups['FAVORITES'] ? '\u25B6' : '\u25BC'}</span>
+                </div>
+              )}
+              {(!collapsedGroups['FAVORITES'] || sidebarCollapsed) && favorites.map(id => {
+                const item = visibleNavItems.find(n => n.id === id);
+                if (!item) return null;
+                return renderNavItem(item);
+              })}
+            </div>
+          )}
+
+          {/* Regular groups */}
+          {Object.entries(NAV_GROUPS).map(([groupKey, group]) => {
+            const groupItems = navFilter
+              ? group.items.filter(id => {
+                  const item = NAV_ITEMS.find(n => n.id === id);
+                  return item && item.label.toLowerCase().includes(navFilter.toLowerCase());
+                })
+              : group.items;
+
+            // Also filter by visibility (admin-only items)
+            const visibleGroupItems = groupItems.filter(id => visibleNavItems.some(n => n.id === id));
+
+            if (visibleGroupItems.length === 0) return null;
+
             return (
-              <button
-                key={item.id}
-                onClick={() => setActiveNav(item.id)}
-                className={isActive ? 'nav-item-active' : ''}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  width: '100%',
-                  padding: '8px 10px',
-                  background: isActive ? undefined : 'transparent',
-                  border: 'none',
-                  borderLeft: isActive ? undefined : '2px solid transparent',
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontSize: '17px',
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: '1px',
-                  cursor: 'pointer',
-                  borderRadius: '0 2px 2px 0',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: '18px', width: '16px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {health !== 'none' && health !== 'transparent' && (
-                  <div style={{
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    backgroundColor: healthDotColor(health),
-                    flexShrink: 0,
-                  }} />
+              <div key={groupKey}>
+                {!sidebarCollapsed && (
+                  <div
+                    onClick={() => toggleGroup(groupKey)}
+                    className="nav-group-header"
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '6px 10px', cursor: 'pointer',
+                      color: 'var(--text-muted)', fontSize: '11px',
+                      fontFamily: 'var(--font-mono)', letterSpacing: '2px',
+                      marginTop: '8px',
+                    }}
+                  >
+                    <span>{group.icon} {group.label}</span>
+                    <span style={{ fontSize: '8px' }}>{collapsedGroups[groupKey] ? '\u25B6' : '\u25BC'}</span>
+                  </div>
                 )}
-              </button>
+                {(!collapsedGroups[groupKey] || sidebarCollapsed) && visibleGroupItems.map(id => {
+                  const item = visibleNavItems.find(n => n.id === id);
+                  if (!item) return null;
+                  return renderNavItem(item);
+                })}
+              </div>
             );
           })}
         </nav>
 
-        {/* Logout */}
+        {/* Collapse toggle + Logout */}
         <div style={{ padding: '8px 8px', borderTop: '1px solid var(--border-default)' }}>
           <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+            style={{
+              width: '100%',
+              padding: '4px 10px',
+              marginBottom: '4px',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: '2px',
+              color: 'var(--text-muted)',
+              fontSize: '16px',
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {sidebarCollapsed ? '\u00BB' : '\u00AB'}
+          </button>
+          <button
             onClick={handleLogout}
+            title="Disconnect"
             style={{
               width: '100%',
               padding: '6px 10px',
@@ -362,14 +569,14 @@ function Dashboard() {
               border: '1px solid var(--border-default)',
               borderRadius: '2px',
               color: 'var(--text-muted)',
-              fontSize: '16px',
+              fontSize: sidebarCollapsed ? '14px' : '16px',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '2px',
               cursor: 'pointer',
               textTransform: 'uppercase',
             }}
           >
-            Disconnect
+            {sidebarCollapsed ? '\u23FB' : 'Disconnect'}
           </button>
         </div>
       </aside>
@@ -394,17 +601,54 @@ function Dashboard() {
           gap: '16px',
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,229,255,0.01) 3px, rgba(0,229,255,0.01) 4px)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexShrink: 0 }}>
+          {/* Breadcrumb navigation */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexShrink: 0 }}>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '16px',
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              letterSpacing: '1px',
+            }}>
+              CEREBERUS
+            </span>
+            {currentGroupLabel && (
+              <>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '14px',
+                  color: 'var(--text-muted)',
+                  letterSpacing: '1px',
+                }}>
+                  /
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '14px',
+                  color: 'var(--text-muted)',
+                  letterSpacing: '1px',
+                }}>
+                  {currentGroupLabel}
+                </span>
+              </>
+            )}
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              letterSpacing: '1px',
+            }}>
+              /
+            </span>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '14px',
               color: 'var(--text-muted)',
               letterSpacing: '1px',
             }}>
               [{PANEL_CODES[activeNav] || 'SYS-00'}]
             </span>
             <h1 style={{
-              fontSize: '20px',
+              fontSize: '18px',
               fontWeight: 600,
               letterSpacing: '2px',
               fontFamily: 'var(--font-mono)',
@@ -437,6 +681,20 @@ function Dashboard() {
               </div>
             </div>
 
+            {/* WebSocket status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{
+                width: '6px', height: '6px', borderRadius: '50%',
+                backgroundColor: wsConnected ? 'var(--status-online)' : wsConnecting ? 'var(--text-warning, #f0c040)' : 'var(--status-offline)',
+              }} className={wsConnected ? 'online-blink' : ''} />
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '1px',
+                color: wsConnected ? 'var(--status-online)' : wsConnecting ? 'var(--text-warning, #f0c040)' : 'var(--status-offline)',
+              }}>
+                {wsConnected ? 'LIVE' : wsConnecting ? 'CONNECTING' : 'OFFLINE'}
+              </span>
+            </div>
+
             <div style={{ width: '1px', height: '24px', background: 'var(--border-default)' }} />
 
             <NotificationBell
@@ -455,7 +713,7 @@ function Dashboard() {
         </header>
 
         {/* Content Area */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '20px', paddingBottom: 'calc(20px + var(--ticker-height))' }}>
+        <div role="main" aria-label={currentNav?.fullLabel || 'Dashboard'} style={{ flex: 1, overflow: 'auto', padding: '20px', paddingBottom: 'calc(20px + var(--ticker-height))' }}>
           {activeNav === 'overview' && summary && (
             <PanelErrorBoundary panelName="CMD CENTER">
               <OverviewPanel
@@ -495,6 +753,7 @@ function Dashboard() {
           {activeNav === 'rules' && <PanelErrorBoundary panelName="DETECTION RULES"><DetectionRulesPanel /></PanelErrorBoundary>}
           {activeNav === 'bond' && <PanelErrorBoundary panelName="COMMANDER BOND"><CommanderBondPanel /></PanelErrorBoundary>}
           {activeNav === 'smith' && <PanelErrorBoundary panelName="AGENT SMITH"><AgentSmithPanel /></PanelErrorBoundary>}
+          {activeNav === 'memory' && <PanelErrorBoundary panelName="MEM RECON"><MemoryScannerPanel /></PanelErrorBoundary>}
           {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}
           {activeNav === 'settings' && <PanelErrorBoundary panelName="SYS CONFIG"><SettingsPanel /></PanelErrorBoundary>}
         </div>

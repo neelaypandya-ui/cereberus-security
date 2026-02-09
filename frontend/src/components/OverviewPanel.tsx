@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { ThreatLevelBanner } from './ThreatLevelBanner';
 import { Sparkline } from './Sparkline';
 import { ReportButton } from './ReportButton';
@@ -35,6 +36,7 @@ const PRIORITY_MAP: Record<string, { label: string; stampClass: string }> = {
 };
 
 export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, networkStats, threatLevel = 'none' }: OverviewPanelProps) {
+  const { showToast } = useToast();
   const alertTotal = Object.values(alerts).reduce((a, b) => a + b, 0);
   const [recentAlerts, setRecentAlerts] = useState<Array<{
     id: number; severity: string; title: string; timestamp: string; module_source: string;
@@ -48,7 +50,7 @@ export function OverviewPanel({ alerts, eventsToday: _eventsToday, modules, netw
   useEffect(() => {
     api.getAlerts({ limit: 8 }).then((data: unknown) => {
       setRecentAlerts(data as typeof recentAlerts);
-    }).catch(() => {});
+    }).catch((e: Error) => showToast('error', 'Failed to load recent alerts', e.message));
   }, []);
 
   const defcon = DEFCON_MAP[threatLevel] || DEFCON_MAP.none;

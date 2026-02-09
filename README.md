@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.9.0-cyan?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.6.0-cyan?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/python-3.11+-blue?style=flat-square&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/react-18-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React" />
   <img src="https://img.shields.io/badge/pytorch-2.5+-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" alt="PyTorch" />
@@ -11,13 +11,13 @@
 
 **AI-Powered Cybersecurity Defense System for Windows**
 
-Cereberus is a real-time security monitoring and automated defense platform that combines 10 specialized detection modules, ensemble AI anomaly detection, and automated remediation into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and one-click threat neutralization.
+Cereberus is a real-time security monitoring and automated defense platform that combines 16 specialized detection modules, ensemble AI anomaly detection, YARA scanning, memory forensics, and autonomous response into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and automated threat neutralization.
 
 ---
 
 ## Features
 
-### 10 Security Modules
+### 16 Security Modules
 | Module | Description |
 |--------|-------------|
 | **VPN Guardian** | VPN connection monitoring, kill switch, DNS/IP/IPv6 leak detection |
@@ -29,35 +29,53 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | **Email Analyzer** | NLP-based phishing detection, URL extraction, threat scoring |
 | **Resource Monitor** | CPU/memory/disk/network metrics, threshold alerting |
 | **Persistence Scanner** | Registry Run keys, startup folders, scheduled task tracking |
-| **Threat Intelligence** | Correlation engine (10 patterns), cross-module event fusion |
+| **Threat Intelligence** | Correlation engine (14 patterns), cross-module event fusion |
+| **Event Log Monitor** | Windows Event Log + Sysmon (17 event types), EvtSubscribe push-based |
+| **Ransomware Detector** | Canary files, entropy analysis, extension monitoring |
+| **Commander Bond** | OSINT feeds, YARA scanning, Sword Protocol, Overwatch integrity |
+| **Agent Smith** | Adversary simulation, 50+ unique attack patterns |
+| **Memory Scanner** | RWX regions, injected DLLs, shellcode detection, YARA memory scan |
+| **Disk Analyzer** | Disk usage analysis and monitoring |
 
 ### AI System
 - **Ensemble Anomaly Detection** &mdash; Autoencoder + Isolation Forest + Z-Score with consensus voting
+- **50 Detection Rules** &mdash; Rule-based engine covering MITRE ATT&CK (~43 techniques)
 - **Behavioral Baselines** &mdash; Welford's online algorithm for drift detection
 - **LSTM Threat Forecasting** &mdash; Predict threat escalation before it happens
 - **Explainability** &mdash; Feature attribution for every anomaly detection
 - **Auto-Retrain** &mdash; Models retrain on fresh data automatically
 
+### YARA Integration
+- **61 YARA rules** across 4 categories: malware signatures, webshells, suspicious strings, ransomware indicators
+- **File, directory, and memory scanning** with configurable timeouts
+- **Custom rule management** via API
+
 ### Automated Response
+- **Sword Protocol** &mdash; 5 autonomous response policies (THUNDERBALL, GOLDENEYE, SKYFALL, SPECTRE, GHOST PROTOCOL)
 - **9 remediation actions** &mdash; block IP, kill process, quarantine file, isolate network, disable user, block port, disable guest account, enable firewall, disable autologin
 - **Playbook automation** &mdash; Rule-based triggers with cooldowns and confirmation gates
 - **Incident lifecycle** &mdash; Open &rarr; Investigating &rarr; Contained &rarr; Resolved &rarr; Closed
 - **Rollback support** &mdash; Every action can be reversed
+- **Overwatch Protocol** &mdash; SHA-256 integrity baselines for all backend files
 
 ### Threat Intelligence
-- **Feed integrations** &mdash; VirusTotal, AbuseIPDB, URLhaus
+- **Feed integrations** &mdash; VirusTotal, AbuseIPDB, URLhaus, CISA KEV, NVD, Feodo, ThreatFox
 - **IOC database** &mdash; IP, hash, and URL indicators with severity scoring
+- **Intelligence Brain** &mdash; Automated threat assessment and risk scoring
 - **Notification channels** &mdash; Webhook and SMTP alerting
 - **Data export** &mdash; CSV and JSON export of all security data
 
 ### Access Control
-- **JWT + API key** dual authentication
+- **JWT (PyJWT) + API key** dual authentication with httpOnly cookies
 - **4 roles** &mdash; Admin, Analyst, Operator, Viewer
 - **13 granular permissions** across all endpoints
+- **CSRF protection** with token-based middleware
+- **Registration lockdown** &mdash; locked after first user creation
+- **Forced password change** on initial login
 - **Data retention** &mdash; Automatic cleanup of aged records with configurable policies
 
 ### Dashboard
-19 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
+25 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
 
 ---
 
@@ -68,9 +86,10 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | Backend | FastAPI, SQLAlchemy (async), aiosqlite, Pydantic |
 | Frontend | React 18, TypeScript, Vite, Recharts |
 | AI/ML | PyTorch, scikit-learn, NumPy, Pandas |
-| Auth | JWT (python-jose), bcrypt (passlib), RBAC |
-| Networking | psutil, scapy, aiohttp, httpx |
-| Deployment | Docker, nginx, docker-compose |
+| Auth | JWT (PyJWT), httpOnly cookies, CSRF, RBAC |
+| Scanning | YARA, ctypes Win32 memory access |
+| Networking | psutil, aiohttp, httpx |
+| Deployment | Docker, nginx (TLS), docker-compose |
 
 ---
 
@@ -100,15 +119,21 @@ cd ..
 
 ### Configuration
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` and configure:
 
 ```env
+# REQUIRED — generate a secure key
 SECRET_KEY=your-secret-key-here
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=cereberus
-DEBUG=true
+
+DEBUG=false
 HOST=127.0.0.1
-PORT=8001
+PORT=8000
+
+# Set to true in production with TLS
+COOKIE_SECURE=false
+
+# Comma-separated allowed origins
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
 ### Running
@@ -117,22 +142,37 @@ Start the backend and frontend in separate terminals:
 
 ```bash
 # Terminal 1 — Backend (run as Administrator)
-python -B -m uvicorn cereberus.backend.main:app --host 127.0.0.1 --port 8001
+python -B -m uvicorn cereberus.backend.main:app --host 127.0.0.1 --port 8000
 
 # Terminal 2 — Frontend
 cd frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser. Log in with the credentials from your `.env` file.
+Open **http://localhost:5173** in your browser. The first user registered becomes admin. You will be prompted to change the default password on first login.
 
-### Docker
+### Docker Deployment
 
 ```bash
 docker-compose up --build
 ```
 
-This starts Cereberus on port 8000 with an nginx reverse proxy on port 80.
+This starts Cereberus with:
+- Backend on port 8000
+- nginx reverse proxy with TLS on ports 80 (redirect) and 443
+
+### TLS Setup
+
+For production, place your SSL certificates in the `certs/` directory:
+
+```bash
+# Self-signed (development)
+openssl req -x509 -newkey rsa:4096 -keyout certs/cereberus.key -out certs/cereberus.crt -days 365 -nodes
+
+# Or use Let's Encrypt for production
+```
+
+See `certs/README.md` for detailed instructions.
 
 ---
 
@@ -141,24 +181,28 @@ This starts Cereberus on port 8000 with an nginx reverse proxy on port 80.
 ```
 cereberus/
 ├── backend/
-│   ├── ai/                 # 9 AI classes (anomaly, ensemble, LSTM, explainability)
+│   ├── ai/                 # 10 AI classes (anomaly, ensemble, LSTM, rules, correlation)
 │   ├── alerting/           # Alert manager
-│   ├── api/routes/         # 32 route files, 131+ endpoints
+│   ├── api/routes/         # 42 route files, 200+ endpoints
 │   ├── auth/               # RBAC system (4 roles, 13 permissions)
+│   ├── bridge/             # Pydantic↔TypeScript contract validation (22 models)
 │   ├── engine/             # Remediation, incidents, playbooks
-│   ├── export/             # CSV/JSON data export
-│   ├── intel/              # Threat feed providers, IOC matcher
+│   ├── intel/              # Threat feeds, IOC matcher, YARA scanner
 │   ├── maintenance/        # Retention cleanup, backup/restore
-│   ├── models/             # 30 SQLAlchemy tables
-│   ├── modules/            # 10 security modules
+│   ├── models/             # 37 SQLAlchemy tables
+│   ├── modules/            # 16 security modules
 │   ├── notifications/      # Webhook + SMTP dispatchers
+│   ├── service/            # Windows Service wrapper
 │   └── main.py             # FastAPI app + lifespan
 ├── frontend/
-│   ├── src/components/     # 19 dashboard panels
+│   ├── src/components/     # 25 dashboard panels
+│   ├── src/bridge/         # TypeScript contract interfaces
 │   ├── src/hooks/          # WebSocket, permissions, keyboard shortcuts
-│   ├── src/pages/          # Dashboard layout
+│   ├── src/pages/          # Dashboard, Login, ChangePassword
 │   └── src/services/       # API client
-├── docs/                   # System documentation (self-contained HTML)
+├── yara_rules/             # 61 YARA rules (4 categories)
+├── scripts/                # Windows Service installer
+├── docs/                   # System documentation
 ├── tests/                  # Unit + integration tests
 ├── Dockerfile
 ├── docker-compose.yml
@@ -167,20 +211,14 @@ cereberus/
 
 ---
 
-## Documentation
-
-Full system documentation is available at [`docs/index.html`](docs/index.html). It covers every dashboard panel, the AI system, remediation workflows, RBAC, the complete API reference, and is written for users with no cybersecurity experience.
-
----
-
 ## API Overview
 
-All endpoints are under `/api/v1/`. Authentication is required via JWT bearer token or `X-API-Key` header.
+All endpoints are under `/api/v1/`. Authentication is required via httpOnly session cookie or `X-API-Key` header.
 
 | Category | Endpoints | Description |
 |----------|-----------|-------------|
-| Auth | 4 | Login, register, refresh, profile |
-| Modules | 4 | Start/stop/health for all 10 modules |
+| Auth | 6 | Login, register, refresh, logout, change-password, profile |
+| Modules | 4 | Start/stop/health for all 16 modules |
 | Network | 5 | Live connections, stats, flagged, anomalies |
 | Processes | 4 | Process list, suspicious, tree, kill |
 | Integrity | 4 | File baseline, changes, scan, IOC matches |
@@ -189,6 +227,7 @@ All endpoints are under `/api/v1/`. Authentication is required via JWT bearer to
 | Alerts | 6 | List, create, acknowledge, resolve |
 | Threats | 5 | Events, correlations, threat level, forecast |
 | AI | 8 | Model status, retrain, predictions, explainability |
+| Detection Rules | 5 | List, toggle, create, stats |
 | Incidents | 9 | CRUD, lifecycle transitions, timeline |
 | Playbooks | 9 | CRUD, enable/disable, trigger history |
 | Remediation | 7 | Execute, rollback, action log |
@@ -199,6 +238,11 @@ All endpoints are under `/api/v1/`. Authentication is required via JWT bearer to
 | Users | 12 | CRUD, roles, API keys |
 | Maintenance | 4 | Retention, backup, restore |
 | Dashboard | 6 | Layouts, panels, overview stats |
+| YARA | 11 | Rule CRUD, file/dir/memory scan |
+| Memory | 5 | Process scan, results, anomalies |
+| Commander Bond | 16 | OSINT, Sword policies, Overwatch |
+| Agent Smith | 6 | Start/stop simulation, results |
+| Search | 1 | Global cross-module search |
 
 See the [full API reference](docs/index.html#api-reference) in the documentation.
 

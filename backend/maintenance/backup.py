@@ -1,7 +1,8 @@
-"""Database backup manager — SQLite file-level backup and restore."""
+"""Database backup manager — SQLite WAL-safe backup and restore."""
 
 import os
 import shutil
+import sqlite3
 from datetime import datetime, timezone
 
 from ..utils.logging import get_logger
@@ -10,7 +11,7 @@ logger = get_logger("maintenance.backup")
 
 
 class BackupManager:
-    """Manages SQLite database backups via file copy."""
+    """Manages SQLite database backups via the sqlite3 backup API (WAL-safe)."""
 
     def __init__(
         self,
@@ -25,7 +26,10 @@ class BackupManager:
         os.makedirs(self._backup_dir, exist_ok=True)
 
     def backup_database(self) -> dict:
-        """Create a timestamped backup of the SQLite database file.
+        """Create a timestamped backup of the SQLite database using the backup API.
+
+        Uses sqlite3.connect().backup() which is WAL-safe — guaranteed consistent
+        snapshot even with concurrent writers.
 
         Returns:
             dict with keys: path, size, timestamp
@@ -39,7 +43,14 @@ class BackupManager:
         backup_name = f"cereberus-{timestamp}.db"
         backup_path = os.path.join(self._backup_dir, backup_name)
 
-        shutil.copy2(self._db_path, backup_path)
+        # Use sqlite3 backup API — WAL-safe atomic copy
+        source = sqlite3.connect(self._db_path)
+        dest = sqlite3.connect(backup_path)
+        try:
+            source.backup(dest)
+        finally:
+            dest.close()
+            source.close()
 
         size = os.path.getsize(backup_path)
         logger.info(
@@ -47,6 +58,7 @@ class BackupManager:
             path=backup_path,
             size=size,
             timestamp=timestamp,
+            method="sqlite3_backup_api",
         )
 
         return {

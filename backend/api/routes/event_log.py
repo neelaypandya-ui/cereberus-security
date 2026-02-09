@@ -11,6 +11,7 @@ router = APIRouter(prefix="/event-log", tags=["event-log"])
 @router.get("/")
 async def get_events(
     limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     event_type: int | None = Query(None, description="Filter by Windows Event ID"),
     severity: str | None = Query(
         None,
@@ -27,12 +28,15 @@ async def get_events(
     monitor = get_event_log_monitor()
 
     if event_type is not None:
-        return monitor.get_events_by_type(event_type, limit=limit)
+        events = monitor.get_events_by_type(event_type, limit=limit + offset)
+        return events[offset:offset + limit]
 
     if severity is not None:
-        return monitor.get_events_by_severity(severity, limit=limit)
+        events = monitor.get_events_by_severity(severity, limit=limit + offset)
+        return events[offset:offset + limit]
 
-    return monitor.get_events(limit=limit)
+    events = monitor.get_events(limit=limit + offset)
+    return events[offset:offset + limit]
 
 
 @router.get("/stats")

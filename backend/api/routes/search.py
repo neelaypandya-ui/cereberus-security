@@ -12,6 +12,9 @@ from ...dependencies import (
     get_vuln_scanner,
 )
 from ...models.alert import Alert
+from ...utils.logging import get_logger
+
+logger = get_logger("routes.search")
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -62,8 +65,8 @@ async def global_search(
                 processes.append(p)
                 if len(processes) >= limit:
                     break
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("search_processes_failed", error=str(e))
 
     # Search connections (in-memory)
     connections = []
@@ -76,8 +79,8 @@ async def global_search(
                 connections.append(c)
                 if len(connections) >= limit:
                     break
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("search_connections_failed", error=str(e))
 
     # Search vulnerabilities (in-memory)
     vulnerabilities = []
@@ -91,8 +94,8 @@ async def global_search(
                 vulnerabilities.append(v)
                 if len(vulnerabilities) >= limit:
                     break
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("search_vulnerabilities_failed", error=str(e))
 
     total_count = len(alerts) + len(processes) + len(connections) + len(vulnerabilities)
 

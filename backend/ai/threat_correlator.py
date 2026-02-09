@@ -117,6 +117,38 @@ ATTACK_PATTERNS = [
         threat_level="critical",
         description="Known vulnerability exploited through network connection with file system changes",
     ),
+    AttackPattern(
+        name="credential_dump_and_exfil",
+        required_events=["rule_event_credential_access", "high_bandwidth", "suspicious_connection"],
+        time_window=timedelta(minutes=30),
+        min_events=2,
+        threat_level="critical",
+        description="Credential dumping followed by large outbound data transfer",
+    ),
+    AttackPattern(
+        name="defense_evasion_chain",
+        required_events=["rule_event_defense_evasion", "rule_event_defense_evasion", "new_process_suspicious"],
+        time_window=timedelta(minutes=20),
+        min_events=2,
+        threat_level="critical",
+        description="Multiple defense evasion techniques in rapid succession",
+    ),
+    AttackPattern(
+        name="ransomware_kill_chain",
+        required_events=["shadow_copy_deleted", "service_stopped", "mass_encryption_detected"],
+        time_window=timedelta(minutes=10),
+        min_events=2,
+        threat_level="critical",
+        description="Shadow copy deletion + service stop + mass encryption (ransomware lifecycle)",
+    ),
+    AttackPattern(
+        name="apt_lifecycle",
+        required_events=["rule_event_execution", "rule_event_persistence", "rule_event_reconnaissance", "rule_event_command_and_control"],
+        time_window=timedelta(minutes=60),
+        min_events=3,
+        threat_level="critical",
+        description="Advanced persistent threat lifecycle: encoded execution + persistence + recon + C2",
+    ),
 ]
 
 
@@ -261,3 +293,51 @@ class ThreatCorrelator:
     def get_correlations(self) -> list[dict]:
         """Get latest correlation results."""
         return self._correlations
+
+    def build_incident_timeline(self, pattern_name: str, lookback_minutes: int = 60) -> list[dict]:
+        """Build a chronological timeline of events related to a matched pattern."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
+        timeline = []
+        for event in self._events:
+            if event.timestamp >= cutoff:
+                timeline.append({
+                    "timestamp": event.timestamp.isoformat(),
+                    "event_type": event.event_type,
+                    "source_module": event.source_module,
+                    "severity": event.severity,
+                    "details": event.details,
+                })
+        return sorted(timeline, key=lambda x: x["timestamp"])
+
+    def get_event_chain(self, event_type: str, lookback_minutes: int = 30) -> list[dict]:
+        """Get all events of a specific type within the lookback window."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
+        return [
+            {
+                "timestamp": e.timestamp.isoformat(),
+                "event_type": e.event_type,
+                "source_module": e.source_module,
+                "severity": e.severity,
+                "details": e.details,
+            }
+            for e in self._events
+            if e.event_type == event_type and e.timestamp >= cutoff
+        ]
+
+    def get_pattern_frequency(self) -> list[dict]:
+        """Get frequency of pattern matches."""
+        # Count matches per pattern from recent correlations
+        pattern_counts: dict[str, list[dict]] = {}
+        for corr in self._correlations:
+            name = corr.get("pattern", "unknown")
+            if name not in pattern_counts:
+                pattern_counts[name] = []
+            pattern_counts[name].append(corr)
+        return [
+            {
+                "pattern": name,
+                "match_count": len(matches),
+                "last_match": matches[-1].get("matched_events", [{}])[-1].get("timestamp") if matches else None,
+            }
+            for name, matches in pattern_counts.items()
+        ]

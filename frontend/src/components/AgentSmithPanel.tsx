@@ -1,23 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { IntelCard } from './ui/IntelCard';
+import type {
+  SmithStatusResponse,
+  SmithAttackEvent,
+  SmithSessionResult,
+} from '../bridge';
 
-// ── Types ──────────────────────────────────────────────────────
+// ── Types (bridge-backed + local extensions) ──────────────────
 
 type SmithStatusState = 'DORMANT' | 'CONFIGURING' | 'ACTIVE' | 'COMPLETING';
 
-interface SmithStatus {
-  state: SmithStatusState;
-  session_id: string | null;
-  intensity: number;
-  categories: string[];
-  duration_seconds: number;
-  elapsed_seconds: number;
-  attacks_launched: number;
-  attacks_detected: number;
-  attacks_missed: number;
-  attacks_pending: number;
-}
+// Local alias: extends bridge contract with optional legacy fields
+type SmithStatus = SmithStatusResponse & { guardian_lockdown?: boolean; guardian_lockdown_reason?: string };
 
 interface SmithCategory {
   id: string;
@@ -25,60 +20,16 @@ interface SmithCategory {
   description: string;
 }
 
-interface AttackDetection {
-  detected: boolean;
-  rule_matches: Array<{ rule_id: string; rule_name: string; severity: string; category: string; explanation: string }>;
-  alert_matches: Array<{ title: string; severity: string }>;
-  match_count: number;
-  commentary: string;
-}
-
-interface AttackEvent {
-  attack_id: string;
-  timestamp: string;
-  category: string;
-  description: string;
-  detection: AttackDetection;
+// Extend bridge attack event with legacy/optional fields
+type AttackEvent = SmithAttackEvent & {
   _smith_simulation?: boolean;
-  // Legacy flat fields (for defensive access)
   id?: string;
   detected?: boolean | null;
   smith_commentary?: string;
-}
+};
 
-interface CategoryResult {
-  total: number;
-  detected: number;
-  detection_rate: number;
-  attacks: Array<{
-    attack_id: string;
-    description: string;
-    detected: boolean;
-    rule_matches: Array<{ rule_id: string; rule_name: string; severity: string; category: string; explanation: string }>;
-  }>;
-}
-
-interface SessionVerdict {
-  grade: string;
-  comment: string;
-}
-
-interface SessionResult {
-  session_id: string;
-  timestamp: string;
-  intensity: number;
-  duration_seconds: number | null;
-  total_attacks: number;
-  detected_count: number;
-  missed_count: number;
-  detection_rate: number;
-  verdict: SessionVerdict | string;
-  category_results: Record<string, CategoryResult>;
-  categories_tested: string[];
-  weak_categories: string[];
-  blind_spots: string[];
-  recommendations: string[];
-}
+// Re-export bridge SessionResult with local verdict union
+type SessionResult = SmithSessionResult;
 
 // ── Constants ──────────────────────────────────────────────────
 
@@ -453,7 +404,7 @@ export function AgentSmithPanel() {
   // ── Computed ──────────────────────────────────────────────────
 
   const remainingSeconds = status
-    ? Math.max(0, status.duration_seconds - status.elapsed_seconds)
+    ? Math.max(0, status.duration_seconds - (status.elapsed_seconds ?? 0))
     : 0;
 
   const detectionPercent = status && status.attacks_launched > 0
@@ -513,15 +464,19 @@ export function AgentSmithPanel() {
                 <button
                   onClick={() => setStatus((prev) => prev ? { ...prev, state: 'CONFIGURING' } : {
                     state: 'CONFIGURING' as SmithStatusState,
+                    active: false,
                     session_id: null,
                     intensity: 1,
                     categories: [],
-                    duration_seconds: 0,
+                    events_injected: 0,
                     elapsed_seconds: 0,
+                    duration_seconds: 0,
                     attacks_launched: 0,
                     attacks_detected: 0,
                     attacks_missed: 0,
                     attacks_pending: 0,
+                    sessions_completed: 0,
+                    unique_attacks_generated: 0,
                   })}
                   style={{
                     fontFamily: 'var(--font-mono)',

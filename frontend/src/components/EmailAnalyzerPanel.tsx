@@ -66,7 +66,7 @@ export function EmailAnalyzerPanel() {
   const [recent, setRecent] = useState<RecentAnalysis[]>([]);
 
   useEffect(() => {
-    api.getRecentEmailAnalyses(10).then((d: unknown) => setRecent(d as RecentAnalysis[])).catch(() => {});
+    api.getRecentEmailAnalyses(10).then((d: unknown) => setRecent(d as RecentAnalysis[])).catch((err) => console.error('[CEREBERUS]', err));
   }, []);
 
   const handleAnalyze = async () => {
@@ -76,8 +76,8 @@ export function EmailAnalyzerPanel() {
       const urlList = urls.split(/[,\n]/).map((u) => u.trim()).filter(Boolean);
       const data = await api.analyzeEmail(emailText, urlList);
       setResult(data as AnalysisResult);
-      api.getRecentEmailAnalyses(10).then((d: unknown) => setRecent(d as RecentAnalysis[])).catch(() => {});
-    } catch { /* */ }
+      api.getRecentEmailAnalyses(10).then((d: unknown) => setRecent(d as RecentAnalysis[])).catch((err) => console.error('[CEREBERUS]', err));
+    } catch (err) { console.error('[CEREBERUS]', err); }
     setAnalyzing(false);
   };
 

@@ -19,6 +19,8 @@ env/
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
 
 # IDE
@@ -56,8 +58,16 @@ htmlcov/
 # Redis
 dump.rdb
 
+# Data & Runtime
+backups/
+quarantine_vault/
+data/
+exports/
+
 # Certs/Keys
 *.pem
 *.key
 *.crt
+certs/*.key
+certs/*.crt
 !*.example.*

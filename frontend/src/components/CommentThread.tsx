@@ -25,7 +25,7 @@ export function CommentThread({ targetType, targetId }: CommentThreadProps) {
     try {
       const data = await api.getComments(targetType, targetId);
       setComments(data as Comment[]);
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   }, [targetType, targetId]);
 
   useEffect(() => { load(); }, [load]);
@@ -36,11 +36,11 @@ export function CommentThread({ targetType, targetId }: CommentThreadProps) {
       await api.addComment(targetType, targetId, newComment);
       setNewComment('');
       load();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const handleDelete = async (id: number) => {
-    try { await api.deleteComment(id); load(); } catch { /* */ }
+    try { await api.deleteComment(id); load(); } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   return (

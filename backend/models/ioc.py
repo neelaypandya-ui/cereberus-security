@@ -28,3 +28,13 @@ class IOC(Base):
     context_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     feed_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Phase 13: IOC Lifecycle
+    confidence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)  # 0-100
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    false_positive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    false_positive_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    false_positive_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    false_positive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    hit_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_hit_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

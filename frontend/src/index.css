@@ -506,4 +506,64 @@ body.threat-active {
   transition: color 0.3s ease, border-color 0.3s ease;
 }
 
+/* Show favorite star on hover */
+button:hover .nav-favorite-star {
+  opacity: 1 !important;
+}
+
+/* Sidebar group header hover */
+.nav-group-header:hover {
+  color: var(--text-secondary) !important;
+}
+
+/* Toast slide-in animation */
+@keyframes toastSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Skeleton shimmer animation */
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%) !important;
+  background-size: 200% 100% !important;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+/* Accessibility: Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .scan-line-overlay,
+  .hex-grid-overlay {
+    animation: none !important;
+  }
+
+  .breathing,
+  .radar-sweep,
+  .ticker-scroll,
+  .logo-ring,
+  .online-blink,
+  .severity-dot-critical,
+  .threat-banner-pulse,
+  .alert-pulse,
+  .critical-pulse,
+  .status-dot-glow,
+  .sweep-progress,
+  .needle-sweep,
+  .skeleton-shimmer {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Notification toast and bell animations — imported from notifications.css */

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
 
 interface Incident {
@@ -42,6 +43,7 @@ const SEVERITY_STAMPS: Record<string, string> = {
 };
 
 export function IncidentResponsePanel() {
+  const { showToast } = useToast();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [stats, setStats] = useState<IncidentStats | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -52,6 +54,18 @@ export function IncidentResponsePanel() {
   const [newDescription, setNewDescription] = useState('');
   const [noteText, setNoteText] = useState('');
   const [assignUser, setAssignUser] = useState('');
+  const [linkAlertInput, setLinkAlertInput] = useState('');
+
+  // Linked alerts from the API
+  interface LinkedAlert {
+    id: number;
+    timestamp: string;
+    severity: string;
+    module_source: string;
+    title: string;
+    acknowledged: boolean;
+  }
+  const [linkedAlerts, setLinkedAlerts] = useState<LinkedAlert[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -61,12 +75,27 @@ export function IncidentResponsePanel() {
       ]);
       setIncidents(inc as Incident[]);
       setStats(st as IncidentStats);
-    } catch { /* ignore */ }
-  }, [statusFilter]);
+    } catch (e: unknown) { showToast('error', 'Failed to load incidents', (e as Error).message); }
+  }, [statusFilter, showToast]);
 
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i); }, [load]);
 
   const selected = incidents.find(i => i.id === selectedId) || null;
+
+  const loadLinkedAlerts = useCallback(async (incidentId: number) => {
+    try {
+      const data = await api.getLinkedAlerts(incidentId);
+      setLinkedAlerts((data as { alerts: LinkedAlert[] }).alerts || []);
+    } catch { setLinkedAlerts([]); }
+  }, []);
+
+  useEffect(() => {
+    if (selectedId) {
+      loadLinkedAlerts(selectedId);
+    } else {
+      setLinkedAlerts([]);
+    }
+  }, [selectedId, loadLinkedAlerts]);
 
   const handleCreate = async () => {
     if (!newTitle) return;
@@ -76,14 +105,16 @@ export function IncidentResponsePanel() {
       setNewTitle('');
       setNewDescription('');
       load();
-    } catch { /* ignore */ }
+      showToast('success', 'Incident created');
+    } catch (e: unknown) { showToast('error', 'Failed to create incident', (e as Error).message); }
   };
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       await api.updateIncidentStatus(id, newStatus);
       load();
-    } catch { /* ignore */ }
+      showToast('success', `Incident status changed to ${newStatus}`);
+    } catch (e: unknown) { showToast('error', 'Failed to update status', (e as Error).message); }
   };
 
   const handleAssign = async (id: number) => {
@@ -92,7 +123,20 @@ export function IncidentResponsePanel() {
       await api.assignIncident(id, assignUser);
       setAssignUser('');
       load();
-    } catch { /* ignore */ }
+      showToast('success', `Incident assigned to ${assignUser}`);
+    } catch (e: unknown) { showToast('error', 'Failed to assign incident', (e as Error).message); }
+  };
+
+  const handleLinkAlerts = async (id: number) => {
+    if (!linkAlertInput.trim()) return;
+    const alertIds = linkAlertInput.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (alertIds.length === 0) return;
+    try {
+      await api.linkAlertsToIncident(id, alertIds);
+      setLinkAlertInput('');
+      loadLinkedAlerts(id);
+      showToast('success', `Linked ${alertIds.length} alert(s)`);
+    } catch (e: unknown) { showToast('error', 'Failed to link alerts', (e as Error).message); }
   };
 
   const handleAddNote = async (id: number) => {
@@ -101,7 +145,8 @@ export function IncidentResponsePanel() {
       await api.addIncidentNote(id, noteText);
       setNoteText('');
       load();
-    } catch { /* ignore */ }
+      showToast('success', 'Note added');
+    } catch (e: unknown) { showToast('error', 'Failed to add note', (e as Error).message); }
   };
 
   const statItems = [
@@ -281,16 +326,78 @@ export function IncidentResponsePanel() {
             </div>
 
             {/* Linked Alerts */}
-            {selected.source_alert_ids.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '4px' }}>LINKED ALERTS</div>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '4px' }}>LINKED ALERTS</div>
+
+              {/* Link new alerts */}
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                <input
+                  className="terminal-input"
+                  placeholder="Alert IDs (comma-separated)..."
+                  value={linkAlertInput}
+                  onChange={e => setLinkAlertInput(e.target.value)}
+                  style={{ flex: 1, padding: '4px 6px', fontSize: '16px' }}
+                />
+                <button
+                  className="stamp-badge stamp-advisory"
+                  style={{ cursor: 'pointer', fontSize: '14px' }}
+                  onClick={() => handleLinkAlerts(selected.id)}
+                >
+                  LINK
+                </button>
+              </div>
+
+              {/* Source alert IDs (from incident creation) */}
+              {selected.source_alert_ids.length > 0 && (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '6px' }}>
                   {selected.source_alert_ids.map(id => (
                     <span key={id} className="stamp-badge stamp-suspect" style={{ fontSize: '14px' }}>ALT-{id}</span>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Fetched linked alerts with details */}
+              {linkedAlerts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {linkedAlerts.map(a => (
+                    <div key={a.id} style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '4px 8px',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '2px',
+                      borderLeft: `2px solid ${
+                        a.severity === 'critical' ? 'var(--severity-critical)' :
+                        a.severity === 'high' ? 'var(--severity-high)' :
+                        a.severity === 'medium' ? 'var(--severity-medium)' : 'var(--severity-low)'
+                      }`,
+                      fontSize: '15px',
+                      fontFamily: 'var(--font-mono)',
+                    }}>
+                      <span style={{ color: 'var(--text-muted)', minWidth: '50px' }}>#{a.id}</span>
+                      <span className={`stamp-badge ${SEVERITY_STAMPS[a.severity] || 'stamp-routine'}`} style={{ fontSize: '12px' }}>
+                        {a.severity.toUpperCase()}
+                      </span>
+                      <span style={{ color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.title}
+                      </span>
+                      <span style={{ color: 'var(--cyan-primary)', fontSize: '14px' }}>{a.module_source}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                        {new Date(a.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                      </span>
+                      {a.acknowledged && (
+                        <span style={{ color: 'var(--status-online)', fontSize: '13px' }}>ACK</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {linkedAlerts.length === 0 && selected.source_alert_ids.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '15px', fontFamily: 'var(--font-mono)' }}>NO ALERTS LINKED</div>
+              )}
+            </div>
           </div>
         )}
       </div>

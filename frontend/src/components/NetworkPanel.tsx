@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
+import { CopyButton } from './ui/CopyButton';
+import { CsvExportButton } from './ui/CsvExportButton';
 
 interface Connection {
   local_addr: string;
@@ -26,17 +29,18 @@ interface Stats {
 }
 
 export function NetworkPanel() {
+  const { showToast } = useToast();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
 
   const load = () => {
     if (showFlaggedOnly) {
-      api.getFlaggedConnections().then((d: unknown) => setConnections(d as Connection[])).catch(() => {});
+      api.getFlaggedConnections().then((d: unknown) => setConnections(d as Connection[])).catch((e: Error) => showToast('error', 'Failed to load flagged connections', e.message));
     } else {
-      api.getConnections().then((d: unknown) => setConnections(d as Connection[])).catch(() => {});
+      api.getConnections().then((d: unknown) => setConnections(d as Connection[])).catch((e: Error) => showToast('error', 'Failed to load connections', e.message));
     }
-    api.getNetworkStats().then((d: unknown) => setStats(d as Stats)).catch(() => {});
+    api.getNetworkStats().then((d: unknown) => setStats(d as Stats)).catch((e: Error) => showToast('error', 'Failed to load network stats', e.message));
   };
 
   useEffect(() => {
@@ -97,8 +101,25 @@ export function NetworkPanel() {
         letterSpacing: '2px',
         color: 'var(--text-muted)',
         marginBottom: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}>
-        INTERCEPT LOG — {connections.length} RECORDS
+        <span>INTERCEPT LOG — {connections.length} RECORDS</span>
+        <CsvExportButton
+          data={connections as unknown as Record<string, unknown>[]}
+          filename="cereberus-connections"
+          columns={[
+            { key: 'protocol', label: 'Protocol' },
+            { key: 'local_addr', label: 'Local Address' },
+            { key: 'local_port', label: 'Local Port' },
+            { key: 'remote_addr', label: 'Remote Address' },
+            { key: 'remote_port', label: 'Remote Port' },
+            { key: 'status', label: 'Status' },
+            { key: 'pid', label: 'PID' },
+            { key: 'suspicious', label: 'Suspicious' },
+          ]}
+        />
       </div>
 
       {/* Connections Table */}
@@ -132,7 +153,14 @@ export function NetworkPanel() {
               >
                 <Td>{c.protocol.toUpperCase()}</Td>
                 <Td>{c.local_addr}:{c.local_port ?? '*'}</Td>
-                <Td>{c.remote_addr ? `${c.remote_addr}:${c.remote_port ?? '*'}` : '--'}</Td>
+                <Td>
+                  {c.remote_addr ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                      {c.remote_addr}:{c.remote_port ?? '*'}
+                      <CopyButton value={c.remote_addr} label={`Copy IP ${c.remote_addr}`} />
+                    </span>
+                  ) : '--'}
+                </Td>
                 <Td>{c.status}</Td>
                 <Td>{c.pid ?? '--'}</Td>
                 <Td>

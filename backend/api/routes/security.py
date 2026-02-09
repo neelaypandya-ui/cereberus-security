@@ -11,20 +11,24 @@ router = APIRouter(prefix="/security", tags=["security"])
 @router.get("/brute-force/events")
 async def get_brute_force_events(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get recent brute-force events."""
     shield = get_brute_force_shield()
-    return shield.get_recent_events(limit=limit)
+    events = shield.get_recent_events(limit=limit + offset)
+    return events[offset:offset + limit]
 
 
 @router.get("/brute-force/blocked")
 async def get_blocked_ips(
+    limit: int = Query(200, ge=1, le=1000),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get currently blocked IPs."""
     shield = get_brute_force_shield()
-    return shield.get_blocked_ips()
+    blocked = shield.get_blocked_ips()
+    return blocked[:limit]
 
 
 @router.post("/brute-force/unblock/{ip}")

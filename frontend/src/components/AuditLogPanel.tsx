@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
+import { CsvExportButton } from './ui/CsvExportButton';
 
 interface AuditLogEntry {
   id: number;
@@ -22,6 +24,7 @@ const actionStamps: Record<string, { label: string; stampClass: string }> = {
 };
 
 export function AuditLogPanel() {
+  const { showToast } = useToast();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [filterAction, setFilterAction] = useState<string>('');
   const [filterUser, setFilterUser] = useState<string>('');
@@ -31,7 +34,7 @@ export function AuditLogPanel() {
     const params: { limit?: number; action?: string; username?: string } = { limit: 100 };
     if (filterAction) params.action = filterAction;
     if (filterUser) params.username = filterUser;
-    api.getAuditLogs(params).then((d: unknown) => setLogs(d as AuditLogEntry[])).catch(() => {});
+    api.getAuditLogs(params).then((d: unknown) => setLogs(d as AuditLogEntry[])).catch((e: Error) => showToast('error', 'Failed to load audit logs', e.message));
   };
 
   useEffect(() => {
@@ -83,8 +86,23 @@ export function AuditLogPanel() {
             width: '180px',
           }}
         />
-        <div style={{ marginLeft: 'auto', fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
-          {logs.length} ENTRIES
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+            {logs.length} ENTRIES
+          </span>
+          <CsvExportButton
+            data={logs as unknown as Record<string, unknown>[]}
+            filename="cereberus-audit-log"
+            columns={[
+              { key: 'id', label: 'ID' },
+              { key: 'timestamp', label: 'Timestamp' },
+              { key: 'username', label: 'Operator' },
+              { key: 'action', label: 'Action' },
+              { key: 'endpoint', label: 'Endpoint' },
+              { key: 'status_code', label: 'Status' },
+              { key: 'ip_address', label: 'IP Address' },
+            ]}
+          />
         </div>
       </div>
 

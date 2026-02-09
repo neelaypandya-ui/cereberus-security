@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,8 +34,16 @@ class CereberusConfig(BaseSettings):
     jwt_expiry_minutes: int = 60
     min_password_length: int = 12
 
-    # Redis
-    redis_url: str = "redis://localhost:6379"
+    # Cookie
+    cookie_secure: bool = True
+
+    # CORS
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # Logging
+    log_dir: str = "logs"
+    log_max_bytes: int = 10_000_000
+    log_backup_count: int = 5
 
     # VPN
     vpn_kill_switch_mode: str = "alert_only"  # full / app_specific / alert_only
@@ -123,6 +131,78 @@ class CereberusConfig(BaseSettings):
     # Agent Smith (Phase 12)
     module_agent_smith: bool = True
 
+    # YARA Scanner (Phase 15)
+    yara_rules_dir: str = "yara_rules"
+    yara_scan_timeout: int = 120
+    yara_max_file_size: int = 100_000_000  # 100 MB
+    yara_auto_scan_on_integrity: bool = True
+
+    # Memory Scanner (Phase 15)
+    module_memory_scanner: bool = True
+    memory_scan_interval: int = 300
+    memory_scan_max_processes: int = 200
+    memory_rwx_alert_threshold: int = 3
+
+    # Event Bus / EvtSubscribe (Phase 15)
+    event_log_use_evt_subscribe: bool = True
+    event_log_expanded_sysmon: bool = True
+    event_bus_queue_size: int = 10000
+
+    # Sword Protocol (Phase 15)
+    sword_protocol_enabled: bool = True
+    sword_max_rate: int = 20
+    sword_rate_window: int = 300
+
+    # Overwatch Protocol (Phase 15)
+    overwatch_check_interval: int = 600
+    overwatch_backup_on_tamper: bool = True
+
+    # Database Performance (Phase 13)
+    db_wal_mode: bool = True
+    db_busy_timeout: int = 5000
+    db_synchronous: str = "NORMAL"
+
+    # WebSocket (Phase 13)
+    ws_max_connections: int = 100
+    ws_queue_size: int = 50
+    ws_heartbeat_interval: int = 30
+
+    # Infrastructure (Phase 13)
+    shutdown_timeout_seconds: int = 15
+    health_monitor_interval: int = 60
+    task_max_restarts: int = 3
+
+    # Phase 13: Configurable Detection Thresholds
+    # IOC
+    ioc_cache_ttl: int = 300  # seconds
+    ioc_cache_max_size: int = 10000
+
+    # Detection thresholds
+    exfil_bytes_threshold: int = 10_000_000  # 10 MB
+    anomaly_cooldown_minutes: int = 30
+
+    # VirusTotal severity thresholds
+    vt_severity_critical_threshold: int = 10
+    vt_severity_high_threshold: int = 5
+    vt_severity_medium_threshold: int = 2
+    vt_severity_low_threshold: int = 1
+
+    # AbuseIPDB thresholds
+    abuse_critical_threshold: int = 80
+    abuse_high_threshold: int = 50
+    abuse_medium_threshold: int = 25
+
+    # Commander Bond feed limits
+    bond_cisa_limit: int = 30
+    bond_nvd_limit: int = 20
+    bond_urlhaus_limit: int = 20
+    bond_feodo_limit: int = 20
+    bond_threatfox_limit: int = 15
+
+    # Correlation windows
+    correlation_window_minutes: int = 60
+    correlation_min_events: int = 2
+
     # C2 Beaconing Detection (Phase 12)
     beacon_min_connections: int = 10
     beacon_interval_tolerance: float = 0.15
@@ -172,6 +252,15 @@ class CereberusConfig(BaseSettings):
     retention_remediation_days: int = 180
     retention_comments_days: int = 365
     retention_iocs_days: int = 180
+
+    @model_validator(mode="after")
+    def reject_default_secret_key(self):
+        if self.secret_key == "CHANGE_ME_IN_PRODUCTION" and not self.debug:
+            raise ValueError(
+                "INSECURE_SECRET_KEY — default secret_key detected in production mode. "
+                "Set a strong, unique SECRET_KEY in .env before deploying."
+            )
+        return self
 
     @field_validator("vpn_kill_switch_mode")
     @classmethod

@@ -14,6 +14,7 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 @router.get("/logs")
 async def get_audit_logs(
     limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     username: str | None = None,
     action: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -25,7 +26,7 @@ async def get_audit_logs(
         query = query.where(AuditLog.username == username)
     if action:
         query = query.where(AuditLog.action == action)
-    query = query.limit(limit)
+    query = query.limit(limit).offset(offset)
 
     result = await db.execute(query)
     rows = result.scalars().all()

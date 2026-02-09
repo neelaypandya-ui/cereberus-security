@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
+import { CsvExportButton } from './ui/CsvExportButton';
+import type { AlertResponse } from '../bridge';
 
-interface Alert {
-  id: number;
-  timestamp: string;
-  severity: string;
-  module_source: string;
-  title: string;
-  description: string;
-  vpn_status: string | null;
-  acknowledged: boolean;
-  dismissed?: boolean;
-  snoozed_until?: string | null;
-  escalated_to_incident_id?: number | null;
-}
+// Local alias extending bridge contract with legacy fields
+type Alert = AlertResponse & { vpn_status?: string | null };
 
 const SEVERITY_LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'info'];
 
@@ -27,6 +19,7 @@ const MILITARY_LABELS: Record<string, { label: string; stampClass: string }> = {
 };
 
 export function AlertsPanel() {
+  const { showToast } = useToast();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -36,7 +29,7 @@ export function AlertsPanel() {
   const load = () => {
     const params: Record<string, unknown> = { limit: 100, show_dismissed: showDismissed, show_snoozed: showSnoozed };
     if (filter !== 'all') params.severity = filter;
-    api.getAlerts(params as Parameters<typeof api.getAlerts>[0]).then((d: unknown) => setAlerts(d as Alert[])).catch(() => {});
+    api.getAlerts(params as Parameters<typeof api.getAlerts>[0]).then((d: unknown) => setAlerts(d as Alert[])).catch((e: Error) => showToast('error', 'Failed to load alerts', e.message));
   };
 
   useEffect(() => {
@@ -49,19 +42,20 @@ export function AlertsPanel() {
     try {
       await api.acknowledgeAlerts(ids);
       load();
-    } catch { /* ignore */ }
+      showToast('success', `${ids.length} alert(s) acknowledged`);
+    } catch (e: unknown) { showToast('error', 'Failed to acknowledge alert', (e as Error).message); }
   };
 
   const handleDismiss = async (id: number) => {
-    try { await api.dismissAlert(id); load(); } catch { /* ignore */ }
+    try { await api.dismissAlert(id); load(); showToast('success', 'Alert dismissed'); } catch (e: unknown) { showToast('error', 'Failed to dismiss alert', (e as Error).message); }
   };
 
   const handleEscalate = async (id: number) => {
-    try { await api.escalateAlert(id); load(); } catch { /* ignore */ }
+    try { await api.escalateAlert(id); load(); showToast('success', 'Alert escalated to incident'); } catch (e: unknown) { showToast('error', 'Failed to escalate alert', (e as Error).message); }
   };
 
   const handleSnooze = async (id: number) => {
-    try { await api.snoozeAlert(id); load(); } catch { /* ignore */ }
+    try { await api.snoozeAlert(id); load(); showToast('success', 'Alert snoozed for 1 hour'); } catch (e: unknown) { showToast('error', 'Failed to snooze alert', (e as Error).message); }
   };
 
   const severityColor = (s: string) => {
@@ -77,7 +71,22 @@ export function AlertsPanel() {
 
   return (
     <IntelCard title="THREAT BOARD" classification="SECRET" status={alerts.some((a) => !a.acknowledged && a.severity === 'critical') ? 'critical' : 'active'}>
-      {/* Severity Filter Buttons */}
+      {/* CSV Export + Severity Filter Buttons */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <CsvExportButton
+          data={alerts as unknown as Record<string, unknown>[]}
+          filename="cereberus-alerts"
+          columns={[
+            { key: 'id', label: 'ID' },
+            { key: 'timestamp', label: 'Timestamp' },
+            { key: 'severity', label: 'Severity' },
+            { key: 'title', label: 'Title' },
+            { key: 'module_source', label: 'Source' },
+            { key: 'description', label: 'Description' },
+            { key: 'acknowledged', label: 'Acknowledged' },
+          ]}
+        />
+      </div>
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {SEVERITY_LEVELS.map((level) => (
           <button

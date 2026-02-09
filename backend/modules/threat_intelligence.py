@@ -35,7 +35,15 @@ class ThreatIntelligence(BaseModule):
         self._seen_suspicious_pids: set[int] = set()
 
         # Anomaly alert dedup — don't re-alert for the same event type within cooldown
-        self._anomaly_alert_cooldown: float = 1800.0  # 30 minutes
+        # Read from config if available; default 30 minutes (1800 seconds)
+        try:
+            from ..dependencies import get_app_config
+            _app_cfg = get_app_config()
+            self._anomaly_alert_cooldown: float = float(
+                getattr(_app_cfg, "anomaly_cooldown_minutes", 30)
+            ) * 60.0
+        except Exception:
+            self._anomaly_alert_cooldown: float = 1800.0
         self._last_anomaly_alert_time: dict[str, float] = {}
 
         # Phase 7 integrations

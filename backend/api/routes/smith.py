@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
+from ...bridge import validate_and_log, SmithStatusResponse, SmithSessionResult
 from ...dependencies import get_agent_smith
 
 router = APIRouter(prefix="/smith", tags=["smith"])
@@ -55,7 +56,7 @@ async def get_smith_status(
 ):
     """Get current session status."""
     smith = get_agent_smith()
-    return smith.get_status()
+    return validate_and_log(smith.get_status(), SmithStatusResponse, "GET /smith/status")
 
 
 @router.get("/results")
@@ -64,7 +65,7 @@ async def get_smith_results(
 ):
     """Get all session results."""
     smith = get_agent_smith()
-    return smith.get_results()
+    return validate_and_log(smith.get_results(), SmithSessionResult, "GET /smith/results")
 
 
 @router.get("/results/{session_id}")

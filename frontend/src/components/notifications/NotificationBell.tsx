@@ -33,6 +33,7 @@ export function NotificationBell({ notifications, unreadCount, onMarkRead, onMar
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(!open)}
+        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         className={unreadCount > 0 ? 'bell-pulse' : ''}
         style={{
           background: 'none',

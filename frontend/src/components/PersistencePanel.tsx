@@ -25,8 +25,8 @@ export function PersistencePanel() {
   const [tab, setTab] = useState<'entries' | 'changes'>('entries');
 
   const load = () => {
-    api.getPersistenceEntries().then((d: unknown) => setEntries(d as PersistenceEntry[])).catch(() => {});
-    api.getPersistenceChanges().then((d: unknown) => setChanges(d as PersistenceEntry[])).catch(() => {});
+    api.getPersistenceEntries().then((d: unknown) => setEntries(d as PersistenceEntry[])).catch((err) => console.error('[CEREBERUS]', err));
+    api.getPersistenceChanges().then((d: unknown) => setChanges(d as PersistenceEntry[])).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export function PersistencePanel() {
     try {
       await api.triggerPersistenceScan();
       load();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
     setScanning(false);
   };
 

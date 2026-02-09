@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
 
 interface ResourceSnapshot {
@@ -88,12 +89,13 @@ function formatBytes(bytes: number): string {
 }
 
 export function ResourcePanel() {
+  const { showToast } = useToast();
   const [current, setCurrent] = useState<ResourceSnapshot | null>(null);
   const [alerts, setAlerts] = useState<ResourceAlert[]>([]);
 
   const load = () => {
-    api.getResourceCurrent().then((d: unknown) => setCurrent(d as ResourceSnapshot)).catch(() => {});
-    api.getResourceAlerts().then((d: unknown) => setAlerts(d as ResourceAlert[])).catch(() => {});
+    api.getResourceCurrent().then((d: unknown) => setCurrent(d as ResourceSnapshot)).catch((e: Error) => showToast('error', 'Failed to load resource data', e.message));
+    api.getResourceAlerts().then((d: unknown) => setAlerts(d as ResourceAlert[])).catch((e: Error) => showToast('error', 'Failed to load resource alerts', e.message));
   };
 
   useEffect(() => {

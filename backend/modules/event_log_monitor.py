@@ -21,7 +21,14 @@ SECURITY_EVENT_IDS = {
     4624: ("Security", "Logon Success", "low"),
     4625: ("Security", "Logon Failure", "medium"),
     4720: ("Security", "Account Created", "high"),
+    4726: ("Security", "Account Deleted", "high"),
+    4728: ("Security", "Security Group Member Added", "high"),
     4732: ("Security", "User Added to Group", "high"),
+    4756: ("Security", "Universal Group Member Added", "high"),
+    4768: ("Security", "Kerberos TGT Requested", "low"),
+    4769: ("Security", "Kerberos Service Ticket Requested", "low"),
+    4771: ("Security", "Kerberos Pre-Auth Failed", "medium"),
+    4776: ("Security", "NTLM Authentication", "low"),
 }
 
 SYSTEM_EVENT_IDS = {
@@ -31,9 +38,21 @@ SYSTEM_EVENT_IDS = {
 
 SYSMON_EVENT_IDS = {
     1: ("Sysmon", "Process Create", "low"),
+    2: ("Sysmon", "File Creation Time Changed", "medium"),
     3: ("Sysmon", "Network Connect", "low"),
+    5: ("Sysmon", "Process Terminated", "low"),
+    7: ("Sysmon", "DLL Loaded", "low"),
+    8: ("Sysmon", "CreateRemoteThread", "critical"),
+    10: ("Sysmon", "ProcessAccess", "high"),
     11: ("Sysmon", "File Create", "low"),
+    12: ("Sysmon", "Registry Object Added/Deleted", "medium"),
     13: ("Sysmon", "Registry Value Set", "medium"),
+    15: ("Sysmon", "FileCreateStreamHash (ADS)", "high"),
+    17: ("Sysmon", "Named Pipe Created", "medium"),
+    18: ("Sysmon", "Named Pipe Connected", "medium"),
+    22: ("Sysmon", "DNS Query", "low"),
+    23: ("Sysmon", "File Delete", "low"),
+    25: ("Sysmon", "Process Tampering", "critical"),
 }
 
 # Suspicious parent processes that elevate 4688 severity
@@ -75,6 +94,17 @@ class EventLogMonitor(BaseModule):
             "by_channel": {"Security": 0, "System": 0, "Sysmon": 0},
         }
 
+        # Phase 15: EventBus integration + EvtSubscribe
+        self._event_bus = None
+        self._use_evt_subscribe: bool = cfg.get("use_evt_subscribe", True)
+        self._evt_subscriptions: list = []
+        self._evt_mode: str = "polling"  # "evtsubscribe" or "polling"
+
+    def set_event_bus(self, bus) -> None:
+        """Attach EventBus for real-time event publishing."""
+        self._event_bus = bus
+        self.logger.info("event_bus_attached")
+
     async def start(self) -> None:
         """Start the event log monitoring loop."""
         self.running = True
@@ -92,13 +122,22 @@ class EventLogMonitor(BaseModule):
             else:
                 self.logger.info("sysmon_not_available")
 
-        # Run initial poll
+        # Phase 15: Try EvtSubscribe for real-time push mode
+        if self._use_evt_subscribe:
+            evt_started = await self._start_evt_subscribe()
+            if evt_started:
+                self._evt_mode = "evtsubscribe"
+                self.logger.info("evt_subscribe_active", mode="push")
+            else:
+                self.logger.info("evt_subscribe_fallback", mode="polling")
+
+        # Run initial poll (always — catches events before subscription starts)
         await self._collect_events()
 
-        # Start polling loop
+        # Start polling loop (also serves as fallback for EvtSubscribe gaps)
         self._poll_task = asyncio.create_task(self._poll_loop())
         self.heartbeat()
-        self.logger.info("event_log_monitor_started")
+        self.logger.info("event_log_monitor_started", mode=self._evt_mode)
 
     async def stop(self) -> None:
         """Stop the monitoring loop."""
@@ -109,6 +148,13 @@ class EventLogMonitor(BaseModule):
                 await self._poll_task
             except asyncio.CancelledError:
                 pass
+        # Stop EvtSubscribe subscriptions
+        for sub in self._evt_subscriptions:
+            try:
+                sub.stop()
+            except Exception:
+                pass
+        self._evt_subscriptions.clear()
         self.health_status = "stopped"
         self.logger.info("event_log_monitor_stopped")
 
@@ -122,6 +168,8 @@ class EventLogMonitor(BaseModule):
                 "total_collected": self._stats["total_collected"],
                 "sysmon_available": self._sysmon_available,
                 "last_poll": self._last_poll.isoformat() if self._last_poll else None,
+                "mode": self._evt_mode,
+                "evt_subscriptions": len(self._evt_subscriptions),
             },
         }
 
@@ -390,6 +438,74 @@ class EventLogMonitor(BaseModule):
         channel = event["channel"]
         if channel in self._stats["by_channel"]:
             self._stats["by_channel"][channel] += 1
+
+        # Phase 15: Publish to EventBus
+        if self._event_bus:
+            event_type = "sysmon_event" if channel == "Sysmon" else "security_event"
+            self._event_bus.publish(event_type, event)
+
+    async def _start_evt_subscribe(self) -> bool:
+        """Try to start EvtSubscribe-based real-time event collection."""
+        try:
+            from ..utils.win32_evtlog import EvtSubscription, is_available as evt_is_available
+            if not evt_is_available():
+                return False
+
+            loop = asyncio.get_event_loop()
+
+            # Security channel subscription
+            sec_ids = list(SECURITY_EVENT_IDS.keys())
+            sec_query = " or ".join(f"EventID={eid}" for eid in sec_ids)
+            sec_xpath = f"*[System[{sec_query}]]"
+
+            def _sec_callback(event_xml: str):
+                try:
+                    sub = self._evt_subscriptions[0] if self._evt_subscriptions else None
+                    if sub:
+                        parsed = sub.parse_event_xml(event_xml)
+                        event = self._parse_event(parsed, "Security", SECURITY_EVENT_IDS)
+                        if event:
+                            self._events.append(event)
+                            self._update_stats(event)
+                except Exception:
+                    pass
+
+            sec_sub = EvtSubscription("Security", sec_xpath, _sec_callback)
+            started = await loop.run_in_executor(None, sec_sub.start)
+            if started:
+                self._evt_subscriptions.append(sec_sub)
+                self.logger.info("evt_subscribe_security_active")
+
+            # Sysmon channel subscription
+            if self._enable_sysmon and self._sysmon_available:
+                sysmon_ids = list(SYSMON_EVENT_IDS.keys())
+                sysmon_query = " or ".join(f"EventID={eid}" for eid in sysmon_ids)
+                sysmon_xpath = f"*[System[{sysmon_query}]]"
+
+                def _sysmon_callback(event_xml: str):
+                    try:
+                        sub = self._evt_subscriptions[-1] if self._evt_subscriptions else None
+                        if sub:
+                            parsed = sub.parse_event_xml(event_xml)
+                            event = self._parse_event(parsed, "Sysmon", SYSMON_EVENT_IDS)
+                            if event:
+                                self._events.append(event)
+                                self._update_stats(event)
+                    except Exception:
+                        pass
+
+                sysmon_sub = EvtSubscription(
+                    "Microsoft-Windows-Sysmon/Operational", sysmon_xpath, _sysmon_callback
+                )
+                started = await loop.run_in_executor(None, sysmon_sub.start)
+                if started:
+                    self._evt_subscriptions.append(sysmon_sub)
+                    self.logger.info("evt_subscribe_sysmon_active")
+
+            return len(self._evt_subscriptions) > 0
+        except Exception as e:
+            self.logger.debug("evt_subscribe_init_failed", error=str(e))
+            return False
 
     # --- Public API ---
 

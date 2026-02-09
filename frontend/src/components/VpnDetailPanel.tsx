@@ -38,11 +38,11 @@ export function VpnDetailPanel() {
 
   useEffect(() => {
     loadStatus();
-    api.getRoutes().then((d: unknown) => setRoutes(d as Record<string, unknown>[])).catch(() => {});
+    api.getRoutes().then((d: unknown) => setRoutes(d as Record<string, unknown>[])).catch((err) => console.error('[CEREBERUS]', err));
   }, []);
 
   const loadStatus = () => {
-    api.getVpnStatus().then((d: unknown) => setStatus(d as VpnStatusData)).catch(() => {});
+    api.getVpnStatus().then((d: unknown) => setStatus(d as VpnStatusData)).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   const handleLeakCheck = async () => {
@@ -50,7 +50,7 @@ export function VpnDetailPanel() {
     try {
       const result = await api.runLeakCheck();
       setLeakResult(result as LeakResult);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
     setLoading('');
   };
 
@@ -59,7 +59,7 @@ export function VpnDetailPanel() {
     try {
       const result = await api.runConfigAudit();
       setAudit(result as Record<string, unknown>);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
     setLoading('');
   };
 
@@ -67,7 +67,7 @@ export function VpnDetailPanel() {
     try {
       await api.setKillSwitchMode(mode);
       loadStatus();
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   return (

@@ -1,7 +1,7 @@
 """IOC (Indicators of Compromise) routes — CRUD, search, bulk import, matching."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -58,6 +58,9 @@ class IOCCheckRequest(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 def _ioc_to_dict(ioc: IOC) -> dict:
+    _expires_at = getattr(ioc, "expires_at", None)
+    _fp_at = getattr(ioc, "false_positive_at", None)
+    _last_hit = getattr(ioc, "last_hit_at", None)
     return {
         "id": ioc.id,
         "ioc_type": ioc.ioc_type,
@@ -70,6 +73,14 @@ def _ioc_to_dict(ioc: IOC) -> dict:
         "context": json.loads(ioc.context_json) if ioc.context_json else {},
         "active": ioc.active,
         "feed_id": ioc.feed_id,
+        "confidence": getattr(ioc, "confidence", None),
+        "expires_at": _expires_at.isoformat() if _expires_at else None,
+        "false_positive": getattr(ioc, "false_positive", False),
+        "false_positive_reason": getattr(ioc, "false_positive_reason", None),
+        "false_positive_by": getattr(ioc, "false_positive_by", None),
+        "false_positive_at": _fp_at.isoformat() if _fp_at else None,
+        "hit_count": getattr(ioc, "hit_count", 0),
+        "last_hit_at": _last_hit.isoformat() if _last_hit else None,
     }
 
 
@@ -271,6 +282,66 @@ async def ioc_stats(
     }
 
 
+# --- Phase 13: IOC Lifecycle Endpoints (static paths before {ioc_id}) ---
+
+class FalsePositiveRequest(BaseModel):
+    reason: str | None = None
+
+
+class BulkDeactivateRequest(BaseModel):
+    source: str | None = None
+    ioc_type: str | None = None
+    older_than_days: int | None = None
+
+
+class ConfidenceUpdate(BaseModel):
+    confidence: int
+
+
+@router.get("/expiring")
+async def get_expiring_iocs(
+    days: int = Query(7, ge=1, le=90),
+    limit: int = Query(50, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
+):
+    """Get IOCs expiring within N days."""
+    cutoff = datetime.now(timezone.utc) + timedelta(days=days)
+    result = await db.execute(
+        select(IOC)
+        .where(IOC.expires_at != None, IOC.expires_at <= cutoff, IOC.active == True)
+        .order_by(IOC.expires_at.asc())
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    return [_ioc_to_dict(r) for r in rows]
+
+
+@router.post("/bulk-deactivate")
+async def bulk_deactivate(
+    body: BulkDeactivateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_FEEDS)),
+):
+    """Bulk deactivate IOCs by source, type, or age."""
+    from sqlalchemy import update
+
+    query = update(IOC).where(IOC.active == True)
+
+    if body.source:
+        query = query.where(IOC.source == body.source)
+    if body.ioc_type:
+        query = query.where(IOC.ioc_type == body.ioc_type)
+    if body.older_than_days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=body.older_than_days)
+        query = query.where(IOC.first_seen < cutoff)
+
+    result = await db.execute(query.values(active=False))
+    await db.commit()
+
+    return {"deactivated_count": result.rowcount}
+
+
 @router.get("/{ioc_id}")
 async def get_ioc(
     ioc_id: int,
@@ -302,3 +373,68 @@ async def deactivate_ioc(
     await db.commit()
 
     return {"deactivated": ioc_id, "active": False}
+
+
+@router.post("/{ioc_id}/false-positive")
+async def mark_false_positive(
+    ioc_id: int,
+    body: FalsePositiveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_FEEDS)),
+):
+    """Mark an IOC as a false positive."""
+    result = await db.execute(select(IOC).where(IOC.id == ioc_id))
+    ioc = result.scalar_one_or_none()
+    if not ioc:
+        raise HTTPException(status_code=404, detail="IOC not found")
+
+    ioc.false_positive = True
+    ioc.false_positive_reason = body.reason
+    ioc.false_positive_by = current_user.get("sub", "unknown")
+    ioc.false_positive_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {"id": ioc_id, "false_positive": True}
+
+
+@router.delete("/{ioc_id}/false-positive")
+async def unmark_false_positive(
+    ioc_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_FEEDS)),
+):
+    """Remove false positive marking from an IOC."""
+    result = await db.execute(select(IOC).where(IOC.id == ioc_id))
+    ioc = result.scalar_one_or_none()
+    if not ioc:
+        raise HTTPException(status_code=404, detail="IOC not found")
+
+    ioc.false_positive = False
+    ioc.false_positive_reason = None
+    ioc.false_positive_by = None
+    ioc.false_positive_at = None
+    await db.commit()
+
+    return {"id": ioc_id, "false_positive": False}
+
+
+@router.patch("/{ioc_id}/confidence")
+async def update_confidence(
+    ioc_id: int,
+    body: ConfidenceUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_FEEDS)),
+):
+    """Manually adjust IOC confidence score."""
+    if not (0 <= body.confidence <= 100):
+        raise HTTPException(status_code=400, detail="Confidence must be 0-100")
+
+    result = await db.execute(select(IOC).where(IOC.id == ioc_id))
+    ioc = result.scalar_one_or_none()
+    if not ioc:
+        raise HTTPException(status_code=404, detail="IOC not found")
+
+    ioc.confidence = body.confidence
+    await db.commit()
+
+    return {"id": ioc_id, "confidence": body.confidence}

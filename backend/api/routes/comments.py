@@ -55,6 +55,7 @@ async def get_comments(
     target_type: str,
     target_id: int,
     limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
@@ -66,6 +67,7 @@ async def get_comments(
         .where(Comment.target_type == target_type, Comment.target_id == target_id)
         .order_by(Comment.created_at.asc())
         .limit(limit)
+        .offset(offset)
     )
     rows = result.scalars().all()
 

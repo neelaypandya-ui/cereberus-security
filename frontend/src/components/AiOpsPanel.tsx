@@ -109,12 +109,12 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
       setModels(m as ModelRegistry[]);
       setAnomalyEvents(e as AnomalyEventRecord[]);
       setFeedbackStats(f as FeedbackStats);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
 
     try {
       const p = await api.getAiPredictions();
       setPredictionData(p as PredictionData);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
       else if (type === 'resource') await api.trainResourceForecaster();
       else await api.trainBaseline();
       await loadData();
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
     setTraining({ model: '', loading: false });
   };
 

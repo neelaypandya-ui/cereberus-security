@@ -277,6 +277,7 @@ async def dry_run_playbook_rule(
 async def get_playbook_history(
     rule_id: int,
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
@@ -294,6 +295,7 @@ async def get_playbook_history(
         .where(RemediationAction.playbook_rule_id == rule_id)
         .order_by(desc(RemediationAction.created_at))
         .limit(limit)
+        .offset(offset)
     )
     rows = result.scalars().all()
     return [

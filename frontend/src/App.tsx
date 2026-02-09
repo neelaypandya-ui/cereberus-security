@@ -1,9 +1,11 @@
 import { Component, ReactNode, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
 import { api } from './services/api';
 import { setCsrfToken } from './services/api';
+import { ToastProvider } from './hooks/useToast';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -53,14 +55,17 @@ function AuthGate({ children }: { children: ReactNode }) {
 function App() {
   return (
     <ErrorBoundary>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/dashboard"
-          element={<AuthGate><Dashboard /></AuthGate>}
-        />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route
+            path="/dashboard"
+            element={<AuthGate><Dashboard /></AuthGate>}
+          />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

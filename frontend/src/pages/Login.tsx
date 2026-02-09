@@ -22,8 +22,12 @@ function Login() {
     setLoading(true);
 
     try {
-      await api.login(username, password);
-      window.location.href = '/dashboard';
+      const data = await api.login(username, password);
+      if (data.must_change_password) {
+        window.location.href = '/change-password';
+      } else {
+        window.location.href = '/dashboard';
+      }
     } catch {
       setError('AUTHENTICATION FAILED — INVALID CREDENTIALS');
     } finally {
@@ -236,7 +240,7 @@ function Login() {
 
           <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
             <span className="stamp-badge stamp-cleared" style={{ fontSize: '12px' }}>SYSTEM ONLINE</span>
-            <span className="stamp-badge stamp-routine" style={{ fontSize: '12px' }}>v1.1.0</span>
+            <span className="stamp-badge stamp-routine" style={{ fontSize: '12px' }}>v1.6.0</span>
           </div>
 
           <div style={{

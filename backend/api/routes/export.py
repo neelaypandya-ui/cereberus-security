@@ -25,7 +25,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 # ---------------------------------------------------------------------------
 EXPORT_DIR = Path("data/exports")
 VALID_EXPORT_TYPES = ("alerts", "incidents", "audit", "full_report", "iocs")
-VALID_FORMATS = ("csv", "json", "pdf")
+VALID_FORMATS = ("csv", "json")
 
 
 # ---------------------------------------------------------------------------
@@ -89,11 +89,6 @@ async def _run_export(job_id: int) -> None:
                 file_path.write_text(content, encoding="utf-8")
             elif export_format == "csv":
                 content = _to_csv(data)
-                file_path.write_text(content, encoding="utf-8")
-            elif export_format == "pdf":
-                # Write as JSON with .pdf extension (placeholder — real PDF rendering
-                # would use a library like reportlab or weasyprint)
-                content = json.dumps(data, indent=2, default=str)
                 file_path.write_text(content, encoding="utf-8")
 
             file_size = file_path.stat().st_size

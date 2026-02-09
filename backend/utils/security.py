@@ -1,9 +1,11 @@
-"""Security utilities: password hashing and JWT token management."""
+"""Security utilities: password hashing, JWT token management, and password validation."""
 
+import re
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 
 
 def hash_password(password: str) -> str:
@@ -40,5 +42,23 @@ def decode_access_token(
     try:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         return payload
-    except JWTError:
+    except (PyJWTError, Exception):
         return None
+
+
+def validate_password_strength(password: str, min_length: int = 12) -> None:
+    """Validate password meets strength requirements. Raises ValueError on failure."""
+    errors = []
+    if len(password) < min_length:
+        errors.append(f"at least {min_length} characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("an uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("a lowercase letter")
+    if not re.search(r"\d", password):
+        errors.append("a digit")
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]", password):
+        errors.append("a special character")
+
+    if errors:
+        raise ValueError(f"Password must contain {', '.join(errors)}")

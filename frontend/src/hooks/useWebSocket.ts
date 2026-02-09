@@ -139,28 +139,27 @@ export function useWebSocket() {
   const [playbookTrigger, setPlaybookTrigger] = useState<PlaybookTriggerUpdate | null>(null);
   const [iocMatch, setIocMatch] = useState<IocMatchUpdate | null>(null);
   const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(true); // true until first successful connect or definitive failure
   const [lastMessage, setLastMessage] = useState<WsMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
   const retryCount = useRef<number>(0);
 
-  const MAX_RETRIES = 10;
-  const BASE_DELAY = 1000;
+  const MAX_RETRIES = 999;
+  const BASE_DELAY = 500;   // Start fast (500ms)
   const MULTIPLIER = 1.5;
-  const MAX_DELAY = 30000;
+  const MAX_DELAY = 5000;
 
   const connect = useCallback(() => {
-    const token = localStorage.getItem('cereberus_token');
-    if (!token) {
-      return;
-    }
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws/events?token=${encodeURIComponent(token)}`);
+    const host = window.location.host; // includes port automatically
+    // httpOnly cookie (cereberus_session) is sent automatically
+    const url = `${protocol}//${host}/ws/events`;
+    const ws = new WebSocket(url);
 
     ws.onopen = () => {
       setConnected(true);
+      setConnecting(false);
       retryCount.current = 0;
       ws.send(JSON.stringify({ type: 'ping' }));
     };
@@ -203,8 +202,12 @@ export function useWebSocket() {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       setConnected(false);
+      // If server rejected auth (4001), stop showing "connecting" — it's a real failure
+      if (ev.code === 4001) {
+        setConnecting(false);
+      }
       if (retryCount.current < MAX_RETRIES) {
         const delay = Math.min(BASE_DELAY * Math.pow(MULTIPLIER, retryCount.current), MAX_DELAY);
         retryCount.current += 1;
@@ -222,7 +225,18 @@ export function useWebSocket() {
   useEffect(() => {
     connect();
 
+    // Reconnect immediately when tab becomes visible (e.g. after login redirect)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && wsRef.current?.readyState !== WebSocket.OPEN) {
+        retryCount.current = 0;
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        connect();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
+      document.removeEventListener('visibilitychange', onVisible);
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
       }
@@ -234,6 +248,6 @@ export function useWebSocket() {
     vpnStatus, networkStats, alerts, threatLevel, anomalyAlert, resourceStats,
     aiStatus, predictions, trainingProgress,
     incidentUpdate, remediationAction, playbookTrigger, iocMatch,
-    connected, lastMessage,
+    connected, connecting, lastMessage,
   };
 }

@@ -17,8 +17,9 @@ _VT_BASE_URL = "https://www.virustotal.com/api/v3"
 class VirusTotalProvider:
     """VirusTotal API v3 provider for hash, IP, and URL lookups."""
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: Optional[str] = None, config=None) -> None:
         self.api_key = api_key
+        self._config = config
         # Rate limit: 4 requests per minute for free-tier
         self._rate_limit_interval = 15.0  # seconds between requests (60/4)
         self._last_request_time: float = 0.0
@@ -38,17 +39,26 @@ class VirusTotalProvider:
         return {"x-apikey": self.api_key or "", "Accept": "application/json"}
 
     def _severity_from_stats(self, stats: dict) -> str:
-        """Derive severity from detection statistics."""
+        """Derive severity from detection statistics.
+
+        Thresholds are read from config if available, otherwise use defaults.
+        """
         malicious = stats.get("malicious", 0)
         suspicious = stats.get("suspicious", 0)
         total = malicious + suspicious
-        if total >= 10:
+
+        critical = getattr(self._config, "vt_severity_critical_threshold", 10) if self._config else 10
+        high = getattr(self._config, "vt_severity_high_threshold", 5) if self._config else 5
+        medium = getattr(self._config, "vt_severity_medium_threshold", 2) if self._config else 2
+        low = getattr(self._config, "vt_severity_low_threshold", 1) if self._config else 1
+
+        if total >= critical:
             return "critical"
-        if total >= 5:
+        if total >= high:
             return "high"
-        if total >= 2:
+        if total >= medium:
             return "medium"
-        if total >= 1:
+        if total >= low:
             return "low"
         return "info"
 

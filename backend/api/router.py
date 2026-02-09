@@ -39,6 +39,10 @@ from .routes.disk_cleanup import router as disk_cleanup_router
 from .routes.ransomware import router as ransomware_router
 from .routes.bond import router as bond_router
 from .routes.smith import router as smith_router
+from .routes.thresholds import router as thresholds_router
+from .routes.yara import router as yara_router
+from .routes.memory import router as memory_router
+from .routes.sword import router as sword_router
 from .websockets.events import router as ws_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -80,6 +84,10 @@ api_router.include_router(disk_cleanup_router)
 api_router.include_router(ransomware_router)
 api_router.include_router(bond_router)
 api_router.include_router(smith_router)
+api_router.include_router(thresholds_router)
+api_router.include_router(yara_router)
+api_router.include_router(memory_router)
+api_router.include_router(sword_router)
 
 # WebSocket router is mounted at root level (no prefix)
 websocket_router = ws_router

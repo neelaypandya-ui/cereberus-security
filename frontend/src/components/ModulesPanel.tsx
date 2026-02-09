@@ -14,7 +14,7 @@ export function ModulesPanel() {
   const [modules, setModules] = useState<Module[]>([]);
 
   const load = () => {
-    api.getModules().then((d: unknown) => setModules(d as Module[])).catch(() => {});
+    api.getModules().then((d: unknown) => setModules(d as Module[])).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function ModulesPanel() {
     try {
       await api.toggleModule(name, !enabled);
       load();
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const healthColor = (status: string) => {

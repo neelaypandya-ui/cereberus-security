@@ -60,6 +60,10 @@ class AddTimelineEventRequest(BaseModel):
     details: Optional[str] = None
 
 
+class LinkAlertsRequest(BaseModel):
+    alert_ids: list[int]
+
+
 # --- Endpoints ---
 
 @router.get("/")
@@ -68,6 +72,7 @@ async def list_incidents(
     severity: Optional[str] = None,
     assigned_to: Optional[str] = None,
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """List incidents with optional filters."""
@@ -77,6 +82,7 @@ async def list_incidents(
         severity=severity,
         assigned_to=assigned_to,
         limit=limit,
+        offset=offset,
     )
     return incidents
 
@@ -236,3 +242,28 @@ async def get_incident_actions(
         }
         for r in rows
     ]
+
+
+@router.post("/{incident_id}/link-alerts")
+async def link_alerts_to_incident(
+    incident_id: int,
+    body: LinkAlertsRequest,
+    current_user: dict = Depends(require_permission(PERM_MANAGE_INCIDENTS)),
+):
+    """Link alerts to an incident."""
+    manager = _get_incident_manager()
+    result = await manager.link_alerts(incident_id, body.alert_ids)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@router.get("/{incident_id}/linked-alerts")
+async def get_linked_alerts(
+    incident_id: int,
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
+):
+    """Get all alerts linked to an incident."""
+    manager = _get_incident_manager()
+    alerts = await manager.get_linked_alerts(incident_id)
+    return {"incident_id": incident_id, "alerts": alerts}

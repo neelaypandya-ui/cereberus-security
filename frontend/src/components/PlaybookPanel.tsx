@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
 
 interface PlaybookRule {
@@ -35,6 +36,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export function PlaybookPanel() {
+  const { showToast } = useToast();
   const [rules, setRules] = useState<PlaybookRule[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -50,8 +52,8 @@ export function PlaybookPanel() {
     try {
       const data = await api.getPlaybooks();
       setRules(data as PlaybookRule[]);
-    } catch { /* ignore */ }
-  }, []);
+    } catch (e: unknown) { showToast('error', 'Failed to load playbooks', (e as Error).message); }
+  }, [showToast]);
 
   useEffect(() => { load(); const i = setInterval(load, 30000); return () => clearInterval(i); }, [load]);
 
@@ -69,26 +71,28 @@ export function PlaybookPanel() {
       setNewName('');
       setNewDesc('');
       load();
-    } catch { /* ignore */ }
+      showToast('success', 'Protocol created');
+    } catch (e: unknown) { showToast('error', 'Failed to create protocol', (e as Error).message); }
   };
 
   const handleToggle = async (id: number) => {
-    try { await api.togglePlaybook(id); load(); } catch { /* ignore */ }
+    try { await api.togglePlaybook(id); load(); showToast('success', 'Protocol toggled'); } catch (e: unknown) { showToast('error', 'Failed to toggle protocol', (e as Error).message); }
   };
 
   const handleDelete = async (id: number) => {
-    try { await api.deletePlaybook(id); load(); } catch { /* ignore */ }
+    try { await api.deletePlaybook(id); load(); showToast('success', 'Protocol deleted'); } catch (e: unknown) { showToast('error', 'Failed to delete protocol', (e as Error).message); }
   };
 
   const handleDryRun = async (id: number) => {
     try {
       const result = await api.dryRunPlaybook(id, {});
       setDryRunResult(result);
-    } catch { /* ignore */ }
+      showToast('info', 'Dry run complete');
+    } catch (e: unknown) { showToast('error', 'Dry run failed', (e as Error).message); }
   };
 
   const handleExecute = async (id: number) => {
-    try { await api.executePlaybook(id, {}); load(); } catch { /* ignore */ }
+    try { await api.executePlaybook(id, {}); load(); showToast('success', 'Protocol executed'); } catch (e: unknown) { showToast('error', 'Execution failed', (e as Error).message); }
   };
 
   return (

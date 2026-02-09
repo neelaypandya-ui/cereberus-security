@@ -30,6 +30,8 @@ class EnsembleDetector:
         self._weights = weights or [0.4, 0.35, 0.25]
         self._consensus_threshold = consensus_threshold
         self._last_result: Optional[dict] = None
+        self._score_history: list[float] = []  # Recent ensemble scores for drift detection
+        self._max_history: int = 100
         self._explainer = None
 
         # Lazy import explainer
@@ -150,6 +152,11 @@ class EnsembleDetector:
             "explanation": explanation,
         }
 
+        # Track score history for drift detection
+        self._score_history.append(float(ensemble_score))
+        if len(self._score_history) > self._max_history:
+            self._score_history = self._score_history[-self._max_history:]
+
         if is_anomaly:
             logger.warning(
                 "ensemble_anomaly_detected",
@@ -160,22 +167,32 @@ class EnsembleDetector:
 
         return self._last_result
 
+    def reset_score_history(self) -> None:
+        """Clear score history — call after retraining so drift measures only post-training stability."""
+        self._score_history.clear()
+        logger.info("score_history_reset", reason="model_retrained")
+
     def get_last_result(self) -> Optional[dict]:
         """Return the most recent ensemble result."""
         return self._last_result
 
     def get_drift_score(self) -> float:
-        """Estimate model drift from recent prediction variance.
+        """Estimate model drift from ensemble score volatility over time.
 
-        Returns a float 0-1 representing estimated drift.
+        Uses the standard deviation of recent ensemble scores over a
+        large window.  On a live system inputs naturally vary, so we
+        use a generous divisor (0.30) to avoid false-positive drift
+        signals from normal network fluctuation.
+
+        Returns 0.0 when insufficient data or stable, approaches 1.0
+        when scores swing wildly between predictions.
         """
-        if not self._last_result or not self._last_result.get("detector_scores"):
-            return 0.0
+        if len(self._score_history) < 20:
+            return 0.0  # Need enough history to measure drift reliably
 
-        scores = list(self._last_result["detector_scores"].values())
-        if len(scores) < 2:
-            return 0.0
-
-        # High variance between detectors suggests drift
-        variance = float(np.var(scores))
-        return float(np.clip(variance * 4, 0.0, 1.0))
+        recent = np.array(self._score_history[-100:])
+        std = float(np.std(recent))
+        # Ensemble scores are 0-1; on a live system natural fluctuation
+        # produces std ~0.05-0.07.  Use 0.50 divisor so normal operation
+        # reads ~10-14% and genuine drift pushes past 30%.
+        return float(np.clip(std / 0.50, 0.0, 1.0))

@@ -5,6 +5,8 @@ interface ShortcutHandlers {
   onPanelSwitch?: (index: number) => void;
   onCloseModal?: () => void;
   onExport?: () => void;
+  onToggleSidebar?: () => void;
+  onShowShortcuts?: () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
@@ -24,6 +26,18 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       if (e.ctrlKey && e.key === 'k') {
         e.preventDefault();
         handlers.onFocusSearch?.();
+      }
+
+      // Ctrl+B — Toggle sidebar
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        handlers.onToggleSidebar?.();
+      }
+
+      // Ctrl+? — Show shortcuts overlay (Ctrl+Shift+/)
+      if (e.ctrlKey && e.shiftKey && e.key === '?') {
+        e.preventDefault();
+        handlers.onShowShortcuts?.();
       }
 
       // 1-9 — Panel switch

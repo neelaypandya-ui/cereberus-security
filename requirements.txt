@@ -7,19 +7,15 @@ pydantic-settings>=2.7.1
 # Database
 sqlalchemy>=2.0.36
 aiosqlite>=0.20.0
-alembic>=1.14.1
 
 # Auth
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
+PyJWT>=2.9.0
 python-multipart>=0.0.20
 
 # Networking & Security
-scapy>=2.6.1
 psutil>=6.1.1
 aiohttp>=3.11.11
 httpx>=0.28.1
-geoip2>=4.8.1
 dnspython>=2.7.0
 
 # AI/ML
@@ -28,16 +24,16 @@ scikit-learn>=1.6.1
 numpy>=2.2.1
 pandas>=2.2.3
 
-# Redis
-redis>=5.2.1
-
 # Alerting
 plyer>=2.1.0
 
 # VPN/Windows-specific
-wmi>=1.5.1
-pywin32>=308
-netifaces2>=0.0.22
+wmi>=1.5.1; sys_platform == "win32"
+pywin32>=308; sys_platform == "win32"
+netifaces2>=0.0.22; sys_platform == "win32"
+
+# YARA — requires Visual C++ Build Tools on Windows, libyara-dev on Linux
+yara-python>=4.5.0
 
 # Utilities
 python-dotenv>=1.0.1

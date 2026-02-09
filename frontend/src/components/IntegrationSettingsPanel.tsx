@@ -70,15 +70,15 @@ export function IntegrationSettingsPanel() {
   const [expFormat, setExpFormat] = useState('csv');
 
   const loadChannels = useCallback(async () => {
-    try { setChannels(await api.getNotificationChannels() as Channel[]); } catch { /* */ }
+    try { setChannels(await api.getNotificationChannels() as Channel[]); } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
   const loadFeeds = useCallback(async () => {
-    try { setFeeds(await api.getFeeds() as Feed[]); } catch { /* */ }
+    try { setFeeds(await api.getFeeds() as Feed[]); } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
   const loadExports = useCallback(async () => {
-    try { setExports(await api.getExportJobs() as ExportJobData[]); } catch { /* */ }
+    try { setExports(await api.getExportJobs() as ExportJobData[]); } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export function IntegrationSettingsPanel() {
       setShowChannelForm(false);
       setChName('');
       loadChannels();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const createFeed = async () => {
@@ -111,14 +111,14 @@ export function IntegrationSettingsPanel() {
       setShowFeedForm(false);
       setFdName('');
       loadFeeds();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const requestExport = async () => {
     try {
       await api.requestExport({ export_type: expType, format: expFormat });
       loadExports();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const tabStyle = (t: Tab) => ({
@@ -183,8 +183,8 @@ export function IntegrationSettingsPanel() {
                   <span className="stamp-badge stamp-advisory" style={{ fontSize: '13px' }}>{ch.channel_type.toUpperCase()}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.testNotificationChannel(ch.id); } catch { /* */ } }}>TEST</button>
-                  <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.deleteNotificationChannel(ch.id); loadChannels(); } catch { /* */ } }}>DELETE</button>
+                  <button className="stamp-badge stamp-routine" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.testNotificationChannel(ch.id); } catch (err) { console.error('[CEREBERUS]', err); } }}>TEST</button>
+                  <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.deleteNotificationChannel(ch.id); loadChannels(); } catch (err) { console.error('[CEREBERUS]', err); } }}>DELETE</button>
                 </div>
               </div>
               <div style={{ marginTop: '4px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -230,8 +230,8 @@ export function IntegrationSettingsPanel() {
                   <span className="stamp-badge stamp-advisory" style={{ fontSize: '13px' }}>{fd.feed_type.toUpperCase()}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  <button className="stamp-badge stamp-priority" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.pollFeed(fd.id); loadFeeds(); } catch { /* */ } }}>POLL NOW</button>
-                  <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.deleteFeed(fd.id); loadFeeds(); } catch { /* */ } }}>DELETE</button>
+                  <button className="stamp-badge stamp-priority" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.pollFeed(fd.id); loadFeeds(); } catch (err) { console.error('[CEREBERUS]', err); } }}>POLL NOW</button>
+                  <button className="stamp-badge stamp-hostile" style={{ cursor: 'pointer', fontSize: '14px' }} onClick={async () => { try { await api.deleteFeed(fd.id); loadFeeds(); } catch (err) { console.error('[CEREBERUS]', err); } }}>DELETE</button>
                 </div>
               </div>
               <div style={{ marginTop: '4px', fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>

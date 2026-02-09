@@ -273,19 +273,21 @@ def _r015_firewall_modification(event: dict) -> bool:
 
 # -- Exfiltration ------------------------------------------------------------
 
-_EXFIL_BYTES_THRESHOLD = 50 * 1024 * 1024  # 50 MB
+# Default threshold; overridden at runtime via RuleEngine.exfil_bytes_threshold
+_EXFIL_BYTES_THRESHOLD = 10_000_000  # 10 MB (configurable via config.exfil_bytes_threshold)
 
 
 def _r016_large_outbound(event: dict) -> bool:
     """Detect large outbound data transfer to a single external IP."""
+    threshold = RuleEngine.exfil_bytes_threshold
     bytes_sent = event.get("bytes_sent", 0) or 0
     event_type = (event.get("event_type") or "").lower()
-    if bytes_sent >= _EXFIL_BYTES_THRESHOLD:
+    if bytes_sent >= threshold:
         return True
     # Also check details for transfer size
     if event_type == "network_transfer":
         transfer_size = event.get("transfer_size", 0) or 0
-        if transfer_size >= _EXFIL_BYTES_THRESHOLD:
+        if transfer_size >= threshold:
             return True
     return False
 
@@ -567,6 +569,157 @@ def _r041_ransomware_mass_rename(event: dict) -> bool:
                                "mass rename", "rapid extension change",
                                "mass encryption", "encrypt")
     return any(i in combined for i in mass_rename_indicators)
+
+
+# -- Phase 13: Additional MITRE ATT&CK Rules --------------------------------
+
+def _r043_account_manipulation(event: dict) -> bool:
+    """Detect account manipulation — adding users to privileged groups, password resets."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    event_id = event.get("event_id")
+    # net localgroup administrators /add, net user /add
+    if "net " in cmdline and ("/add" in cmdline or "localgroup" in cmdline):
+        return True
+    # Windows Security Event IDs for account changes
+    if event_id in (4720, 4722, 4728, 4732, 4756):  # user created, enabled, added to group
+        return True
+    if "add-localgroupmember" in cmdline or "add-adgroupmember" in cmdline:
+        return True
+    return False
+
+
+def _r044_process_masquerading(event: dict) -> bool:
+    """Detect process masquerading — executables mimicking legitimate system process names."""
+    name = (event.get("name") or "").lower()
+    exe = (event.get("exe") or "").lower()
+    # System processes that should only run from System32
+    system_procs = {
+        "svchost.exe": r"c:\windows\system32\svchost.exe",
+        "csrss.exe": r"c:\windows\system32\csrss.exe",
+        "lsass.exe": r"c:\windows\system32\lsass.exe",
+        "services.exe": r"c:\windows\system32\services.exe",
+        "smss.exe": r"c:\windows\system32\smss.exe",
+        "wininit.exe": r"c:\windows\system32\wininit.exe",
+        "winlogon.exe": r"c:\windows\system32\winlogon.exe",
+    }
+    for proc_name, expected_path in system_procs.items():
+        if name == proc_name and exe and expected_path not in exe:
+            return True
+    # Lookalike names: svch0st, scvhost, etc.
+    lookalikes = ["svch0st", "scvhost", "csvhost", "lssas", "lsas", "csrs"]
+    for lookalike in lookalikes:
+        if lookalike in name:
+            return True
+    return False
+
+
+def _r045_archive_staging(event: dict) -> bool:
+    """Detect staging data in archives for exfiltration."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    # Compression tools used for staging
+    if any(tool in name for tool in ["7z", "7za", "rar", "winrar"]):
+        if any(flag in cmdline for flag in [" a ", "-r", "*.doc", "*.pdf", "*.xls", "*.pst"]):
+            return True
+    # PowerShell Compress-Archive
+    if "compress-archive" in cmdline:
+        return True
+    # makecab for data staging
+    if "makecab" in cmdline:
+        return True
+    return False
+
+
+def _r046_screen_capture(event: dict) -> bool:
+    """Detect screen capture tools and techniques."""
+    cmdline = (event.get("cmdline") or "").lower()
+    name = (event.get("name") or "").lower()
+    if any(tool in name for tool in ["screenshot", "snagit", "greenshot", "sharex"]):
+        return True
+    # PowerShell screen capture
+    if "system.drawing.bitmap" in cmdline and "copyfroms" in cmdline:
+        return True
+    if "get-screenshot" in cmdline or "capture-screen" in cmdline:
+        return True
+    return False
+
+
+def _r047_email_collection(event: dict) -> bool:
+    """Detect email collection from local clients or Exchange."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    file_path = (event.get("file_path") or "").lower()
+    # PST/OST file access
+    if any(ext in file_path for ext in [".pst", ".ost"]):
+        return True
+    # PowerShell accessing Outlook COM
+    if "outlook.application" in cmdline or "new-object -comobject outlook" in cmdline:
+        return True
+    # Exchange cmdlets
+    if "get-mailbox" in cmdline or "search-mailbox" in cmdline or "new-mailboxexportrequest" in cmdline:
+        return True
+    return False
+
+
+def _r048_dll_sideloading(event: dict) -> bool:
+    """Detect DLL side-loading — loading DLLs from non-standard paths."""
+    details = (event.get("details") or "").lower()
+    cmdline = (event.get("cmdline") or "").lower()
+    event_id = event.get("event_id")
+    # Sysmon DLL load from non-standard location (Event ID 7)
+    if event_id == 7:
+        if "signed" in details and "false" in details:
+            return True
+        # DLL loaded from temp or user directories
+        if any(path in details for path in ["\\temp\\", "\\appdata\\", "\\downloads\\"]):
+            return True
+    # Known side-loading targets
+    sideload_targets = ["version.dll", "cryptsp.dll", "wtsapi32.dll", "dbghelp.dll"]
+    for target in sideload_targets:
+        if target in details and "\\system32\\" not in details:
+            return True
+    return False
+
+
+def _r049_wmi_persistence(event: dict) -> bool:
+    """Detect WMI event subscription for persistence."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    event_id = event.get("event_id")
+    # WMI subscription via wmic or PowerShell
+    if "wmic" in cmdline and ("__eventfilter" in cmdline or "__eventconsumer" in cmdline):
+        return True
+    if "set-wminstance" in cmdline or "register-wmievent" in cmdline:
+        return True
+    if "__eventfilter" in cmdline and "__filtertoconsumerbinding" in cmdline:
+        return True
+    # Sysmon WMI events (Event IDs 19, 20, 21)
+    if event_id in (19, 20, 21):
+        return True
+    return False
+
+
+def _r050_ntds_access(event: dict) -> bool:
+    """Detect NTDS.dit access for credential extraction."""
+    cmdline = (event.get("cmdline") or "").lower()
+    details = (event.get("details") or "").lower()
+    file_path = (event.get("file_path") or "").lower()
+    # Direct NTDS.dit access
+    ntds_path = "ntds.dit"
+    if ntds_path in cmdline or ntds_path in details or ntds_path in file_path:
+        return True
+    # ntdsutil
+    if "ntdsutil" in cmdline:
+        return True
+    # Volume shadow copy + NTDS
+    if "vssadmin" in cmdline and "shadow" in cmdline:
+        if "ntds" in cmdline:
+            return True
+    # secretsdump targeting DC
+    if "secretsdump" in cmdline:
+        return True
+    return False
 
 
 def _r040_known_c2_tools(event: dict) -> bool:
@@ -956,6 +1109,72 @@ _BUILTIN_RULES: list[DetectionRule] = [
         category="execution",
         condition=_r042_thinkphp_rce,
     ),
+
+    # Phase 13: Additional MITRE ATT&CK Rules
+    DetectionRule(
+        id="R043",
+        name="Account Manipulation",
+        description="Account manipulation detected — adding users to privileged groups, enabling accounts, or password resets (T1098).",
+        severity="high",
+        category="persistence",
+        condition=_r043_account_manipulation,
+    ),
+    DetectionRule(
+        id="R044",
+        name="Process Masquerading",
+        description="Process masquerading detected — an executable is mimicking a legitimate system process name from a non-standard path (T1036).",
+        severity="high",
+        category="defense_evasion",
+        condition=_r044_process_masquerading,
+    ),
+    DetectionRule(
+        id="R045",
+        name="Archive Staging for Exfiltration",
+        description="Data staging in archives detected — compression tools used to package sensitive files for potential exfiltration (T1560).",
+        severity="high",
+        category="exfiltration",
+        condition=_r045_archive_staging,
+    ),
+    DetectionRule(
+        id="R046",
+        name="Screen Capture Activity",
+        description="Screen capture tools or techniques detected — potential intelligence collection via screenshots (T1113).",
+        severity="medium",
+        category="collection",
+        condition=_r046_screen_capture,
+    ),
+    DetectionRule(
+        id="R047",
+        name="Email Collection",
+        description="Email collection activity detected — access to PST/OST files, Outlook COM objects, or Exchange cmdlets (T1114).",
+        severity="high",
+        category="collection",
+        condition=_r047_email_collection,
+    ),
+    DetectionRule(
+        id="R048",
+        name="DLL Side-Loading",
+        description="DLL side-loading detected — unsigned or non-standard DLLs loaded from temp/appdata/downloads directories (T1574.002).",
+        severity="high",
+        category="persistence",
+        condition=_r048_dll_sideloading,
+    ),
+    DetectionRule(
+        id="R049",
+        name="WMI Event Subscription Persistence",
+        description="WMI event subscription persistence detected — WMI event filters/consumers used for persistent execution (T1546.003).",
+        severity="critical",
+        category="persistence",
+        condition=_r049_wmi_persistence,
+    ),
+    DetectionRule(
+        id="R050",
+        name="NTDS.dit Access",
+        description="NTDS.dit credential extraction detected — access to Active Directory database for domain-wide credential theft (T1003.003).",
+        severity="critical",
+        category="credential_access",
+        condition=_r050_ntds_access,
+    ),
 ]
 
 
@@ -1012,6 +1231,15 @@ _EXPLANATIONS: dict[str, Callable[[dict], str]] = {
     "R040": lambda e: f"C2 tool detected: '{(e.get('cmdline') or e.get('name') or '')[:120]}'",
     "R041": lambda e: f"Ransomware mass rename: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
     "R042": lambda e: f"ThinkPHP RCE exploit (CVE-2018-20062): '{(e.get('cmdline') or e.get('url') or e.get('details') or '')[:120]}'",
+    # Phase 13
+    "R043": lambda e: f"Account manipulation: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R044": lambda e: f"Process masquerading: '{e.get('name', 'unknown')}' running from '{(e.get('exe') or 'unknown')[:100]}'",
+    "R045": lambda e: f"Archive staging for exfiltration: '{(e.get('cmdline') or '')[:120]}'",
+    "R046": lambda e: f"Screen capture activity: '{(e.get('cmdline') or e.get('name') or '')[:120]}'",
+    "R047": lambda e: f"Email collection: '{(e.get('cmdline') or e.get('file_path') or '')[:120]}'",
+    "R048": lambda e: f"DLL side-loading: '{(e.get('details') or e.get('cmdline') or '')[:120]}'",
+    "R049": lambda e: f"WMI persistence: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R050": lambda e: f"NTDS.dit access: '{(e.get('cmdline') or e.get('file_path') or '')[:120]}'",
 }
 
 
@@ -1026,9 +1254,22 @@ class RuleEngine:
     maintains a rolling window of recent matches for querying.
     """
 
+    # Class-level configurable threshold for exfiltration detection (R016).
+    # Updated at runtime from CereberusConfig.exfil_bytes_threshold.
+    exfil_bytes_threshold: int = _EXFIL_BYTES_THRESHOLD
+
     def __init__(self) -> None:
         self._rules: list[DetectionRule] = list(_BUILTIN_RULES)
         self._matches: deque[RuleMatch] = deque(maxlen=1000)
+        # Sync class attribute from config if available
+        try:
+            from ..dependencies import get_app_config
+            config = get_app_config()
+            RuleEngine.exfil_bytes_threshold = getattr(
+                config, "exfil_bytes_threshold", _EXFIL_BYTES_THRESHOLD
+            )
+        except Exception:
+            pass
         logger.info("rule_engine_initialized", rule_count=len(self._rules))
 
     # -- Evaluation ----------------------------------------------------------

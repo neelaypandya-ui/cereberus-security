@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
+import { CopyButton } from './ui/CopyButton';
 
 interface Correlation {
   pattern: string;
@@ -35,6 +37,14 @@ interface IOCRecord {
   last_seen: string;
   tags_json: string;
   active: boolean;
+  confidence: number | null;
+  false_positive: boolean;
+  false_positive_reason: string | null;
+  false_positive_by: string | null;
+  false_positive_at: string | null;
+  hit_count: number;
+  last_hit_at: string | null;
+  expires_at: string | null;
 }
 
 interface ThreatFeedRecord {
@@ -59,11 +69,12 @@ const PRIORITY_MAP: Record<string, { label: string; stampClass: string }> = {
 const IOC_TYPE_FILTERS = ['all', 'ip', 'domain', 'url', 'hash', 'email'];
 
 export function ThreatIntelPanel() {
+  const { showToast } = useToast();
   const [threatLevel, setThreatLevel] = useState('none');
   const [correlations, setCorrelations] = useState<Correlation[]>([]);
   const [feed, setFeed] = useState<FeedEvent[]>([]);
   const [expandedCorr, setExpandedCorr] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'correlations' | 'ioc' | 'feeds'>('correlations');
+  const [activeTab, setActiveTab] = useState<'correlations' | 'ioc' | 'feeds' | 'timeline'>('correlations');
 
   // IOC state
   const [iocs, setIocs] = useState<IOCRecord[]>([]);
@@ -73,6 +84,18 @@ export function ThreatIntelPanel() {
 
   // Feed state
   const [feeds, setFeeds] = useState<ThreatFeedRecord[]>([]);
+
+  // Timeline state
+  interface TimelineEvent {
+    timestamp: string;
+    event_type: string;
+    source_module: string;
+    severity: string;
+    details: Record<string, unknown>;
+  }
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLookback, setTimelineLookback] = useState(60);
+  const [expandedTimelineIdx, setExpandedTimelineIdx] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -90,7 +113,7 @@ export function ThreatIntelPanel() {
       setThreatLevel((level as { threat_level: string }).threat_level);
       setCorrelations(corrs as Correlation[]);
       setFeed(feedData as FeedEvent[]);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to load threat intel', (e as Error).message); }
   };
 
   const loadIocs = async () => {
@@ -100,20 +123,28 @@ export function ThreatIntelPanel() {
       if (iocTypeFilter !== 'all') params.ioc_type = iocTypeFilter;
       const data = await api.searchIocs(params.search || '');
       setIocs((data as { items: IOCRecord[] }).items || data as IOCRecord[]);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to load IOCs', (e as Error).message); }
   };
 
   const loadFeeds = async () => {
     try {
       const data = await api.getFeeds();
       setFeeds(data as ThreatFeedRecord[]);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to load feeds', (e as Error).message); }
+  };
+
+  const loadTimeline = async () => {
+    try {
+      const data = await api.getThreatTimeline(timelineLookback);
+      setTimelineEvents((data as { timeline: TimelineEvent[] }).timeline || []);
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   useEffect(() => {
     if (activeTab === 'ioc') loadIocs();
     if (activeTab === 'feeds') loadFeeds();
-  }, [activeTab, iocTypeFilter]);
+    if (activeTab === 'timeline') loadTimeline();
+  }, [activeTab, iocTypeFilter, timelineLookback]);
 
   const handleAddIoc = async () => {
     if (!addIocForm.value.trim()) return;
@@ -121,14 +152,38 @@ export function ThreatIntelPanel() {
       await api.addIoc(addIocForm);
       setAddIocForm({ ...addIocForm, value: '' });
       loadIocs();
-    } catch { /* ignore */ }
+      showToast('success', 'IOC added successfully');
+    } catch (e: unknown) { showToast('error', 'Failed to add IOC', (e as Error).message); }
   };
 
   const handlePollFeed = async (feedId: number) => {
     try {
       await api.pollFeed(feedId);
+      showToast('info', 'Feed poll initiated');
       setTimeout(loadFeeds, 2000);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to poll feed', (e as Error).message); }
+  };
+
+  const handleToggleFalsePositive = async (ioc: IOCRecord) => {
+    try {
+      if (ioc.false_positive) {
+        await api.unmarkIocFalsePositive(ioc.id);
+        showToast('success', 'False positive marking removed');
+      } else {
+        await api.markIocFalsePositive(ioc.id, 'Manually flagged via UI');
+        showToast('success', 'Marked as false positive');
+      }
+      loadIocs();
+    } catch (e: unknown) { showToast('error', 'Failed to update IOC', (e as Error).message); }
+  };
+
+  const confidenceColor = (c: number | null): string => {
+    if (c === null || c === undefined) return 'var(--text-muted)';
+    if (c >= 80) return 'var(--severity-critical)';
+    if (c >= 60) return 'var(--severity-high)';
+    if (c >= 40) return 'var(--severity-medium)';
+    if (c >= 20) return 'var(--severity-low)';
+    return 'var(--severity-info)';
   };
 
   const levelColor = (level: string) => {
@@ -161,6 +216,7 @@ export function ThreatIntelPanel() {
 
   const tabs = [
     { key: 'correlations' as const, label: 'CORRELATIONS' },
+    { key: 'timeline' as const, label: 'TIMELINE' },
     { key: 'ioc' as const, label: 'IOC DATABASE' },
     { key: 'feeds' as const, label: 'FEED STATUS' },
   ];
@@ -309,6 +365,140 @@ export function ThreatIntelPanel() {
         </>
       )}
 
+      {/* TIMELINE TAB */}
+      {activeTab === 'timeline' && (
+        <IntelCard title="THREAT EVENT TIMELINE" classification="SECRET//SI">
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', letterSpacing: '1px' }}>LOOKBACK:</span>
+            {[15, 30, 60, 120, 480].map(mins => (
+              <button
+                key={mins}
+                onClick={() => setTimelineLookback(mins)}
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid var(--border-default)',
+                  background: timelineLookback === mins ? 'var(--cyan-primary)' : 'transparent',
+                  color: timelineLookback === mins ? 'var(--bg-primary)' : 'var(--text-muted)',
+                  fontSize: '15px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  letterSpacing: '1px',
+                }}
+              >
+                {mins < 60 ? `${mins}m` : `${mins / 60}h`}
+              </button>
+            ))}
+            <button
+              onClick={loadTimeline}
+              style={{
+                marginLeft: 'auto',
+                padding: '4px 10px',
+                background: 'var(--amber-primary)',
+                border: 'none',
+                color: 'var(--bg-primary)',
+                fontSize: '15px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '1px',
+              }}
+            >
+              REFRESH
+            </button>
+          </div>
+
+          {timelineEvents.length === 0 ? (
+            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px', textAlign: 'center' }}>
+              NO EVENTS IN TIMELINE WINDOW
+            </div>
+          ) : (
+            <div style={{ maxHeight: '500px', overflow: 'auto' }}>
+              {timelineEvents.map((evt, i) => {
+                const ts = new Date(evt.timestamp);
+                const prevTs = i > 0 ? new Date(timelineEvents[i - 1].timestamp) : null;
+                const deltaMs = prevTs ? ts.getTime() - prevTs.getTime() : 0;
+                const deltaSec = Math.floor(deltaMs / 1000);
+                const deltaStr = i === 0 ? '' : deltaSec < 60 ? `+${deltaSec}s` : deltaSec < 3600 ? `+${Math.floor(deltaSec / 60)}m ${deltaSec % 60}s` : `+${Math.floor(deltaSec / 3600)}h ${Math.floor((deltaSec % 3600) / 60)}m`;
+                const isExpanded = expandedTimelineIdx === i;
+
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setExpandedTimelineIdx(isExpanded ? null : i)}
+                    style={{
+                      display: 'flex',
+                      gap: '10px',
+                      padding: '8px 0',
+                      borderLeft: `3px solid ${severityColor(evt.severity)}`,
+                      paddingLeft: '12px',
+                      marginBottom: '2px',
+                      cursor: 'pointer',
+                      background: isExpanded ? 'var(--bg-tertiary)' : 'transparent',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-muted)', minWidth: '75px' }}>
+                        {ts.toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}Z
+                      </span>
+                      {deltaStr && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '13px',
+                          color: deltaSec > 300 ? 'var(--severity-medium)' : 'var(--text-muted)',
+                          minWidth: '60px',
+                        }}>
+                          {deltaStr}
+                        </span>
+                      )}
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${severityColor(evt.severity)}20`,
+                        border: `1px solid ${severityColor(evt.severity)}`,
+                        color: severityColor(evt.severity),
+                        fontSize: '14px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        letterSpacing: '1px',
+                        borderRadius: '2px',
+                      }}>
+                        {evt.event_type.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--cyan-primary)' }}>
+                        {evt.source_module}
+                      </span>
+                      <span className={`stamp-badge ${(PRIORITY_MAP[evt.severity] || PRIORITY_MAP.info).stampClass}`} style={{ fontSize: '13px', marginLeft: 'auto' }}>
+                        {evt.severity.toUpperCase()}
+                      </span>
+                    </div>
+                    {isExpanded && evt.details && Object.keys(evt.details).length > 0 && (
+                      <div style={{
+                        marginTop: '4px',
+                        padding: '8px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '2px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '14px',
+                        color: 'var(--text-secondary)',
+                        wordBreak: 'break-all',
+                      }}>
+                        {Object.entries(evt.details).map(([k, v]) => (
+                          <div key={k} style={{ marginBottom: '2px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{k}: </span>
+                            <span>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </IntelCard>
+      )}
+
       {/* IOC DATABASE TAB */}
       {activeTab === 'ioc' && (
         <IntelCard title="INDICATORS OF COMPROMISE" classification="SECRET//SI">
@@ -403,28 +593,87 @@ export function ThreatIntelPanel() {
                   <th style={{ padding: '6px', textAlign: 'left' }}>VALUE</th>
                   <th style={{ padding: '6px', textAlign: 'left' }}>SOURCE</th>
                   <th style={{ padding: '6px', textAlign: 'left' }}>SEVERITY</th>
+                  <th style={{ padding: '6px', textAlign: 'left' }}>CONF</th>
+                  <th style={{ padding: '6px', textAlign: 'left' }}>HITS</th>
                   <th style={{ padding: '6px', textAlign: 'left' }}>FIRST SEEN</th>
+                  <th style={{ padding: '6px', textAlign: 'center' }}>FP</th>
                 </tr>
               </thead>
               <tbody>
                 {iocs.length === 0 ? (
-                  <tr><td colSpan={5} style={{ padding: '20px', color: 'var(--text-muted)', textAlign: 'center', letterSpacing: '2px' }}>NO INDICATORS LOADED</td></tr>
+                  <tr><td colSpan={8} style={{ padding: '20px', color: 'var(--text-muted)', textAlign: 'center', letterSpacing: '2px' }}>NO INDICATORS LOADED</td></tr>
                 ) : iocs.map((ioc) => (
-                  <tr key={ioc.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <tr key={ioc.id} style={{
+                    borderBottom: '1px solid var(--border-subtle)',
+                    opacity: ioc.false_positive ? 0.5 : 1,
+                  }}>
                     <td style={{ padding: '6px' }}>
                       <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', borderRadius: '2px', fontSize: '15px', letterSpacing: '1px' }}>
                         {ioc.ioc_type.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ padding: '6px', color: 'var(--cyan-primary)', wordBreak: 'break-all', maxWidth: '300px' }}>{ioc.value}</td>
+                    <td style={{ padding: '6px', color: ioc.false_positive ? 'var(--text-muted)' : 'var(--cyan-primary)', wordBreak: 'break-all', maxWidth: '250px', textDecoration: ioc.false_positive ? 'line-through' : 'none' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                        {ioc.value}
+                        <CopyButton value={ioc.value} label={`Copy IOC ${ioc.value}`} />
+                      </span>
+                    </td>
                     <td style={{ padding: '6px', color: 'var(--text-secondary)' }}>{ioc.source}</td>
                     <td style={{ padding: '6px' }}>
                       <span className={`stamp-badge ${(PRIORITY_MAP[ioc.severity] || PRIORITY_MAP.info).stampClass}`}>
                         {(PRIORITY_MAP[ioc.severity] || PRIORITY_MAP.info).label}
                       </span>
                     </td>
+                    <td style={{ padding: '6px' }}>
+                      {ioc.confidence !== null && ioc.confidence !== undefined ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{
+                            width: '40px',
+                            height: '6px',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '3px',
+                            overflow: 'hidden',
+                          }}>
+                            <div style={{
+                              width: `${ioc.confidence}%`,
+                              height: '100%',
+                              background: confidenceColor(ioc.confidence),
+                              borderRadius: '3px',
+                            }} />
+                          </div>
+                          <span style={{ fontSize: '14px', color: confidenceColor(ioc.confidence) }}>
+                            {ioc.confidence}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>--</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '6px', color: (ioc.hit_count || 0) > 0 ? 'var(--amber-primary)' : 'var(--text-muted)', fontSize: '15px' }}>
+                      {ioc.hit_count || 0}
+                    </td>
                     <td style={{ padding: '6px', color: 'var(--text-muted)', fontSize: '16px' }}>
                       {ioc.first_seen ? new Date(ioc.first_seen).toLocaleDateString() : '-'}
+                    </td>
+                    <td style={{ padding: '6px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleToggleFalsePositive(ioc)}
+                        title={ioc.false_positive ? `FP by ${ioc.false_positive_by || '?'}: ${ioc.false_positive_reason || 'no reason'}` : 'Mark as false positive'}
+                        style={{
+                          padding: '2px 6px',
+                          border: `1px solid ${ioc.false_positive ? 'var(--severity-medium)' : 'var(--border-default)'}`,
+                          background: ioc.false_positive ? 'var(--severity-medium)' : 'transparent',
+                          color: ioc.false_positive ? 'var(--bg-primary)' : 'var(--text-muted)',
+                          fontSize: '13px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          borderRadius: '2px',
+                          letterSpacing: '1px',
+                        }}
+                      >
+                        FP
+                      </button>
                     </td>
                   </tr>
                 ))}

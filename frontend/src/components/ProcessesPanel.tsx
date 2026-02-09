@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
+import { CopyButton } from './ui/CopyButton';
+import { CsvExportButton } from './ui/CsvExportButton';
 
 interface ProcessInfo {
   pid: number;
@@ -18,6 +21,7 @@ interface ProcessInfo {
 }
 
 export function ProcessesPanel() {
+  const { showToast } = useToast();
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
   const [suspicious, setSuspicious] = useState<ProcessInfo[]>([]);
   const [expandedPid, setExpandedPid] = useState<number | null>(null);
@@ -38,7 +42,7 @@ export function ProcessesPanel() {
       ]);
       setProcesses(procs as ProcessInfo[]);
       setSuspicious(sus as ProcessInfo[]);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to load processes', (e as Error).message); }
   };
 
   const loadTree = async (pid: number) => {
@@ -51,20 +55,35 @@ export function ProcessesPanel() {
       const tree = await api.getProcessTree(pid) as ProcessInfo;
       setProcessTree(tree);
       setExpandedPid(pid);
-    } catch { /* ignore */ }
+    } catch (e: unknown) { showToast('error', 'Failed to load process tree', (e as Error).message); }
   };
 
   const displayList = view === 'suspicious' ? suspicious : processes.slice(0, 100);
 
   return (
     <IntelCard title="ASSET TRACKER" classification="SECRET//NOFORN" status={suspicious.length > 0 ? 'warning' : 'active'}>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
         <button onClick={() => setView('suspicious')} style={tabStyle(view === 'suspicious')}>
           HOSTILE ({suspicious.length})
         </button>
         <button onClick={() => setView('all')} style={tabStyle(view === 'all')}>
           ALL ASSETS ({processes.length})
         </button>
+        <div style={{ marginLeft: 'auto' }}>
+          <CsvExportButton
+            data={displayList as unknown as Record<string, unknown>[]}
+            filename="cereberus-processes"
+            columns={[
+              { key: 'pid', label: 'PID' },
+              { key: 'name', label: 'Name' },
+              { key: 'username', label: 'User' },
+              { key: 'cpu_percent', label: 'CPU%' },
+              { key: 'memory_percent', label: 'MEM%' },
+              { key: 'status', label: 'Status' },
+              { key: 'suspicious', label: 'Suspicious' },
+            ]}
+          />
+        </div>
       </div>
 
       {suspicious.length > 0 && view === 'suspicious' && (
@@ -111,7 +130,12 @@ export function ProcessesPanel() {
                   background: p.suspicious ? 'rgba(255, 23, 68, 0.04)' : 'transparent',
                 }}
               >
-                <td style={tdStyle}><span className="mono">{p.pid}</span></td>
+                <td style={tdStyle}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }} className="mono">
+                    {p.pid}
+                    <CopyButton value={String(p.pid)} label={`Copy PID ${p.pid}`} />
+                  </span>
+                </td>
                 <td style={{ ...tdStyle, color: 'var(--text-primary)' }}>{p.name}</td>
                 <td style={{ ...tdStyle, color: 'var(--text-secondary)' }}>{p.username}</td>
                 <td style={tdStyle}>

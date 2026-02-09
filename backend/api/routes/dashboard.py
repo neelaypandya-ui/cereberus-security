@@ -21,8 +21,11 @@ from ...dependencies import (
 )
 from ...models.alert import Alert
 from ...models.event import Event
+from ...utils.cache import TTLCache
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+_dashboard_cache = TTLCache(default_ttl=10.0, max_entries=10)
 
 
 def _get_live_module_statuses() -> list[dict]:
@@ -68,35 +71,39 @@ async def get_dashboard_summary(
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get dashboard summary with key metrics."""
-    # Count alerts by severity
-    alert_counts = {}
-    for severity in ["critical", "high", "medium", "low", "info"]:
-        result = await db.execute(
-            select(func.count(Alert.id)).where(
-                Alert.severity == severity,
-                Alert.acknowledged == False,
+
+    async def _compute():
+        # Count alerts by severity
+        alert_counts = {}
+        for severity in ["critical", "high", "medium", "low", "info"]:
+            result = await db.execute(
+                select(func.count(Alert.id)).where(
+                    Alert.severity == severity,
+                    Alert.acknowledged == False,
+                )
             )
+            alert_counts[severity] = result.scalar() or 0
+
+        # Total events today
+        from datetime import datetime, timezone
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        result = await db.execute(
+            select(func.count(Event.id)).where(Event.timestamp >= today_start)
         )
-        alert_counts[severity] = result.scalar() or 0
+        events_today = result.scalar() or 0
 
-    # Total events today
-    from datetime import datetime, timezone
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    result = await db.execute(
-        select(func.count(Event.id)).where(Event.timestamp >= today_start)
-    )
-    events_today = result.scalar() or 0
+        # Module statuses from live singletons
+        modules = _get_live_module_statuses()
 
-    # Module statuses from live singletons
-    modules = _get_live_module_statuses()
+        # VPN status
+        vpn_guardian = get_vpn_guardian()
+        vpn_status = vpn_guardian.detector.state.to_dict()
 
-    # VPN status
-    vpn_guardian = get_vpn_guardian()
-    vpn_status = vpn_guardian.detector.state.to_dict()
+        return {
+            "alerts": alert_counts,
+            "events_today": events_today,
+            "modules": modules,
+            "vpn": vpn_status,
+        }
 
-    return {
-        "alerts": alert_counts,
-        "events_today": events_today,
-        "modules": modules,
-        "vpn": vpn_status,
-    }
+    return await _dashboard_cache.get_or_compute("summary", _compute, ttl=10.0)

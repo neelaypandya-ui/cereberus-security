@@ -87,15 +87,15 @@ export function DetectionRulesPanel() {
   // ── Data loaders ─────────────────────────────────────────────
 
   const loadRules = () => {
-    api.getDetectionRules().then((d: unknown) => setRules(d as DetectionRule[])).catch(() => {});
+    api.getDetectionRules().then((d: unknown) => setRules(d as DetectionRule[])).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   const loadMatches = () => {
-    api.getDetectionRuleMatches(50).then((d: unknown) => setMatches(d as RuleMatch[])).catch(() => {});
+    api.getDetectionRuleMatches({ limit: 50 }).then((d: unknown) => setMatches(d as RuleMatch[])).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   const loadStats = () => {
-    api.getDetectionRuleStats().then((d: unknown) => setStats(d as RuleStats)).catch(() => {});
+    api.getDetectionRuleStats().then((d: unknown) => setStats(d as RuleStats)).catch((err) => console.error('[CEREBERUS]', err));
   };
 
   useEffect(() => {

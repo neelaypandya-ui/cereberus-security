@@ -20,11 +20,13 @@ async def list_rules(
 @router.get("/matches")
 async def get_matches(
     limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get recent rule matches."""
     engine = get_rule_engine()
-    return engine.get_matches(limit=limit)
+    matches = engine.get_matches(limit=limit + offset)
+    return matches[offset:offset + limit]
 
 
 @router.get("/stats")

@@ -22,7 +22,7 @@ from ...models.api_key import APIKey
 from ...models.role import Role
 from ...models.user import User
 from ...models.user_role import UserRole
-from ...utils.security import hash_password
+from ...utils.security import hash_password, validate_password_strength
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -77,12 +77,13 @@ async def _get_current_user_id(current_user: dict, db: AsyncSession) -> int:
 @router.get("/")
 async def list_users(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_MANAGE_USERS)),
 ):
     """List all users (admin only)."""
     result = await db.execute(
-        select(User).order_by(User.created_at.desc()).limit(limit)
+        select(User).order_by(User.created_at.desc()).limit(limit).offset(offset)
     )
     rows = result.scalars().all()
     return [
@@ -111,6 +112,11 @@ async def create_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="Username already exists",
         )
+
+    try:
+        validate_password_strength(body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
     user = User(
         username=body.username,
@@ -307,6 +313,10 @@ async def update_user(
         user.role = body.role
 
     if body.password is not None:
+        try:
+            validate_password_strength(body.password)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
         user.password_hash = hash_password(body.password)
 
     await db.commit()

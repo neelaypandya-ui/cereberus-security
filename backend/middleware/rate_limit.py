@@ -20,6 +20,8 @@ _ENDPOINT_LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/playbooks": (20, 60),
     "/api/v1/ioc": (30, 60),
     "/api/v1/export": (5, 60),
+    "/api/v1/auth/register": (3, 300),       # 3 per 5 min
+    "/api/v1/maintenance/restore": (2, 3600), # 2 per hour
 }
 
 # Global limit for all state-changing requests: 100/min per IP

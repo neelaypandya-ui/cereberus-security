@@ -15,12 +15,13 @@ router = APIRouter(prefix="/network", tags=["network"])
 @router.get("/traffic")
 async def get_traffic(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     flagged_only: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Get recent network traffic entries."""
-    query = select(NetworkTraffic).order_by(NetworkTraffic.timestamp.desc()).limit(limit)
+    query = select(NetworkTraffic).order_by(NetworkTraffic.timestamp.desc()).limit(limit).offset(offset)
     if flagged_only:
         query = query.where(NetworkTraffic.flagged == True)
     result = await db.execute(query)
@@ -46,12 +47,14 @@ async def get_traffic(
 
 @router.get("/blocked-ips")
 async def get_blocked_ips(
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
-    """Get all blocked IP addresses."""
+    """Get blocked IP addresses with pagination."""
     result = await db.execute(
-        select(BlockedIP).order_by(BlockedIP.blocked_at.desc())
+        select(BlockedIP).order_by(BlockedIP.blocked_at.desc()).limit(limit).offset(offset)
     )
     rows = result.scalars().all()
     return [

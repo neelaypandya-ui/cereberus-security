@@ -133,6 +133,10 @@ async def train_anomaly_models(
     except Exception as e:
         results["zscore"] = {"error": str(e)}
 
+    # Reset ensemble score history so drift measures post-training stability only
+    ensemble = get_ensemble_detector()
+    ensemble.reset_score_history()
+
     return {"status": "completed", "results": results}
 
 
@@ -293,13 +297,14 @@ async def ai_status(
 @router.get("/anomaly-events")
 async def get_anomaly_events(
     limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     detector_type: str | None = None,
     is_anomaly_only: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
 ):
     """Query persisted anomaly events."""
-    query = select(AnomalyEvent).order_by(desc(AnomalyEvent.timestamp)).limit(limit)
+    query = select(AnomalyEvent).order_by(desc(AnomalyEvent.timestamp)).limit(limit).offset(offset)
     if detector_type:
         query = query.where(AnomalyEvent.detector_type == detector_type)
     if is_anomaly_only:

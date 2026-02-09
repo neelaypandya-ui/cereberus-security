@@ -38,6 +38,14 @@ from .api_key import APIKey
 from .dashboard_layout import DashboardLayout
 # Phase 10
 from .file_baseline import FileBaseline
+# Phase 11
+from .burned_token import BurnedToken
+# Phase 15
+from .yara_rule import YaraRule
+from .yara_scan_result import YaraScanResult
+from .memory_scan_result import MemoryScanResult
+from .sword_policy import SwordPolicy
+from .sword_execution_log import SwordExecutionLog
 
 __all__ = [
     "Base",
@@ -72,4 +80,10 @@ __all__ = [
     "APIKey",
     "DashboardLayout",
     "FileBaseline",
+    "BurnedToken",
+    "YaraRule",
+    "YaraScanResult",
+    "MemoryScanResult",
+    "SwordPolicy",
+    "SwordExecutionLog",
 ]

@@ -5,11 +5,15 @@ FastAPI entry point with lifespan management, module loading, and CORS.
 
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from sqlalchemy import select
 
@@ -19,6 +23,8 @@ from .config import get_config
 from .database import close_engine, create_tables, get_engine, get_session_factory
 from .middleware.audit import AuditMiddleware
 from .middleware.csrf import CSRFMiddleware
+from .middleware.error_handler import register_error_handlers
+from .middleware.request_id import RequestIDMiddleware
 from .middleware.security_headers import ShieldWallMiddleware
 from .middleware.rate_limit import GatekeeperMiddleware
 from .dependencies import (
@@ -31,12 +37,14 @@ from .dependencies import (
     get_data_exporter,
     get_email_analyzer,
     get_ensemble_detector,
+    get_event_bus,
     get_event_log_monitor,
     get_feed_manager,
     get_file_integrity,
     get_incident_manager,
     get_ioc_matcher,
     get_isolation_forest_detector,
+    get_memory_scanner,
     get_network_sentinel,
     get_notification_dispatcher,
     get_persistence_scanner,
@@ -50,18 +58,40 @@ from .dependencies import (
     get_threat_intelligence,
     get_vpn_guardian,
     get_vuln_scanner,
+    get_yara_scanner,
     get_zscore_detector,
 )
 from .models.user import User
+from .utils.cache import TTLCache
 from .utils.logging import get_logger, setup_logging
 from .utils.security import hash_password
 
 config = get_config()
-setup_logging(debug=config.debug)
+setup_logging(
+    debug=config.debug,
+    log_dir=config.log_dir,
+    log_max_bytes=config.log_max_bytes,
+    log_backup_count=config.log_backup_count,
+)
 logger = get_logger("cereberus.main")
 
-# Track background module tasks
-_module_tasks: list[asyncio.Task] = []
+# Task registry — name -> {task, factory, restarts, max_restarts}
+_task_registry: dict[str, dict] = {}
+
+
+def _register_task(name: str, coro_factory, max_restarts: int = 3):
+    """Register and start a background task with auto-restart capability."""
+    task = asyncio.create_task(coro_factory())
+    _task_registry[name] = {
+        "task": task,
+        "factory": coro_factory,
+        "restarts": 0,
+        "max_restarts": max_restarts,
+    }
+    return task
+
+# Health endpoint cache (15s TTL)
+_health_cache = TTLCache(default_ttl=15.0, max_entries=5)
 
 # Track services that need shutdown
 _feed_manager_instance = None
@@ -225,6 +255,111 @@ async def _seed_default_feed(factory):
         logger.error("seed_feed_failed", error=str(e))
 
 
+async def _seed_sword_policies(factory):
+    """Seed Bond's default Sword Protocol policies (idempotent)."""
+    try:
+        from .models.sword_policy import SwordPolicy
+        default_policies = [
+            {
+                "codename": "THUNDERBALL",
+                "name": "Ransomware Kill Chain",
+                "description": "Ransomware detected at critical level — kill, quarantine, isolate",
+                "trigger_type": "module_event",
+                "trigger_conditions": json.dumps({"source_module": "ransomware_detector", "event_type": "critical"}),
+                "escalation_chain": json.dumps([
+                    {"type": "kill_process", "target": "$details.pid"},
+                    {"type": "quarantine_file", "target": "$details.path"},
+                    {"type": "isolate_network", "target": "$details.interface"},
+                ]),
+                "cooldown_seconds": 60,
+                "rate_limit": json.dumps({"max": 5, "window": 300}),
+                "enabled": True,
+                "requires_confirmation": False,
+            },
+            {
+                "codename": "GOLDENEYE",
+                "name": "C2 Beaconing Response",
+                "description": "C2 beaconing detected — block IP and kill process",
+                "trigger_type": "module_event",
+                "trigger_conditions": json.dumps({"source_module": "network_sentinel", "event_type": "c2_beaconing"}),
+                "escalation_chain": json.dumps([
+                    {"type": "block_ip", "target": "$details.ip", "duration": 7200},
+                    {"type": "kill_process", "target": "$details.pid"},
+                ]),
+                "cooldown_seconds": 120,
+                "rate_limit": json.dumps({"max": 10, "window": 600}),
+                "enabled": True,
+                "requires_confirmation": False,
+            },
+            {
+                "codename": "SKYFALL",
+                "name": "Credential Dump Response",
+                "description": "Credential dumping (T1003.*) detected — kill process",
+                "trigger_type": "rule_match",
+                "trigger_conditions": json.dumps({"rule_pattern": "T1003", "min_severity": "high"}),
+                "escalation_chain": json.dumps([
+                    {"type": "kill_process", "target": "$details.pid"},
+                ]),
+                "cooldown_seconds": 60,
+                "rate_limit": json.dumps({"max": 10, "window": 300}),
+                "enabled": True,
+                "requires_confirmation": False,
+            },
+            {
+                "codename": "SPECTRE",
+                "name": "YARA Critical Match",
+                "description": "Critical/high YARA match — quarantine file and kill process",
+                "trigger_type": "yara_match",
+                "trigger_conditions": json.dumps({"min_severity": "high"}),
+                "escalation_chain": json.dumps([
+                    {"type": "quarantine_file", "target": "$details.path"},
+                    {"type": "kill_process", "target": "$details.pid"},
+                ]),
+                "cooldown_seconds": 120,
+                "rate_limit": json.dumps({"max": 10, "window": 600}),
+                "enabled": True,
+                "requires_confirmation": False,
+            },
+            {
+                "codename": "GHOST PROTOCOL",
+                "name": "Memory Injection Response",
+                "description": "Process injection detected in memory — kill process",
+                "trigger_type": "memory_anomaly",
+                "trigger_conditions": json.dumps({"finding_type": "rwx_region"}),
+                "escalation_chain": json.dumps([
+                    {"type": "kill_process", "target": "$details.pid"},
+                ]),
+                "cooldown_seconds": 60,
+                "rate_limit": json.dumps({"max": 10, "window": 300}),
+                "enabled": True,
+                "requires_confirmation": False,
+            },
+        ]
+        async with factory() as session:
+            for pol_data in default_policies:
+                result = await session.execute(
+                    select(SwordPolicy).where(SwordPolicy.codename == pol_data["codename"])
+                )
+                if result.scalar_one_or_none() is None:
+                    policy = SwordPolicy(
+                        codename=pol_data["codename"],
+                        name=pol_data["name"],
+                        description=pol_data["description"],
+                        trigger_type=pol_data["trigger_type"],
+                        trigger_conditions_json=pol_data["trigger_conditions"],
+                        escalation_chain_json=pol_data["escalation_chain"],
+                        cooldown_seconds=pol_data["cooldown_seconds"],
+                        rate_limit_json=pol_data.get("rate_limit"),
+                        enabled=pol_data["enabled"],
+                        requires_confirmation=pol_data["requires_confirmation"],
+                    )
+                    session.add(policy)
+            await session.commit()
+        logger.info("sword_policies_seeded")
+    except Exception as e:
+        logger.error("seed_sword_policies_failed", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown."""
@@ -235,6 +370,11 @@ async def lifespan(app: FastAPI):
 
     # Secret key warning — The Default must not walk through the front door
     if config.secret_key == "CHANGE_ME_IN_PRODUCTION":
+        if not config.debug:
+            raise RuntimeError(
+                "INSECURE_SECRET_KEY — default secret_key detected in production mode. "
+                "Set a strong, unique SECRET_KEY in .env before deploying."
+            )
         logger.warning(
             "INSECURE_SECRET_KEY — default secret_key detected. "
             "Set a strong, unique SECRET_KEY in .env before deploying to production."
@@ -277,6 +417,16 @@ async def lifespan(app: FastAPI):
     await _migrate_add_column("alerts", "dismissed_at", "DATETIME", "NULL")
     await _migrate_add_column("alerts", "snoozed_until", "DATETIME", "NULL")
     await _migrate_add_column("alerts", "escalated_to_incident_id", "INTEGER", "NULL")
+
+    # Phase 13: IOC Lifecycle columns
+    await _migrate_add_column("iocs", "confidence", "INTEGER", "NULL")
+    await _migrate_add_column("iocs", "expires_at", "DATETIME", "NULL")
+    await _migrate_add_column("iocs", "false_positive", "BOOLEAN NOT NULL", "0")
+    await _migrate_add_column("iocs", "false_positive_reason", "VARCHAR(500)", "NULL")
+    await _migrate_add_column("iocs", "false_positive_by", "VARCHAR(100)", "NULL")
+    await _migrate_add_column("iocs", "false_positive_at", "DATETIME", "NULL")
+    await _migrate_add_column("iocs", "hit_count", "INTEGER NOT NULL", "0")
+    await _migrate_add_column("iocs", "last_hit_at", "DATETIME", "NULL")
 
     logger.info("database_initialized")
 
@@ -343,8 +493,7 @@ async def lifespan(app: FastAPI):
     # Start VPN Guardian module
     vpn_guardian = get_vpn_guardian()
     try:
-        task = asyncio.create_task(vpn_guardian.start())
-        _module_tasks.append(task)
+        _register_task("vpn_guardian", lambda: vpn_guardian.start())
         logger.info("vpn_guardian_launched")
     except Exception as e:
         logger.error("vpn_guardian_launch_failed", error=str(e))
@@ -395,8 +544,7 @@ async def lifespan(app: FastAPI):
         # Wire IOC matcher (Phase 8)
         network_sentinel.set_ioc_matcher(ioc_matcher)
         try:
-            task = asyncio.create_task(network_sentinel.start())
-            _module_tasks.append(task)
+            _register_task("network_sentinel", lambda: network_sentinel.start())
             logger.info("network_sentinel_launched")
         except Exception as e:
             logger.error("network_sentinel_launch_failed", error=str(e))
@@ -451,16 +599,14 @@ async def lifespan(app: FastAPI):
                 logger.error("real_data_train_failed", error=str(e))
 
         if network_sentinel:
-            train_task = asyncio.create_task(_delayed_real_data_train())
-            _module_tasks.append(train_task)
+            _register_task("delayed_real_data_train", _delayed_real_data_train)
 
     # Start Brute Force Shield
     brute_force_shield = None
     if config.module_brute_force_shield:
         brute_force_shield = get_brute_force_shield()
         try:
-            task = asyncio.create_task(brute_force_shield.start())
-            _module_tasks.append(task)
+            _register_task("brute_force_shield", lambda: brute_force_shield.start())
             logger.info("brute_force_shield_launched")
         except Exception as e:
             logger.error("brute_force_shield_launch_failed", error=str(e))
@@ -471,8 +617,7 @@ async def lifespan(app: FastAPI):
         file_integrity = get_file_integrity()
         file_integrity.set_db_session_factory(factory)
         try:
-            task = asyncio.create_task(file_integrity.start())
-            _module_tasks.append(task)
+            _register_task("file_integrity", lambda: file_integrity.start())
             logger.info("file_integrity_launched")
         except Exception as e:
             logger.error("file_integrity_launch_failed", error=str(e))
@@ -483,8 +628,7 @@ async def lifespan(app: FastAPI):
         process_analyzer = get_process_analyzer()
         process_analyzer.set_behavioral_baseline(behavioral_baseline)
         try:
-            task = asyncio.create_task(process_analyzer.start())
-            _module_tasks.append(task)
+            _register_task("process_analyzer", lambda: process_analyzer.start())
             logger.info("process_analyzer_launched")
         except Exception as e:
             logger.error("process_analyzer_launch_failed", error=str(e))
@@ -494,8 +638,7 @@ async def lifespan(app: FastAPI):
     if config.module_vuln_scanner:
         vuln_scanner = get_vuln_scanner()
         try:
-            task = asyncio.create_task(vuln_scanner.start())
-            _module_tasks.append(task)
+            _register_task("vuln_scanner", lambda: vuln_scanner.start())
             logger.info("vuln_scanner_launched")
         except Exception as e:
             logger.error("vuln_scanner_launch_failed", error=str(e))
@@ -505,8 +648,7 @@ async def lifespan(app: FastAPI):
     if config.module_email_analyzer:
         email_analyzer = get_email_analyzer()
         try:
-            task = asyncio.create_task(email_analyzer.start())
-            _module_tasks.append(task)
+            _register_task("email_analyzer", lambda: email_analyzer.start())
             logger.info("email_analyzer_launched")
         except Exception as e:
             logger.error("email_analyzer_launch_failed", error=str(e))
@@ -518,8 +660,7 @@ async def lifespan(app: FastAPI):
         resource_monitor.set_alert_manager(alert_manager)
         resource_monitor.set_behavioral_baseline(behavioral_baseline)
         try:
-            task = asyncio.create_task(resource_monitor.start())
-            _module_tasks.append(task)
+            _register_task("resource_monitor", lambda: resource_monitor.start())
             logger.info("resource_monitor_launched")
         except Exception as e:
             logger.error("resource_monitor_launch_failed", error=str(e))
@@ -529,19 +670,17 @@ async def lifespan(app: FastAPI):
     if config.module_persistence_scanner:
         persistence_scanner = get_persistence_scanner()
         try:
-            task = asyncio.create_task(persistence_scanner.start())
-            _module_tasks.append(task)
+            _register_task("persistence_scanner", lambda: persistence_scanner.start())
             logger.info("persistence_scanner_launched")
         except Exception as e:
             logger.error("persistence_scanner_launch_failed", error=str(e))
 
-    # Start Event Log Monitor (Phase 11)
+    # Start Event Log Monitor (Phase 11) — EventBus wired in Phase 15
     event_log_monitor = None
     if config.module_event_log_monitor:
         event_log_monitor = get_event_log_monitor()
         try:
-            task = asyncio.create_task(event_log_monitor.start())
-            _module_tasks.append(task)
+            _register_task("event_log_monitor", lambda: event_log_monitor.start())
             logger.info("event_log_monitor_launched")
         except Exception as e:
             logger.error("event_log_monitor_launch_failed", error=str(e))
@@ -560,25 +699,12 @@ async def lifespan(app: FastAPI):
         if file_integrity:
             ransomware_detector.set_file_integrity(file_integrity)
         try:
-            task = asyncio.create_task(ransomware_detector.start())
-            _module_tasks.append(task)
+            _register_task("ransomware_detector", lambda: ransomware_detector.start())
             logger.info("ransomware_detector_launched")
         except Exception as e:
             logger.error("ransomware_detector_launch_failed", error=str(e))
 
-    # Start Commander Bond (Phase 12)
-    commander_bond = None
-    if config.module_commander_bond:
-        commander_bond = get_commander_bond()
-        commander_bond.set_alert_manager(alert_manager)
-        try:
-            task = asyncio.create_task(commander_bond.start())
-            _module_tasks.append(task)
-            logger.info("commander_bond_launched")
-        except Exception as e:
-            logger.error("commander_bond_launch_failed", error=str(e))
-
-    # Initialize Agent Smith (Phase 12) — manual activation only
+    # Initialize Agent Smith (Phase 12) — manual activation only (must be before Bond for Guardian wiring)
     agent_smith = None
     if config.module_agent_smith:
         agent_smith = get_agent_smith()
@@ -589,11 +715,78 @@ async def lifespan(app: FastAPI):
         agent_smith._ransomware_detector = ransomware_detector
         agent_smith._incident_manager = get_incident_manager()
         try:
-            task = asyncio.create_task(agent_smith.start())
-            _module_tasks.append(task)
+            _register_task("agent_smith", lambda: agent_smith.start())
             logger.info("agent_smith_initialized")
         except Exception as e:
             logger.error("agent_smith_init_failed", error=str(e))
+
+    # --- Phase 15: Initialize EventBus + YARA + Memory Scanner ---
+
+    # EventBus — Bond's ears
+    event_bus = get_event_bus()
+    await event_bus.start()
+    logger.info("event_bus_started")
+
+    # Wire EventBus to Event Log Monitor
+    if event_log_monitor:
+        event_log_monitor.set_event_bus(event_bus)
+        logger.info("event_bus_wired_to_event_log_monitor")
+
+    # YARA Scanner — Bond's Q-Branch arsenal
+    yara_scanner = get_yara_scanner()
+    try:
+        yara_scanner.set_db_session_factory(factory)
+        await yara_scanner.compile_rules()
+        logger.info("yara_scanner_compiled", rules=len(yara_scanner.get_loaded_rules()))
+    except Exception as e:
+        logger.error("yara_scanner_compile_failed", error=str(e))
+
+    # Wire YARA to File Integrity for auto-scan on changes
+    if file_integrity and config.yara_auto_scan_on_integrity:
+        file_integrity.set_yara_scanner(yara_scanner)
+        logger.info("yara_wired_to_file_integrity")
+
+    # Memory Scanner — Bond's reconnaissance
+    memory_scanner = None
+    if config.module_memory_scanner:
+        memory_scanner = get_memory_scanner()
+        memory_scanner.set_alert_manager(alert_manager)
+        memory_scanner.set_yara_scanner(yara_scanner)
+        memory_scanner.set_event_bus(event_bus)
+        memory_scanner.set_db_session_factory(factory)
+        try:
+            _register_task("memory_scanner", lambda: memory_scanner.start())
+            logger.info("memory_scanner_launched")
+        except Exception as e:
+            logger.error("memory_scanner_launch_failed", error=str(e))
+
+    # Seed Sword Protocol default policies
+    await _seed_sword_policies(factory)
+
+    # Start Commander Bond (Phase 12) + Guardian wiring (Phase 14) + Phase 15 weapons
+    commander_bond = None
+    if config.module_commander_bond:
+        commander_bond = get_commander_bond()
+        commander_bond.set_alert_manager(alert_manager)
+        # Phase 14: Wire Smith to Bond for Guardian oversight
+        if agent_smith is not None:
+            commander_bond.set_agent_smith(agent_smith)
+            logger.info("guardian_protocol_wired", smith="attached")
+        # Phase 15: Wire Sword Protocol dependencies
+        commander_bond.set_db_session_factory(factory)
+        commander_bond.set_remediation_engine(remediation_engine)
+        commander_bond.set_event_bus(event_bus)
+        commander_bond.set_yara_scanner(yara_scanner)
+        if memory_scanner:
+            commander_bond.set_memory_scanner(memory_scanner)
+        # Wire Bond into AlertManager for Sword evaluation
+        alert_manager.set_commander_bond(commander_bond)
+        logger.info("sword_protocol_wired")
+        try:
+            _register_task("commander_bond", lambda: commander_bond.start())
+            logger.info("commander_bond_launched")
+        except Exception as e:
+            logger.error("commander_bond_launch_failed", error=str(e))
 
     # Start Threat Intelligence (LAST — needs refs to other modules)
     threat_intelligence = None
@@ -626,8 +819,7 @@ async def lifespan(app: FastAPI):
         threat_intelligence.set_alert_manager(alert_manager)
 
         try:
-            task = asyncio.create_task(threat_intelligence.start())
-            _module_tasks.append(task)
+            _register_task("threat_intelligence", lambda: threat_intelligence.start())
             logger.info("threat_intelligence_launched")
         except Exception as e:
             logger.error("threat_intelligence_launch_failed", error=str(e))
@@ -667,8 +859,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error("auto_retrain_error", error=str(e))
 
-    retrain_task = asyncio.create_task(_auto_retrain_loop())
-    _module_tasks.append(retrain_task)
+    _register_task("auto_retrain", _auto_retrain_loop)
 
     # Start retention cleanup loop (Phase 9)
     async def _retention_cleanup_loop():
@@ -686,8 +877,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error("retention_cleanup_error", error=str(e))
 
-    retention_task = asyncio.create_task(_retention_cleanup_loop())
-    _module_tasks.append(retention_task)
+    _register_task("retention_cleanup", _retention_cleanup_loop)
 
     # Chunk 11: Threat Forecaster broadcast loop — The Oracle speaks
     async def _forecast_check_loop():
@@ -730,8 +920,46 @@ async def lifespan(app: FastAPI):
                 logger.error("forecast_check_error", error=str(e))
                 await asyncio.sleep(300)
 
-    forecast_task = asyncio.create_task(_forecast_check_loop())
-    _module_tasks.append(forecast_task)
+    _register_task("forecast_check", _forecast_check_loop)
+
+    # Health monitor loop — auto-restarts crashed tasks, broadcasts degradation warnings
+    async def _health_monitor_loop():
+        """Periodic health check of all modules and background tasks."""
+        await asyncio.sleep(60)  # Initial delay
+        while True:
+            try:
+                degraded = []
+                for name, entry in list(_task_registry.items()):
+                    if name == "health_monitor":
+                        continue  # Don't monitor self
+                    task = entry["task"]
+                    if task.done() and not task.cancelled():
+                        if entry["restarts"] < entry["max_restarts"]:
+                            logger.warning("task_auto_restart", task=name, restart_count=entry["restarts"] + 1)
+                            new_task = asyncio.create_task(entry["factory"]())
+                            entry["task"] = new_task
+                            entry["restarts"] += 1
+                        else:
+                            degraded.append(name)
+                            logger.error("task_max_restarts_exceeded", task=name)
+
+                if degraded:
+                    try:
+                        await ws_manager.broadcast({
+                            "type": "health_warning",
+                            "data": {"degraded_tasks": degraded},
+                        })
+                    except Exception as e:
+                        logger.debug("health_warning_broadcast_failed", error=str(e))
+
+                await asyncio.sleep(config.health_monitor_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("health_monitor_error", error=str(e))
+                await asyncio.sleep(60)
+
+    _register_task("health_monitor", _health_monitor_loop)
 
     logger.info("cereberus_started", app=config.app_name)
 
@@ -740,17 +968,29 @@ async def lifespan(app: FastAPI):
     # --- Shutdown ---
     logger.info("cereberus_shutting_down")
 
+    # Broadcast shutdown notice
+    try:
+        await ws_manager.broadcast({"type": "server_shutdown", "data": {"message": "Server shutting down"}})
+    except Exception as e:
+        logger.debug("shutdown_broadcast_failed", error=str(e))
+
     # Stop verification loop
     remediation_engine.stop_verification_loop()
 
     # Stop feed manager
     if _feed_manager_instance:
         try:
-            await _feed_manager_instance.stop()
-        except Exception as e:
+            await asyncio.wait_for(_feed_manager_instance.stop(), timeout=5.0)
+        except (asyncio.TimeoutError, Exception) as e:
             logger.error("feed_manager_stop_failed", error=str(e))
 
-    # Stop all modules
+    # Stop EventBus
+    try:
+        await event_bus.stop()
+    except Exception as e:
+        logger.warning("event_bus_stop_failed", error=str(e))
+
+    # Stop all modules with timeout
     for module, name in [
         (vpn_guardian, "vpn_guardian"),
         (network_sentinel, "network_sentinel"),
@@ -763,19 +1003,35 @@ async def lifespan(app: FastAPI):
         (persistence_scanner, "persistence_scanner"),
         (event_log_monitor, "event_log_monitor"),
         (ransomware_detector, "ransomware_detector"),
+        (memory_scanner, "memory_scanner"),
         (commander_bond, "commander_bond"),
         (agent_smith, "agent_smith"),
         (threat_intelligence, "threat_intelligence"),
     ]:
         if module is not None:
             try:
-                await module.stop()
+                await asyncio.wait_for(module.stop(), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.error(f"{name}_stop_timeout")
             except Exception as e:
                 logger.error(f"{name}_stop_failed", error=str(e))
 
-    # Cancel background tasks
-    for task in _module_tasks:
-        task.cancel()
+    # Cancel all registered tasks
+    for name, entry in _task_registry.items():
+        task = entry["task"]
+        if not task.done():
+            task.cancel()
+
+    # Give tasks a grace period to finish
+    pending = [e["task"] for e in _task_registry.values() if not e["task"].done()]
+    if pending:
+        await asyncio.wait(pending, timeout=3.0)
+
+    # Close all WebSocket connections
+    try:
+        await ws_manager.close_all()
+    except Exception as e:
+        logger.debug("ws_close_all_failed", error=str(e))
 
     # Close database
     await close_engine()
@@ -785,18 +1041,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CEREBERUS",
     description="AI-Powered Cybersecurity Defense System",
-    version="1.2.0",
+    version="1.6.0",
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server (tightened: explicit methods + headers)
+# Register standard error handlers
+register_error_handlers(app)
+
+# CORS — origins from config (tightened: explicit methods + headers)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-    ],
+    allow_origins=[o.strip() for o in config.cors_origins.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-CSRF-Token"],
@@ -814,85 +1069,118 @@ app.add_middleware(GatekeeperMiddleware)
 # Audit middleware — logs mutating requests
 app.add_middleware(AuditMiddleware, session_factory=None)  # session_factory set at startup
 
+# Request ID — correlation IDs on every request (added LAST so it runs FIRST)
+app.add_middleware(RequestIDMiddleware)
+
 # Mount API routes
 app.include_router(api_router)
 app.include_router(websocket_router)
 
+# Serve frontend static files (SPA catch-all) — must be AFTER all API routes
+_frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if _frontend_dist.is_dir():
+    _assets_dir = _frontend_dist / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="static-assets")
 
-@app.get("/")
-async def root():
-    """Root endpoint — health check."""
-    return {
-        "name": config.app_name,
-        "version": "1.0.0",
-        "status": "operational",
-    }
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        """Serve frontend SPA — return index.html for non-API, non-asset paths."""
+        # Skip API and WebSocket paths
+        if full_path.startswith(("api/", "ws/", "health")):
+            return {"detail": "Not found"}
+        # Try to serve static file first
+        file_path = _frontend_dist / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(str(file_path))
+        # Fall back to index.html for SPA routing
+        index_path = _frontend_dist / "index.html"
+        if index_path.is_file():
+            return FileResponse(str(index_path))
+        return {"name": config.app_name, "version": "1.6.0", "status": "operational"}
+else:
+    @app.get("/")
+    async def root():
+        """Root endpoint — health check (no frontend build available)."""
+        return {
+            "name": config.app_name,
+            "version": "1.6.0",
+            "status": "operational",
+        }
 
 
 @app.get("/health")
 async def health():
     """Detailed health check."""
-    vpn = get_vpn_guardian()
-    vpn_health = await vpn.health_check()
 
-    modules = {"vpn_guardian": vpn_health}
+    async def _compute():
+        vpn = get_vpn_guardian()
+        vpn_health = await vpn.health_check()
 
-    if config.module_network_sentinel:
-        ns = get_network_sentinel()
-        modules["network_sentinel"] = await ns.health_check()
+        modules = {"vpn_guardian": vpn_health}
 
-    if config.module_brute_force_shield:
-        bfs = get_brute_force_shield()
-        modules["brute_force_shield"] = await bfs.health_check()
+        if config.module_network_sentinel:
+            ns = get_network_sentinel()
+            modules["network_sentinel"] = await ns.health_check()
 
-    if config.module_file_integrity:
-        fi = get_file_integrity()
-        modules["file_integrity"] = await fi.health_check()
+        if config.module_brute_force_shield:
+            bfs = get_brute_force_shield()
+            modules["brute_force_shield"] = await bfs.health_check()
 
-    if config.module_process_analyzer:
-        pa = get_process_analyzer()
-        modules["process_analyzer"] = await pa.health_check()
+        if config.module_file_integrity:
+            fi = get_file_integrity()
+            modules["file_integrity"] = await fi.health_check()
 
-    if config.module_vuln_scanner:
-        vs = get_vuln_scanner()
-        modules["vuln_scanner"] = await vs.health_check()
+        if config.module_process_analyzer:
+            pa = get_process_analyzer()
+            modules["process_analyzer"] = await pa.health_check()
 
-    if config.module_email_analyzer:
-        ea = get_email_analyzer()
-        modules["email_analyzer"] = await ea.health_check()
+        if config.module_vuln_scanner:
+            vs = get_vuln_scanner()
+            modules["vuln_scanner"] = await vs.health_check()
 
-    if config.module_resource_monitor:
-        rm = get_resource_monitor()
-        modules["resource_monitor"] = await rm.health_check()
+        if config.module_email_analyzer:
+            ea = get_email_analyzer()
+            modules["email_analyzer"] = await ea.health_check()
 
-    if config.module_persistence_scanner:
-        ps = get_persistence_scanner()
-        modules["persistence_scanner"] = await ps.health_check()
+        if config.module_resource_monitor:
+            rm = get_resource_monitor()
+            modules["resource_monitor"] = await rm.health_check()
 
-    if config.module_event_log_monitor:
-        elm = get_event_log_monitor()
-        modules["event_log_monitor"] = await elm.health_check()
+        if config.module_persistence_scanner:
+            ps = get_persistence_scanner()
+            modules["persistence_scanner"] = await ps.health_check()
 
-    if config.module_threat_intelligence:
-        ti = get_threat_intelligence()
-        modules["threat_intelligence"] = await ti.health_check()
+        if config.module_event_log_monitor:
+            elm = get_event_log_monitor()
+            modules["event_log_monitor"] = await elm.health_check()
 
-    if config.module_ransomware_detector:
-        rd = get_ransomware_detector()
-        modules["ransomware_detector"] = await rd.health_check()
+        if config.module_threat_intelligence:
+            ti = get_threat_intelligence()
+            modules["threat_intelligence"] = await ti.health_check()
 
-    if config.module_commander_bond:
-        bond = get_commander_bond()
-        modules["commander_bond"] = await bond.health_check()
+        if config.module_ransomware_detector:
+            rd = get_ransomware_detector()
+            modules["ransomware_detector"] = await rd.health_check()
 
-    if config.module_agent_smith:
-        smith = get_agent_smith()
-        modules["agent_smith"] = await smith.health_check()
+        if config.module_memory_scanner:
+            ms = get_memory_scanner()
+            modules["memory_scanner"] = await ms.health_check()
 
-    return {
-        "status": "healthy",
-        "modules": modules,
-    }
+        if config.module_commander_bond:
+            bond = get_commander_bond()
+            modules["commander_bond"] = await bond.health_check()
+
+        if config.module_agent_smith:
+            smith = get_agent_smith()
+            modules["agent_smith"] = await smith.health_check()
+
+        return {
+            "status": "healthy",
+            "modules": modules,
+        }
+
+    return await _health_cache.get_or_compute("health", _compute, ttl=15.0)
 
 
 def main():

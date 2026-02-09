@@ -51,7 +51,7 @@ export function UserManagementPanel() {
       setUsers(u as UserData[]);
       setRoles(r as RoleData[]);
       setApiKeys(k as ApiKeyData[]);
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -64,13 +64,13 @@ export function UserManagementPanel() {
       setNewUsername('');
       setNewPassword('');
       load();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const assignRole = async (userId: number, roleName: string) => {
     const role = roles.find(r => r.name === roleName);
     if (!role) return;
-    try { await api.assignUserRole(userId, role.id); load(); } catch { /* */ }
+    try { await api.assignUserRole(userId, role.id); load(); } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const generateApiKey = async () => {
@@ -81,11 +81,11 @@ export function UserManagementPanel() {
       setShowGenKey(false);
       setKeyName('');
       load();
-    } catch { /* */ }
+    } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const revokeApiKey = async (keyId: number) => {
-    try { await api.revokeApiKey(keyId); load(); } catch { /* */ }
+    try { await api.revokeApiKey(keyId); load(); } catch (err) { console.error('[CEREBERUS]', err); }
   };
 
   const selected = users.find(u => u.id === selectedUser) || null;

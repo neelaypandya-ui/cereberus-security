@@ -1,6 +1,7 @@
 """IOC matcher — checks observed values against the IOC database with caching."""
 
 import time
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -9,28 +10,40 @@ from ..utils.logging import get_logger
 
 logger = get_logger("intel.ioc_matcher")
 
-# Default cache TTL in seconds
-_CACHE_TTL = 60.0
-
 
 class IOCMatcher:
     """Matches observed network artifacts against the IOC database.
 
-    Uses an in-memory LRU-style cache with a 60-second TTL to minimize
+    Uses an in-memory LRU-style cache with a configurable TTL to minimize
     redundant database queries during high-frequency matching.
     """
 
-    def __init__(self, db_session_factory) -> None:
+    def __init__(self, db_session_factory, config=None) -> None:
         self._session_factory = db_session_factory
+        self._config = config
         # Cache: (ioc_type, value) -> (result_dict | None, timestamp)
         self._cache: dict[tuple[str, str], tuple[dict | None, float]] = {}
+
+    @property
+    def _cache_ttl(self) -> float:
+        """Cache TTL in seconds, from config or default 300."""
+        if self._config is not None:
+            return float(getattr(self._config, "ioc_cache_ttl", 300))
+        return 300.0
+
+    @property
+    def _cache_max_size(self) -> int:
+        """Maximum cache size, from config or default 10000."""
+        if self._config is not None:
+            return getattr(self._config, "ioc_cache_max_size", 10000)
+        return 10000
 
     def _cache_get(self, ioc_type: str, value: str) -> dict | None:
         """Retrieve a cached result if it exists and has not expired."""
         key = (ioc_type, value)
         if key in self._cache:
             result, ts = self._cache[key]
-            if time.monotonic() - ts < _CACHE_TTL:
+            if time.monotonic() - ts < self._cache_ttl:
                 return result
             # Expired — remove
             del self._cache[key]
@@ -41,15 +54,15 @@ class IOCMatcher:
         key = (ioc_type, value)
         self._cache[key] = (result, time.monotonic())
 
-        # Simple eviction: if cache exceeds 10k entries, purge expired
-        if len(self._cache) > 10_000:
+        # Simple eviction: if cache exceeds max size, purge expired
+        if len(self._cache) > self._cache_max_size:
             self._evict_expired()
 
     def _evict_expired(self) -> None:
         """Remove all expired entries from the cache."""
         now = time.monotonic()
         expired_keys = [
-            k for k, (_, ts) in self._cache.items() if now - ts >= _CACHE_TTL
+            k for k, (_, ts) in self._cache.items() if now - ts >= self._cache_ttl
         ]
         for k in expired_keys:
             del self._cache[k]
@@ -91,6 +104,7 @@ class IOCMatcher:
                         IOC.ioc_type == ioc_type,
                         IOC.value.in_(uncached_values),
                         IOC.active == True,  # noqa: E712
+                        IOC.false_positive == False,  # noqa: E712 — Phase 13: exclude FPs
                     )
                 )
                 db_iocs = result.scalars().all()
@@ -101,6 +115,12 @@ class IOCMatcher:
                 for val in uncached_values:
                     if val in found_map:
                         ioc = found_map[val]
+                        # Phase 13: Increment hit_count and update last_hit_at
+                        try:
+                            ioc.hit_count = getattr(ioc, "hit_count", 0) + 1
+                            ioc.last_hit_at = datetime.now(timezone.utc)
+                        except Exception:
+                            pass  # Graceful if columns don't exist yet
                         match_dict = {
                             "ioc_type": ioc.ioc_type,
                             "value": ioc.value,
@@ -111,12 +131,19 @@ class IOCMatcher:
                             "tags_json": ioc.tags_json,
                             "context_json": ioc.context_json,
                             "feed_id": ioc.feed_id,
+                            "confidence": getattr(ioc, "confidence", None),
                         }
                         self._cache_set(ioc_type, val, match_dict)
                         matches.append(match_dict)
                     else:
                         # Cache the miss to avoid re-querying
                         self._cache_set(ioc_type, val, None)
+
+                # Phase 13: Commit hit_count/last_hit_at updates
+                try:
+                    await session.commit()
+                except Exception:
+                    pass  # Non-critical — don't fail matching on hit tracking
 
         except Exception as exc:
             logger.error("ioc_matcher_query_error", ioc_type=ioc_type, error=str(exc))

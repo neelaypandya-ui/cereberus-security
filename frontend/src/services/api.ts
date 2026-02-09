@@ -62,6 +62,13 @@ async function _refreshAndRetry<T>(path: string, options: RequestInit): Promise<
   return null;
 }
 
+// Dev-mode bridge validation registry: path pattern → [contractName, requiredKeys]
+const _bridgeValidationMap: Record<string, [string, string[]]> = {
+  '/smith/status': ['SmithStatusResponse', ['state', 'active', 'events_injected']],
+  '/bond/status': ['BondStatusResponse', ['state', 'active', 'intelligence_level']],
+  '/bond/guardian/status': ['GuardianStatusResponse', ['active', 'status', 'integrity_violations']],
+};
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -88,7 +95,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(error.detail || 'Request failed');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Dev-mode bridge validation
+  if (import.meta.env.DEV) {
+    const entry = _bridgeValidationMap[path];
+    if (entry) {
+      const { validateResponse } = await import('../bridge/validators');
+      validateResponse(data, entry[0], entry[1]);
+    }
+  }
+
+  return data;
 }
 
 export const api = {
@@ -156,9 +174,10 @@ export const api = {
   getRoutes: () => request('/vpn/routes'),
 
   // Alerts
-  getAlerts: (params?: { limit?: number; severity?: string; unacknowledged_only?: boolean; show_dismissed?: boolean; show_snoozed?: boolean }) => {
+  getAlerts: (params?: { limit?: number; offset?: number; severity?: string; unacknowledged_only?: boolean; show_dismissed?: boolean; show_snoozed?: boolean }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.severity) searchParams.set('severity', params.severity);
     if (params?.unacknowledged_only) searchParams.set('unacknowledged_only', 'true');
     if (params?.show_dismissed) searchParams.set('show_dismissed', 'true');
@@ -206,9 +225,12 @@ export const api = {
   },
 
   // Brute Force Shield
-  getBruteForceEvents: (limit?: number) => {
-    const query = limit ? `?limit=${limit}` : '';
-    return request(`/security/brute-force/events${query}`);
+  getBruteForceEvents: (params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString();
+    return request(`/security/brute-force/events${query ? '?' + query : ''}`);
   },
   getBruteForceBlocked: () => request('/security/brute-force/blocked'),
   unblockIp: (ip: string) =>
@@ -293,9 +315,10 @@ export const api = {
   },
 
   // Audit Log
-  getAuditLogs: (params?: { limit?: number; username?: string; action?: string }) => {
+  getAuditLogs: (params?: { limit?: number; offset?: number; username?: string; action?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.username) searchParams.set('username', params.username);
     if (params?.action) searchParams.set('action', params.action);
     const query = searchParams.toString();
@@ -332,9 +355,10 @@ export const api = {
   getAiModels: () => request('/ai/models'),
   rollbackModel: (modelName: string, version: number) =>
     request(`/ai/models/${modelName}/rollback/${version}`, { method: 'POST' }),
-  getAnomalyEvents: (params?: { limit?: number; detector_type?: string; is_anomaly_only?: boolean }) => {
+  getAnomalyEvents: (params?: { limit?: number; offset?: number; detector_type?: string; is_anomaly_only?: boolean }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.detector_type) searchParams.set('detector_type', params.detector_type);
     if (params?.is_anomaly_only) searchParams.set('is_anomaly_only', 'true');
     const query = searchParams.toString();
@@ -351,12 +375,13 @@ export const api = {
     }),
 
   // === Phase 7: Incidents ===
-  getIncidents: (params?: { status?: string; severity?: string; assigned_to?: string; limit?: number }) => {
+  getIncidents: (params?: { status?: string; severity?: string; assigned_to?: string; limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.severity) searchParams.set('severity', params.severity);
     if (params?.assigned_to) searchParams.set('assigned_to', params.assigned_to);
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     const query = searchParams.toString();
     return request(`/incidents/${query ? '?' + query : ''}`);
   },
@@ -392,9 +417,10 @@ export const api = {
   // === Phase 7: Remediation ===
   executeRemediation: (data: { action_type: string; target: string; parameters?: Record<string, unknown>; incident_id?: number }) =>
     request('/remediation/execute', { method: 'POST', body: JSON.stringify(data) }),
-  getRemediationActions: (params?: { limit?: number; status?: string }) => {
+  getRemediationActions: (params?: { limit?: number; offset?: number; status?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.status) searchParams.set('status', params.status);
     const query = searchParams.toString();
     return request(`/remediation/actions${query ? '?' + query : ''}`);
@@ -510,9 +536,10 @@ export const api = {
   getRetentionConfig: () => request('/maintenance/retention'),
 
   // === Phase 11: Event Log ===
-  getEventLogEntries: (params?: { limit?: number; event_type?: string; severity?: string }) => {
+  getEventLogEntries: (params?: { limit?: number; offset?: number; event_type?: string; severity?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.event_type) searchParams.set('event_type', params.event_type);
     if (params?.severity) searchParams.set('severity', params.severity);
     const query = searchParams.toString();
@@ -522,9 +549,12 @@ export const api = {
 
   // === Phase 11: Detection Rules ===
   getDetectionRules: () => request('/detection-rules/'),
-  getDetectionRuleMatches: (limit?: number) => {
-    const query = limit ? `?limit=${limit}` : '';
-    return request(`/detection-rules/matches${query}`);
+  getDetectionRuleMatches: (params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const query = searchParams.toString();
+    return request(`/detection-rules/matches${query ? '?' + query : ''}`);
   },
   getDetectionRuleStats: () => request('/detection-rules/stats'),
 
@@ -571,6 +601,14 @@ export const api = {
   neutralizeAllBondThreats: () =>
     request('/bond/threats/neutralize-all', { method: 'POST' }),
 
+  // === Phase 14: Bond Intelligence + Guardian ===
+  getBondIntelligence: () => request('/bond/intelligence'),
+  markBondThreatIrrelevant: (threatId: string) =>
+    request(`/bond/threats/${encodeURIComponent(threatId)}/irrelevant`, { method: 'POST' }),
+  getBondCorrelations: () => request('/bond/correlations'),
+  getGuardianStatus: () => request('/bond/guardian'),
+  clearGuardianLockdown: () => request('/bond/guardian/clear', { method: 'POST' }),
+
   // === Phase 12: Agent Smith ===
   getSmithStatus: () => request('/smith/status'),
   engageSmith: (data: { intensity?: number; categories?: string[]; duration?: number }) =>
@@ -590,4 +628,110 @@ export const api = {
     const query = limit ? `?limit=${limit}` : '';
     return request(`/network/connection-history${query}`);
   },
+
+  // === Phase 13: IOC Lifecycle ===
+  markIocFalsePositive: (id: number, reason?: string) =>
+    request(`/ioc/${id}/false-positive`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  unmarkIocFalsePositive: (id: number) =>
+    request(`/ioc/${id}/false-positive`, { method: 'DELETE' }),
+  bulkDeactivateIocs: (data: { source?: string; ioc_type?: string; older_than_days?: number }) =>
+    request('/ioc/bulk-deactivate', { method: 'POST', body: JSON.stringify(data) }),
+  getExpiringIocs: (days?: number) => {
+    const query = days ? `?days=${days}` : '';
+    return request(`/ioc/expiring${query}`);
+  },
+  updateIocConfidence: (id: number, confidence: number) =>
+    request(`/ioc/${id}/confidence`, { method: 'PATCH', body: JSON.stringify({ confidence }) }),
+
+  // === Phase 13: Thresholds ===
+  getThresholds: (category?: string) => {
+    const query = category ? `/${category}` : '/';
+    return request(`/thresholds${query}`);
+  },
+  updateThreshold: (key: string, value: number) =>
+    request(`/thresholds/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+
+  // === Phase 13: Timeline & Correlation ===
+  getThreatTimeline: (lookbackMinutes?: number) => {
+    const query = lookbackMinutes ? `?lookback_minutes=${lookbackMinutes}` : '';
+    return request(`/threats/timeline${query}`);
+  },
+  getEventChain: (eventType: string, lookbackMinutes?: number) => {
+    const query = lookbackMinutes ? `?lookback_minutes=${lookbackMinutes}` : '';
+    return request(`/threats/event-chain/${encodeURIComponent(eventType)}${query}`);
+  },
+  getPatternStats: () => request('/threats/pattern-stats'),
+  linkAlertsToIncident: (incidentId: number, alertIds: number[]) =>
+    request(`/incidents/${incidentId}/link-alerts`, {
+      method: 'POST',
+      body: JSON.stringify({ alert_ids: alertIds }),
+    }),
+  getLinkedAlerts: (incidentId: number) =>
+    request(`/incidents/${incidentId}/linked-alerts`),
+
+  // === Phase 15: YARA Q-Branch ===
+  getYaraRules: () => request('/yara/rules'),
+  createYaraRule: (data: { name: string; description?: string; rule_source: string; tags?: string[] }) =>
+    request('/yara/rules', { method: 'POST', body: JSON.stringify(data) }),
+  getYaraRule: (id: number) => request(`/yara/rules/${id}`),
+  updateYaraRule: (id: number, data: Record<string, unknown>) =>
+    request(`/yara/rules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteYaraRule: (id: number) =>
+    request(`/yara/rules/${id}`, { method: 'DELETE' }),
+  compileYaraRules: () =>
+    request('/yara/rules/compile', { method: 'POST' }),
+  scanYaraFile: (path: string) =>
+    request('/yara/scan/file', { method: 'POST', body: JSON.stringify({ path }) }),
+  scanYaraDirectory: (path: string) =>
+    request('/yara/scan/directory', { method: 'POST', body: JSON.stringify({ path }) }),
+  scanYaraProcess: (pid: number) =>
+    request(`/yara/scan/process/${pid}`, { method: 'POST' }),
+  getYaraResults: (limit = 50, offset = 0) =>
+    request(`/yara/results?limit=${limit}&offset=${offset}`),
+  getYaraStats: () => request('/yara/stats'),
+
+  // === Phase 15: Memory Scanner ===
+  getMemoryStatus: () => request('/memory/status'),
+  getMemoryResults: (limit = 50, offset = 0) =>
+    request(`/memory/results?limit=${limit}&offset=${offset}`),
+  triggerMemoryScan: () =>
+    request('/memory/scan', { method: 'POST' }),
+  scanProcessMemory: (pid: number) =>
+    request(`/memory/scan/${pid}`, { method: 'POST' }),
+  getProcessMemoryRegions: (pid: number) =>
+    request(`/memory/scan/${pid}/regions`),
+
+  // === Phase 15: Sword Protocol ===
+  getSwordPolicies: () => request('/bond/sword/policies'),
+  createSwordPolicy: (data: Record<string, unknown>) =>
+    request('/bond/sword/policies', { method: 'POST', body: JSON.stringify(data) }),
+  getSwordPolicy: (id: number) => request(`/bond/sword/policies/${id}`),
+  updateSwordPolicy: (id: number, data: Record<string, unknown>) =>
+    request(`/bond/sword/policies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteSwordPolicy: (id: number) =>
+    request(`/bond/sword/policies/${id}`, { method: 'DELETE' }),
+  toggleSwordPolicy: (id: number) =>
+    request(`/bond/sword/policies/${id}/toggle`, { method: 'PATCH' }),
+  getSwordLogs: (limit = 50, offset = 0) =>
+    request(`/bond/sword/logs?limit=${limit}&offset=${offset}`),
+  getSwordStats: () => request('/bond/sword/stats'),
+  enableSword: () =>
+    request('/bond/sword/enable', { method: 'POST' }),
+  disableSword: () =>
+    request('/bond/sword/disable', { method: 'POST' }),
+  swordLockout: () =>
+    request('/bond/sword/lockout', { method: 'POST' }),
+  swordClearLockout: () =>
+    request('/bond/sword/clear', { method: 'POST' }),
+  testSwordPolicy: (id: number, data?: Record<string, unknown>) =>
+    request(`/bond/sword/test/${id}`, { method: 'POST', body: JSON.stringify(data || {}) }),
+
+  // === Phase 15: Overwatch ===
+  getOverwatchStatus: () => request('/bond/overwatch/status'),
+  getOverwatchIntegrity: () => request('/bond/overwatch/integrity'),
+  triggerOverwatchCheck: () =>
+    request('/bond/overwatch/check', { method: 'POST' }),
 };

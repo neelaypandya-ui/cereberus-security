@@ -19,12 +19,12 @@ export function AnalyticsPanel() {
   const [moduleActivity, setModuleActivity] = useState<Array<{ module: string; count: number }>>([]);
 
   useEffect(() => {
-    api.getAlertTrend(24).then((d: unknown) => setAlertTrend(d as typeof alertTrend)).catch(() => {});
-    api.getSeverityDistribution().then((d: unknown) => setSeverityDist(d as typeof severityDist)).catch(() => {});
-    api.getModuleActivity().then((d: unknown) => setModuleActivity(d as typeof moduleActivity)).catch(() => {});
+    api.getAlertTrend(24).then((d: unknown) => setAlertTrend(d as typeof alertTrend)).catch((err) => console.error('[CEREBERUS]', err));
+    api.getSeverityDistribution().then((d: unknown) => setSeverityDist(d as typeof severityDist)).catch((err) => console.error('[CEREBERUS]', err));
+    api.getModuleActivity().then((d: unknown) => setModuleActivity(d as typeof moduleActivity)).catch((err) => console.error('[CEREBERUS]', err));
 
     const interval = setInterval(() => {
-      api.getAlertTrend(24).then((d: unknown) => setAlertTrend(d as typeof alertTrend)).catch(() => {});
+      api.getAlertTrend(24).then((d: unknown) => setAlertTrend(d as typeof alertTrend)).catch((err) => console.error('[CEREBERUS]', err));
     }, 60000);
     return () => clearInterval(interval);
   }, []);

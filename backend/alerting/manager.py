@@ -39,6 +39,9 @@ class AlertManager:
         self._playbook_executor = None
         self._notification_dispatcher = None
 
+        # Phase 15: Bond Sword integration
+        self._commander_bond = None
+
     def set_db_session_factory(self, factory) -> None:
         """Set the async session factory for database persistence."""
         self._db_session_factory = factory
@@ -50,6 +53,10 @@ class AlertManager:
     def set_notification_dispatcher(self, dispatcher) -> None:
         """Attach the NotificationDispatcher for multi-channel alerts."""
         self._notification_dispatcher = dispatcher
+
+    def set_commander_bond(self, bond) -> None:
+        """Attach Commander Bond for Sword Protocol evaluation on alerts."""
+        self._commander_bond = bond
 
     def _alert_dedup_key(self, severity: str, module_source: str, title: str, details: dict | None) -> str:
         """Create an MD5 hash deduplication key from alert fields.
@@ -158,6 +165,21 @@ class AlertManager:
                     await self._notification_dispatcher.dispatch(event_type, alert)
             except Exception as e:
                 logger.error("notification_dispatch_failed", error=str(e))
+
+        # Phase 15: Evaluate via Sword Protocol (avoid recursion — skip sword's own alerts)
+        if self._commander_bond and module_source != "sword_protocol":
+            try:
+                event = {
+                    "event_type": "alert",
+                    "source_module": module_source,
+                    "module_source": module_source,
+                    "severity": severity,
+                    "title": title,
+                    "details": details or {},
+                }
+                await self._commander_bond.evaluate_alert(event)
+            except Exception as e:
+                logger.error("sword_eval_on_alert_failed", error=str(e))
 
         return alert
 

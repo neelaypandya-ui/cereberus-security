@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
+import { api } from '../services/api';
 
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'] as const;
@@ -12,7 +13,7 @@ export function useSessionTimeout(onTimeout?: () => void) {
   const timerRef = useRef<number | null>(null);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('cereberus_token');
+    api.logout().catch((err) => console.error('[SESSION] Logout failed:', err));
     if (onTimeout) {
       onTimeout();
     } else {
@@ -28,9 +29,8 @@ export function useSessionTimeout(onTimeout?: () => void) {
   }, [handleLogout]);
 
   useEffect(() => {
-    // Only activate if user is authenticated
-    const token = localStorage.getItem('cereberus_token');
-    if (!token) return;
+    // Only activate if not on login page
+    if (window.location.pathname === '/login') return;
 
     resetTimer();
 

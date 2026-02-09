@@ -186,10 +186,27 @@ class RetentionManager:
                 cutoff_days=retention_days,
             )
 
+            # --- IOCs (auto-expire) --- Phase 13
+            try:
+                from sqlalchemy import update
+                from ..models.ioc import IOC
+                expired_result = await session.execute(
+                    update(IOC)
+                    .where(IOC.expires_at < now, IOC.active == True)
+                    .values(active=False)
+                )
+                summary["iocs_expired"] = expired_result.rowcount
+                logger.info(
+                    "retention_cleanup",
+                    table="iocs_expired",
+                    deactivated=expired_result.rowcount,
+                )
+            except Exception as e:
+                logger.warning("retention_ioc_expire_skipped", error=str(e))
+
             # --- IOCs (inactive) ---
             retention_days = getattr(self._config, "retention_iocs_days", 180)
             cutoff = now - timedelta(days=retention_days)
-            from ..models.ioc import IOC
 
             result = await session.execute(
                 delete(IOC).where(
