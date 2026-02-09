@@ -570,7 +570,7 @@ td code { font-size: 13px; }
       <div class="online-dot"></div>
       <span class="online-text">DOCUMENTATION</span>
     </div>
-    <div class="version">VERSION 1.2.0</div>
+    <div class="version">VERSION 1.6.0</div>
   </div>
 
   <div class="nav-section">
@@ -605,6 +605,7 @@ td code { font-size: 13px; }
     <a href="#detect-rules" class="nav-link">DETECT RULES</a>
     <a href="#cmdr-bond" class="nav-link">CMDR BOND</a>
     <a href="#agent-smith" class="nav-link">AGENT SMITH</a>
+    <a href="#mem-recon" class="nav-link">MEM RECON</a>
   </div>
 
   <div class="nav-section">
@@ -616,6 +617,11 @@ td code { font-size: 13px; }
     <a href="#detection-rules" class="nav-link">Detection Rules</a>
     <a href="#ransomware-detect" class="nav-link">Ransomware Detection</a>
     <a href="#c2-beaconing" class="nav-link">C2 Beaconing</a>
+    <a href="#yara-scanning" class="nav-link">YARA Scanning</a>
+    <a href="#memory-scanning" class="nav-link">Memory Scanning</a>
+    <a href="#sword-protocol" class="nav-link">Sword Protocol</a>
+    <a href="#overwatch" class="nav-link">Overwatch</a>
+    <a href="#event-bus" class="nav-link">EventBus</a>
     <a href="#roles" class="nav-link">User Roles</a>
     <a href="#glossary" class="nav-link">Glossary</a>
   </div>
@@ -641,13 +647,13 @@ td code { font-size: 13px; }
   <div class="logo">CEREBERUS</div>
   <div class="subtitle">AI-Powered Cybersecurity Defense System</div>
   <div class="defense-net">DEFENSE NETWORK</div>
-  <div class="ver">v1.2.0 &mdash; System Documentation &amp; User Guide</div>
-  <div style="margin-top: 16px; display: inline-flex; gap: 12px;">
+  <div class="ver">v1.6.0 &mdash; System Documentation &amp; User Guide</div>
+  <div style="margin-top: 16px; display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
     <span class="stamp-badge stamp-cleared">ACTIVE</span>
-    <span class="stamp-badge stamp-routine">23 PANELS</span>
-    <span class="stamp-badge stamp-routine">32 DB TABLES</span>
-    <span class="stamp-badge stamp-routine">14 MODULES</span>
-    <span class="stamp-badge stamp-routine">42 DETECTION RULES</span>
+    <span class="stamp-badge stamp-routine">25 PANELS</span>
+    <span class="stamp-badge stamp-routine">37 DB TABLES</span>
+    <span class="stamp-badge stamp-routine">16 MODULES</span>
+    <span class="stamp-badge stamp-routine">50 DETECTION RULES</span>
   </div>
 </div>
 
@@ -676,14 +682,17 @@ td code { font-size: 13px; }
   <li><strong>Ransomware</strong> &mdash; Programs that encrypt your files and demand payment, detected via canary files, shadow copy deletion, and mass encryption patterns</li>
   <li><strong>LOLBin abuse</strong> &mdash; Attackers using legitimate Windows tools (certutil, mshta, rundll32, etc.) for malicious purposes</li>
   <li><strong>C2 beaconing</strong> &mdash; Malware phoning home to command-and-control servers at regular intervals</li>
+  <li><strong>Memory injection</strong> &mdash; Code injected into running processes (RWX regions, unbacked executable memory, injected DLLs, shellcode)</li>
+  <li><strong>YARA-matched threats</strong> &mdash; Files and processes matching known malware signatures, webshells, ransomware indicators, and suspicious strings</li>
 </ul>
 
 <h3>Tech stack (for developers)</h3>
 <ul>
-  <li><strong>Backend:</strong> Python + FastAPI (async), SQLAlchemy, aiosqlite (32 database tables), aiohttp (OSINT feeds)</li>
-  <li><strong>Frontend:</strong> React 18 + TypeScript, Recharts for visualization</li>
-  <li><strong>AI/ML:</strong> PyTorch (Autoencoder, LSTM), scikit-learn (Isolation Forest), Z-Score statistics</li>
-  <li><strong>Real-time:</strong> WebSocket for live updates across all panels</li>
+  <li><strong>Backend:</strong> Python 3.14 + FastAPI (async), SQLAlchemy, aiosqlite (37 database tables), aiohttp (OSINT feeds), PyJWT</li>
+  <li><strong>Frontend:</strong> React 18 + TypeScript, Recharts for visualization, Vite build system, vitest for testing</li>
+  <li><strong>AI/ML:</strong> PyTorch (Autoencoder, LSTM), scikit-learn (Isolation Forest), Z-Score statistics, 50 rule-based detections</li>
+  <li><strong>Scanning:</strong> YARA (61 signatures across 4 rule files), Win32 memory scanner (ctypes), Windows Event Log (EvtSubscribe + PowerShell fallback)</li>
+  <li><strong>Real-time:</strong> WebSocket for live updates across all panels, async EventBus pub/sub</li>
 </ul>
 </section>
 
@@ -701,13 +710,13 @@ td code { font-size: 13px; }
 </ul>
 
 <div class="warning-box">
-  <p style="margin:0">You will be prompted to change the default password on first login. The system requires a minimum of 12 characters. Anyone who knows the defaults can access your entire security system &mdash; change it immediately.</p>
+  <p style="margin:0">You will be <strong>redirected to a Change Password page</strong> on first login. The system requires a minimum of 12 characters. All API access is blocked until the password is changed. Registration is locked after the first user is created &mdash; additional users must be added by an admin from the PERSONNEL panel.</p>
 </div>
 
 <h3>Dashboard Layout</h3>
 <p>Once logged in, you'll see the Cereberus dashboard with these key areas:</p>
 <ul>
-  <li><strong>Left Sidebar</strong> &mdash; Navigation menu with 23 panels. Each panel has a green, amber, or red dot showing its health status. Click any item to switch panels.</li>
+  <li><strong>Left Sidebar</strong> &mdash; Navigation menu with 25 panels. Each panel has a green, amber, or red dot showing its health status. Click any item to switch panels.</li>
   <li><strong>Top Bar</strong> &mdash; Shows the current panel name, a search bar, a UTC clock, system uptime counter, and the notification bell.</li>
   <li><strong>Main Area</strong> &mdash; The content of whichever panel you've selected.</li>
   <li><strong>Bottom Ticker</strong> &mdash; A scrolling feed of the most recent security events.</li>
@@ -749,7 +758,7 @@ td code { font-size: 13px; }
 <!-- DASHBOARD PANELS -->
 <!-- ============================================================ -->
 <h2 style="margin-top:80px" id="panels-intro">Dashboard Panels</h2>
-<p>Cereberus has 20 panels, each focused on a specific aspect of your security. Below is a detailed guide to every panel &mdash; what it shows, what it means, and what you can do.</p>
+<p>Cereberus has 25 panels, each focused on a specific aspect of your security. Below is a detailed guide to every panel &mdash; what it shows, what it means, and what you can do.</p>
 
 <!-- ==================== CMD CENTER ==================== -->
 <section id="cmd-center">
@@ -773,11 +782,11 @@ td code { font-size: 13px; }
       <ul>
         <li><em>Active Connections</em> &mdash; How many network connections your computer currently has</li>
         <li><em>Flagged Threats</em> &mdash; Number of suspicious network connections detected</li>
-        <li><em>Modules Online</em> &mdash; How many of the 11 security modules are running</li>
+        <li><em>Modules Online</em> &mdash; How many of the 16 security modules are running</li>
         <li><em>Open Alerts</em> &mdash; How many unacknowledged security alerts exist</li>
       </ul>
     </li>
-    <li><strong>Station Status</strong> &mdash; A grid showing all 11 security modules with colored health dots (green = running, red = error, gray = offline)</li>
+    <li><strong>Station Status</strong> &mdash; A grid showing all 16 security modules with colored health dots (green = running, red = error, gray = offline)</li>
     <li><strong>SIGINT Feed</strong> &mdash; The 8 most recent security alerts with priority stamps</li>
   </ul>
 
@@ -903,7 +912,7 @@ td code { font-size: 13px; }
   </div>
 
   <h4>What is this?</h4>
-  <p>This is the intelligence hub. It takes events from all 10 security modules and connects the dots to identify complex attack patterns that no single module could detect alone. It also manages your Indicator of Compromise (IOC) database and external threat feeds.</p>
+  <p>This is the intelligence hub. It takes events from all 16 security modules and connects the dots to identify complex attack patterns that no single module could detect alone. It also manages your Indicator of Compromise (IOC) database and external threat feeds.</p>
 
   <div class="analogy-box"><p style="margin:0">Like a detective's evidence board with strings connecting clues from different crime scenes. One clue alone means nothing, but when you connect three clues together, you see the whole picture.</p></div>
 
@@ -1289,11 +1298,11 @@ td code { font-size: 13px; }
   </div>
 
   <h4>What is this?</h4>
-  <p>Shows the on/off status of all 11 security modules and lets you enable or disable them individually.</p>
+  <p>Shows the on/off status of all 16 security modules and lets you enable or disable them individually.</p>
 
   <div class="analogy-box"><p style="margin:0">Like the breaker box in your house. Each breaker controls a different system (lights, outlets, HVAC). You can flip individual breakers on or off.</p></div>
 
-  <h4>The 11 modules</h4>
+  <h4>The 16 modules</h4>
   <table>
     <tr><th>Module</th><th>What it does</th></tr>
     <tr><td>VPN Guardian</td><td>Monitors VPN connection and checks for leaks</td></tr>
@@ -1306,7 +1315,12 @@ td code { font-size: 13px; }
     <tr><td>Resource Monitor</td><td>Tracks CPU, memory, disk, and network usage</td></tr>
     <tr><td>Persistence Scanner</td><td>Watches for malware hiding in startup locations</td></tr>
     <tr><td>Threat Intelligence</td><td>Correlates events across all modules to find complex threats</td></tr>
-    <tr><td>Event Log Monitor</td><td>Monitors Windows Security, System, and Sysmon event logs for indicators of compromise</td></tr>
+    <tr><td>Event Log Monitor</td><td>Monitors Windows Security, System, and Sysmon event logs via EvtSubscribe</td></tr>
+    <tr><td>Ransomware Detector</td><td>Canary files, shadow copy deletion, and mass encryption pattern detection</td></tr>
+    <tr><td>Disk Analyzer</td><td>Security-focused disk cleanup and large file scanning</td></tr>
+    <tr><td>Commander Bond</td><td>Autonomous OSINT threat intelligence with 6 feed sources</td></tr>
+    <tr><td>Agent Smith</td><td>Controlled adversary simulator for detection testing</td></tr>
+    <tr><td>Memory Scanner</td><td>Win32 memory inspection for code injection, shellcode, and YARA scanning</td></tr>
   </table>
 
   <div class="action-box"><p style="margin:0">Click the toggle button on any module card to enable or disable it. A green glowing LED means the module is online.</p></div>
@@ -1383,13 +1397,13 @@ td code { font-size: 13px; }
   </div>
 
   <h4>What is this?</h4>
-  <p>A dashboard for Cereberus's 42 hardcoded detection rules mapped to the MITRE ATT&amp;CK framework. View every rule, see recent matches in real time, and analyze detection patterns across categories.</p>
+  <p>A dashboard for Cereberus's 50 hardcoded detection rules mapped to the MITRE ATT&amp;CK framework across ~43 techniques. View every rule, see recent matches in real time, and analyze detection patterns across categories.</p>
 
   <div class="analogy-box"><p style="margin:0">Like a command center display board showing every sensor in the building &mdash; which ones have been triggered, how often, and what category of threat they detected.</p></div>
 
   <h4>What am I looking at?</h4>
   <ul>
-    <li><strong>RULES tab</strong> &mdash; Table of all 42 rules with ID, name, severity badge, MITRE category, and description. Covers 11 MITRE ATT&amp;CK categories: credential access, lateral movement, persistence, execution, defense evasion, exfiltration, privilege escalation, reconnaissance, impact, collection, and command &amp; control.</li>
+    <li><strong>RULES tab</strong> &mdash; Table of all 50 rules with ID, name, severity badge, MITRE category, and description. Covers 13 MITRE ATT&amp;CK categories: credential access, lateral movement, persistence, execution, defense evasion, exfiltration, privilege escalation, reconnaissance, impact, collection, command &amp; control, initial access, and discovery.</li>
     <li><strong>MATCHES tab</strong> &mdash; Live feed of recent rule matches with timestamp, rule ID, matched event details, and explanation. Auto-refreshes every 10 seconds.</li>
     <li><strong>ANALYTICS tab</strong> &mdash; Bar chart of match counts by category and severity breakdown, showing which types of threats are being detected most frequently.</li>
   </ul>
@@ -1424,20 +1438,35 @@ td code { font-size: 13px; }
     <li><strong>MalwareBazaar</strong> &mdash; Recent malware samples with signatures and hashes</li>
   </ul>
 
-  <h4>What am I looking at?</h4>
+  <h4>Seven tabs</h4>
   <ul>
-    <li><strong>Status Header</strong> &mdash; Bond's operational state (IN THE FIELD / STANDING BY / OFFLINE), last scan time, countdown to next scan, and active threat count.</li>
     <li><strong>BRIEFING tab</strong> &mdash; Latest intelligence report with Bond's summary, threat dossier cards showing severity, category, source, Bond's assessment text, collapsible IOC lists, and copy-paste Cereberus remediation prompts. Includes a <strong>NEUTRALIZE ALL</strong> button to clear reviewed threats.</li>
     <li><strong>DOSSIERS tab</strong> &mdash; Historical reports table filterable by category and severity. Expand any report to see individual threat cards. Each threat has a <strong>NEUTRALIZE</strong> button to remove it from the UI after you've addressed it.</li>
     <li><strong>OPERATIONS tab</strong> &mdash; <strong>DEPLOY BOND</strong> button for on-demand scans, scan interval display, and mission history log.</li>
+    <li><strong>GUARDIAN tab</strong> &mdash; Guardian Protocol status showing autonomous threat monitoring and IntelligenceBrain analysis. Displays Bond's continuous evaluation of all incoming alerts and recommended responses.</li>
+    <li><strong>Q-BRANCH tab</strong> <em>(New in v1.5.0)</em> &mdash; YARA rule management interface. View all 61 YARA signatures across 4 categories (malware, webshells, suspicious strings, ransomware), create custom rules, trigger file/directory scans, and review scan results. Each rule shows its name, category, match count, and full source code.</li>
+    <li><strong>SWORD PROTOCOL tab</strong> <em>(New in v1.5.0)</em> &mdash; Autonomous response policies. Five pre-built policies (THUNDERBALL/ransomware, GOLDENEYE/C2, SKYFALL/credential dump, SPECTRE/YARA match, GHOST PROTOCOL/memory injection) with customizable escalation chains. Toggle policies on/off, set cooldowns, view execution history, and monitor the global lockout status.</li>
+    <li><strong>OVERWATCH tab</strong> <em>(New in v1.5.0)</em> &mdash; File integrity monitoring for Cereberus's own backend code. SHA-256 baselines of all backend .py files with periodic tamper detection. Shows baseline status, last check time, and any integrity violations. If an attacker modifies Cereberus's code, Overwatch sounds the alarm.</li>
   </ul>
 
   <h4>Threat Neutralization</h4>
   <p>Once you've reviewed a threat and taken the recommended action (added detection rules, updated IOC database, etc.), click <strong>NEUTRALIZE</strong> on that threat to remove it from all Bond views. Use <strong>NEUTRALIZE ALL</strong> to clear the entire dossier after a full review. Neutralized threats stay in memory but are hidden from the UI to avoid confusion.</p>
 
+  <h4>Sword Protocol Policies</h4>
+  <p>Each Sword policy defines an autonomous response chain that Bond executes when matching threats are detected:</p>
+  <table>
+    <tr><th>Policy</th><th>Trigger</th><th>Response Chain</th></tr>
+    <tr><td>THUNDERBALL</td><td>Ransomware detection</td><td>Kill process &rarr; quarantine file &rarr; isolate network</td></tr>
+    <tr><td>GOLDENEYE</td><td>C2 beaconing confirmed</td><td>Block IP &rarr; kill process</td></tr>
+    <tr><td>SKYFALL</td><td>Credential dumping (LSASS/SAM)</td><td>Kill process &rarr; block IP</td></tr>
+    <tr><td>SPECTRE</td><td>YARA signature match</td><td>Quarantine file &rarr; kill process</td></tr>
+    <tr><td>GHOST PROTOCOL</td><td>Memory injection detected</td><td>Kill process &rarr; quarantine file</td></tr>
+  </table>
+  <p>Policies include rate limiting, cooldown periods, and a global lockout feature to prevent runaway automation.</p>
+
   <div class="tip-box"><p style="margin:0">Each threat dossier includes a <strong>CEREBERUS PROMPT</strong> &mdash; a ready-to-paste instruction for Claude Code that tells it exactly what detection rules, IOC entries, or scanner signatures to add. Click COPY and paste it into your next Claude Code session.</p></div>
 
-  <div class="warning-box"><p style="margin:0">Bond creates <strong>CRITICAL alerts</strong> on the Threat Board for every critical-severity threat found. These are real alerts from real threat feeds. Review them promptly.</p></div>
+  <div class="warning-box"><p style="margin:0">Bond creates <strong>CRITICAL alerts</strong> on the Threat Board for every critical-severity threat found. These are real alerts from real threat feeds. Review them promptly. The Sword Protocol will autonomously respond to matching threats if enabled.</p></div>
 </div>
 </section>
 
@@ -1493,6 +1522,44 @@ td code { font-size: 13px; }
 </section>
 
 <!-- ============================================================ -->
+<!-- MEMORY SCANNER PANEL -->
+<!-- ============================================================ -->
+<section id="mem-recon">
+<div class="card">
+  <div class="panel-header">
+    <span class="panel-code">MEM-24</span>
+    <span class="panel-label">MEM RECON</span>
+    <span class="panel-name">Memory Scanner</span>
+  </div>
+
+  <h4>What is this?</h4>
+  <p>This panel performs deep inspection of running process memory to detect code injection, shellcode, reflective DLL loading, and other memory-resident threats that evade traditional file-based scanning. It uses Win32 API calls (VirtualQueryEx, ReadProcessMemory, EnumProcessModules) to examine every memory region of every process.</p>
+
+  <div class="analogy-box"><p style="margin:0">Like an X-ray machine that can see inside every person in the building. Even if an intruder has a perfect disguise (legitimate-looking process), the X-ray reveals hidden weapons (injected code) they're carrying in their pockets (memory regions).</p></div>
+
+  <h4>Five detection techniques</h4>
+  <ul>
+    <li><strong>RWX Regions</strong> &mdash; Memory regions with Read+Write+Execute permissions. Legitimate programs rarely need this; malware uses it to write and execute shellcode in the same memory block.</li>
+    <li><strong>Unbacked Executable Memory</strong> &mdash; Executable memory regions not backed by a file on disk. This is the hallmark of reflective DLL injection and fileless malware.</li>
+    <li><strong>Injected DLLs</strong> &mdash; DLL modules loaded into a process that don't match the process's expected module list. Attackers inject malicious DLLs into legitimate processes to hide.</li>
+    <li><strong>Shellcode Patterns</strong> &mdash; Known byte sequences (NOP sleds, common shellcode prologues, API resolution stubs) found in executable memory regions.</li>
+    <li><strong>YARA Memory Scan</strong> &mdash; Applies all 61 YARA rules against process memory buffers, catching known malware signatures even when they exist only in memory.</li>
+  </ul>
+
+  <h4>What am I looking at?</h4>
+  <ul>
+    <li><strong>Scan Status</strong> &mdash; Module health, last scan time, number of processes scanned, total findings</li>
+    <li><strong>Findings Table</strong> &mdash; Each finding shows: process name, PID, detection type, memory address range, severity, and details</li>
+    <li><strong>Process Detail</strong> &mdash; Click a finding to see the full memory region layout and matched patterns</li>
+  </ul>
+
+  <div class="action-box"><p style="margin:0">Click <strong>SCAN NOW</strong> to trigger an immediate memory scan of all running processes. The scan typically takes 10-30 seconds depending on the number of running processes.</p></div>
+
+  <div class="warning-box"><p style="margin:0">Memory scanner findings are <strong>high-confidence</strong>. If you see RWX regions or unbacked executable memory in a process that shouldn't have them, treat it as a potential active compromise. Cross-reference with the ASSET TRKR panel to check the process tree.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
 <!-- HOW THE AI WORKS -->
 <!-- ============================================================ -->
 <section id="how-ai-works">
@@ -1535,7 +1602,7 @@ td code { font-size: 13px; }
 <p>The <strong>LSTM (Long Short-Term Memory) forecaster</strong> is an AI that looks at patterns in past data to predict what might happen next. If it sees a pattern that historically preceded an attack, it can warn you before the attack happens.</p>
 
 <h3>Rule-Based Detection</h3>
-<p>Alongside the AI models, Cereberus runs <strong>42 hardcoded detection rules</strong> mapped to the MITRE ATT&amp;CK framework across <strong>11 categories</strong>. While the AI catches unknown anomalies, these rules catch known attack patterns instantly &mdash; credential dumping tools, LOLBin abuse, ransomware indicators, C2 tool signatures, encoded PowerShell commands, event log tampering, and more. See the <a href="#detection-rules">Detection Rules</a> section for the full list.</p>
+<p>Alongside the AI models, Cereberus runs <strong>50 hardcoded detection rules</strong> mapped to the MITRE ATT&amp;CK framework across <strong>13 categories</strong> covering ~43 MITRE techniques. While the AI catches unknown anomalies, these rules catch known attack patterns instantly &mdash; credential dumping tools, LOLBin abuse, ransomware indicators, C2 tool signatures, encoded PowerShell commands, event log tampering, and more. Additionally, <strong>14 correlation patterns</strong> identify multi-stage attacks that span multiple modules. See the <a href="#detection-rules">Detection Rules</a> section for the full list.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -1544,25 +1611,57 @@ td code { font-size: 13px; }
 <section id="event-log">
 <h2>Windows Event Log Monitor</h2>
 
-<p>Cereberus continuously monitors Windows Event Logs for signs of compromise. It reads from three channels &mdash; Security, System, and Sysmon &mdash; and flags suspicious activity automatically.</p>
+<p>Cereberus continuously monitors Windows Event Logs for signs of compromise. It uses <strong>EvtSubscribe</strong> (native Windows API via ctypes) as the primary method with PowerShell polling as a fallback. It reads from three channels &mdash; Security, System, and Sysmon &mdash; and flags suspicious activity automatically. Events are published to the <a href="#event-bus">EventBus</a> for real-time consumption by all modules.</p>
 
 <div class="analogy-box"><p style="margin:0">Windows keeps a security diary of everything that happens on your computer &mdash; who logged in, what programs started, what services were installed. The Event Log Monitor reads this diary in real time and highlights anything suspicious, like a detective reading through security camera footage.</p></div>
 
 <h3>What it watches</h3>
+
+<h4>Security Event IDs (13 events)</h4>
 <table>
-  <tr><th>Event ID</th><th>Channel</th><th>What it means</th><th>Default Severity</th></tr>
-  <tr><td>4688</td><td>Security</td><td>A new process was created</td><td>Low</td></tr>
-  <tr><td>4672</td><td>Security</td><td>Special privileges assigned (potential privilege escalation)</td><td>Critical</td></tr>
-  <tr><td>4624</td><td>Security</td><td>Successful logon</td><td>Info</td></tr>
-  <tr><td>4625</td><td>Security</td><td>Failed logon attempt</td><td>Medium</td></tr>
-  <tr><td>4720</td><td>Security</td><td>A new user account was created</td><td>High</td></tr>
-  <tr><td>4732</td><td>Security</td><td>User added to a security group</td><td>High</td></tr>
-  <tr><td>7045</td><td>System</td><td>A new service was installed</td><td>Medium</td></tr>
-  <tr><td>7040</td><td>System</td><td>A service's start type was changed</td><td>Low</td></tr>
-  <tr><td>Sysmon 1</td><td>Sysmon</td><td>Process created (detailed)</td><td>Low</td></tr>
-  <tr><td>Sysmon 3</td><td>Sysmon</td><td>Network connection made</td><td>Low</td></tr>
-  <tr><td>Sysmon 11</td><td>Sysmon</td><td>File created</td><td>Low</td></tr>
-  <tr><td>Sysmon 13</td><td>Sysmon</td><td>Registry value modified</td><td>Low</td></tr>
+  <tr><th>Event ID</th><th>What it means</th><th>Default Severity</th></tr>
+  <tr><td>4624</td><td>Successful logon</td><td>Info</td></tr>
+  <tr><td>4625</td><td>Failed logon attempt</td><td>Medium</td></tr>
+  <tr><td>4672</td><td>Special privileges assigned (potential privilege escalation)</td><td>Critical</td></tr>
+  <tr><td>4688</td><td>A new process was created</td><td>Low</td></tr>
+  <tr><td>4720</td><td>A new user account was created</td><td>High</td></tr>
+  <tr><td>4732</td><td>User added to a security group</td><td>High</td></tr>
+  <tr><td>4733</td><td>User removed from a security group</td><td>Medium</td></tr>
+  <tr><td>4768</td><td>Kerberos TGT requested</td><td>Info</td></tr>
+  <tr><td>4769</td><td>Kerberos service ticket requested</td><td>Info</td></tr>
+  <tr><td>4771</td><td>Kerberos pre-auth failed</td><td>Medium</td></tr>
+  <tr><td>4776</td><td>NTLM authentication attempt</td><td>Low</td></tr>
+  <tr><td>4728</td><td>User added to global group</td><td>High</td></tr>
+  <tr><td>4756</td><td>User added to universal group</td><td>High</td></tr>
+</table>
+
+<h4>System Event IDs (2 events)</h4>
+<table>
+  <tr><th>Event ID</th><th>What it means</th><th>Default Severity</th></tr>
+  <tr><td>7045</td><td>A new service was installed</td><td>Medium</td></tr>
+  <tr><td>7040</td><td>A service's start type was changed</td><td>Low</td></tr>
+</table>
+
+<h4>Sysmon Event IDs (17 events)</h4>
+<table>
+  <tr><th>Event ID</th><th>What it means</th><th>Default Severity</th></tr>
+  <tr><td>Sysmon 1</td><td>Process created (detailed command line, hashes)</td><td>Low</td></tr>
+  <tr><td>Sysmon 3</td><td>Network connection made</td><td>Low</td></tr>
+  <tr><td>Sysmon 5</td><td>Process terminated</td><td>Info</td></tr>
+  <tr><td>Sysmon 6</td><td>Driver loaded</td><td>Low</td></tr>
+  <tr><td>Sysmon 7</td><td>Image loaded (DLL)</td><td>Info</td></tr>
+  <tr><td>Sysmon 8</td><td>CreateRemoteThread (code injection indicator)</td><td>High</td></tr>
+  <tr><td>Sysmon 10</td><td>ProcessAccess (LSASS access = credential dumping)</td><td>Critical</td></tr>
+  <tr><td>Sysmon 11</td><td>File created</td><td>Low</td></tr>
+  <tr><td>Sysmon 12</td><td>Registry key/value created or deleted</td><td>Low</td></tr>
+  <tr><td>Sysmon 13</td><td>Registry value modified</td><td>Low</td></tr>
+  <tr><td>Sysmon 15</td><td>Alternate Data Stream (ADS) created</td><td>Medium</td></tr>
+  <tr><td>Sysmon 17</td><td>Named pipe created</td><td>Low</td></tr>
+  <tr><td>Sysmon 18</td><td>Named pipe connected</td><td>Low</td></tr>
+  <tr><td>Sysmon 22</td><td>DNS query</td><td>Info</td></tr>
+  <tr><td>Sysmon 23</td><td>File delete archived</td><td>Low</td></tr>
+  <tr><td>Sysmon 25</td><td>Process tampering (hollow/herpaderp)</td><td>Critical</td></tr>
+  <tr><td>Sysmon 26</td><td>File delete logged</td><td>Low</td></tr>
 </table>
 
 <h3>Smart Severity Elevation</h3>
@@ -1584,7 +1683,7 @@ td code { font-size: 13px; }
 <section id="detection-rules">
 <h2>Rule-Based Detection Engine</h2>
 
-<p>In addition to the AI-based anomaly detection, Cereberus includes <strong>42 hardcoded detection rules</strong> across <strong>11 MITRE ATT&amp;CK categories</strong> that catch known attack patterns instantly. These rules are the backbone of Cereberus's deterministic detection layer.</p>
+<p>In addition to the AI-based anomaly detection, Cereberus includes <strong>50 hardcoded detection rules</strong> across <strong>13 MITRE ATT&amp;CK categories</strong> covering ~43 techniques that catch known attack patterns instantly. These rules are the backbone of Cereberus's deterministic detection layer.</p>
 
 <div class="analogy-box"><p style="margin:0">The AI guards detect unknown anomalies &mdash; things that just "feel wrong." The rule engine catches known attack signatures &mdash; like wanted posters: "if you see someone carrying lockpicks near the vault, sound the alarm immediately."</p></div>
 
@@ -1696,9 +1795,23 @@ td code { font-size: 13px; }
   <tr><td>R042</td><td>ThinkPHP RCE Exploitation</td><td style="color:var(--red)">Critical</td><td>T1190</td></tr>
 </table>
 
+<h3>Advanced Detection (R043&ndash;R050) &mdash; <em>New in v1.3.0&ndash;v1.5.0</em></h3>
+<p>Enhanced detection rules added during production hardening and autonomous intelligence phases.</p>
+<table>
+  <tr><th>ID</th><th>Rule Name</th><th>Severity</th><th>MITRE</th></tr>
+  <tr><td>R043</td><td>Suspicious PowerShell Execution Policy Bypass</td><td style="color:#ff6600">High</td><td>T1059.001</td></tr>
+  <tr><td>R044</td><td>WMI Event Subscription Persistence</td><td style="color:var(--red)">Critical</td><td>T1546.003</td></tr>
+  <tr><td>R045</td><td>DLL Search Order Hijacking</td><td style="color:#ff6600">High</td><td>T1574.001</td></tr>
+  <tr><td>R046</td><td>Remote Thread Injection</td><td style="color:var(--red)">Critical</td><td>T1055.003</td></tr>
+  <tr><td>R047</td><td>Process Hollowing Detected</td><td style="color:var(--red)">Critical</td><td>T1055.012</td></tr>
+  <tr><td>R048</td><td>LOLBAS Script Proxy Execution</td><td style="color:#ff6600">High</td><td>T1216</td></tr>
+  <tr><td>R049</td><td>Suspicious Named Pipe Activity</td><td style="color:var(--amber)">Medium</td><td>T1570</td></tr>
+  <tr><td>R050</td><td>NTLM Relay Attack Indicators</td><td style="color:var(--red)">Critical</td><td>T1557.001</td></tr>
+</table>
+
 <div class="tip-box"><p style="margin:0">These rules run automatically in the background. No configuration needed. When a rule matches, it creates an alert on the Threat Board with the rule name, matched event details, and a human-readable explanation. View all rules and matches in the <a href="#detect-rules">DETECT RULES</a> panel.</p></div>
 
-<div class="warning-box"><p style="margin:0">Rules R001&ndash;R002 (credential dumping) and R034&ndash;R036 (shadow copy deletion, service mass stop, disk wipe) are the highest-priority alerts. If you see these, treat them as a potential active compromise and investigate immediately.</p></div>
+<div class="warning-box"><p style="margin:0">Rules R001&ndash;R002 (credential dumping), R034&ndash;R036 (shadow copy deletion, service mass stop, disk wipe), and R046&ndash;R047 (remote thread injection, process hollowing) are the highest-priority alerts. If you see these, treat them as a potential active compromise and investigate immediately.</p></div>
 </section>
 
 <!-- ============================================================ -->
@@ -1707,7 +1820,7 @@ td code { font-size: 13px; }
 <section id="ransomware-detect">
 <h2>Ransomware Detection</h2>
 
-<p>Cereberus v1.2.0 includes a dedicated <strong>Ransomware Detector</strong> module with three independent detection subsystems that work together to catch ransomware at every stage of the kill chain.</p>
+<p>Cereberus includes a dedicated <strong>Ransomware Detector</strong> module with three independent detection subsystems that work together to catch ransomware at every stage of the kill chain.</p>
 
 <div class="analogy-box"><p style="margin:0">Like setting up three different types of tripwires around your valuables. One watches for anyone tampering with decoy files (canaries). Another listens for the sound of backup destruction (shadow copy deletion). The third watches for the rapid chaos of mass encryption. Any single tripwire is enough to sound the alarm.</p></div>
 
@@ -1739,7 +1852,7 @@ td code { font-size: 13px; }
 <section id="c2-beaconing">
 <h2>C2 Beaconing Detection</h2>
 
-<p>Command &amp; Control (C2) beaconing is the hallmark of compromised systems. Malware phones home to its operator at regular intervals &mdash; checking for new commands, exfiltrating data, or confirming the implant is alive. Cereberus v1.2.0 detects these patterns automatically.</p>
+<p>Command &amp; Control (C2) beaconing is the hallmark of compromised systems. Malware phones home to its operator at regular intervals &mdash; checking for new commands, exfiltrating data, or confirming the implant is alive. Cereberus detects these patterns automatically.</p>
 
 <div class="analogy-box"><p style="margin:0">Imagine a spy in an office building who walks to the payphone at the same time every hour to call headquarters. Normal employees don't visit payphones on a precise schedule. The beaconing detector watches for this suspicious regularity.</p></div>
 
@@ -1759,6 +1872,145 @@ td code { font-size: 13px; }
 </table>
 
 <div class="warning-box"><p style="margin:0">VPN connections may trigger beaconing alerts due to their regular keepalive intervals. If you use a VPN (like NordVPN), expect to see some beaconing warnings for VPN server IPs. These are false positives and can be safely noted.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- YARA SCANNING -->
+<!-- ============================================================ -->
+<section id="yara-scanning">
+<h2>YARA Scanning (Q-Branch)</h2>
+
+<p>Cereberus v1.5.0 integrates YARA &mdash; the industry-standard pattern matching engine used by malware researchers worldwide. YARA rules describe text or binary patterns that identify malware families, webshells, suspicious strings, and ransomware indicators.</p>
+
+<div class="analogy-box"><p style="margin:0">YARA rules are like "wanted posters" that describe the fingerprints of known malware. Instead of matching a single hash, they match patterns &mdash; so a single rule can catch dozens of variants of the same malware family. Q-Branch is Bond's arsenal of these wanted posters.</p></div>
+
+<h3>Built-in Rule Files (61 rules)</h3>
+<table>
+  <tr><th>File</th><th>Rules</th><th>What it catches</th></tr>
+  <tr><td>malware_signatures.yar</td><td>~20</td><td>Known malware families (Mimikatz, Cobalt Strike, Metasploit, Emotet, etc.)</td></tr>
+  <tr><td>webshells.yar</td><td>~15</td><td>PHP/ASP/JSP web shells and backdoors</td></tr>
+  <tr><td>suspicious_strings.yar</td><td>~15</td><td>Encoded commands, obfuscated PowerShell, base64 payloads, common exploit strings</td></tr>
+  <tr><td>ransomware_indicators.yar</td><td>~11</td><td>Ransomware families and ransom note patterns</td></tr>
+</table>
+
+<h3>Scanning Modes</h3>
+<ul>
+  <li><strong>File Scan</strong> &mdash; Scan a single file against all compiled YARA rules</li>
+  <li><strong>Directory Scan</strong> &mdash; Recursively scan an entire directory</li>
+  <li><strong>Process Memory Scan</strong> &mdash; Read process memory and apply YARA rules (via Memory Scanner integration)</li>
+  <li><strong>Buffer Scan</strong> &mdash; Scan arbitrary byte data (used by other modules)</li>
+</ul>
+
+<h3>Path Sanitization</h3>
+<p>All scan paths are validated to prevent path traversal attacks. Paths containing <code>..</code>, null bytes, or pointing to sensitive system directories (Windows, System32, Program Files) are rejected with a 400 error.</p>
+
+<div class="tip-box"><p style="margin:0">You can create custom YARA rules directly in the Q-BRANCH tab of Commander Bond. Custom rules are compiled alongside the built-in rules and take effect immediately.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- MEMORY SCANNING -->
+<!-- ============================================================ -->
+<section id="memory-scanning">
+<h2>Memory Scanning (Bond's Reconnaissance)</h2>
+
+<p>Traditional antivirus scans files on disk. Advanced malware lives entirely in memory &mdash; never touching the filesystem. The Memory Scanner uses Win32 API calls to inspect the memory of every running process, catching fileless malware, code injection, and reflective DLL loading.</p>
+
+<div class="analogy-box"><p style="margin:0">Most security checks look at your ID card (file on disk). Memory scanning looks at what you're actually carrying (code in memory). An attacker with a perfect fake ID still gets caught if the scanner finds hidden weapons in their pockets.</p></div>
+
+<h3>How It Works</h3>
+<ul>
+  <li><strong>VirtualQueryEx</strong> &mdash; Enumerates all memory regions in a process (address, size, protection, type)</li>
+  <li><strong>ReadProcessMemory</strong> &mdash; Reads the actual bytes from suspicious memory regions</li>
+  <li><strong>EnumProcessModules</strong> &mdash; Lists all loaded DLLs to detect injected modules</li>
+</ul>
+
+<h3>Detection Capabilities</h3>
+<table>
+  <tr><th>Technique</th><th>What it catches</th><th>Severity</th></tr>
+  <tr><td>RWX Detection</td><td>Memory with Read+Write+Execute permissions (shellcode staging)</td><td style="color:#ff6600">High</td></tr>
+  <tr><td>Unbacked Executable</td><td>Executable memory not backed by a file (reflective injection)</td><td style="color:var(--red)">Critical</td></tr>
+  <tr><td>Injected DLLs</td><td>DLLs loaded into processes that shouldn't have them</td><td style="color:var(--red)">Critical</td></tr>
+  <tr><td>Shellcode Patterns</td><td>NOP sleds, API resolution stubs, common shellcode bytes</td><td style="color:var(--red)">Critical</td></tr>
+  <tr><td>YARA Memory Scan</td><td>Known malware signatures in process memory</td><td>Varies</td></tr>
+</table>
+
+<div class="warning-box"><p style="margin:0">Memory scanner requires elevated privileges to read other processes' memory. Run Cereberus as Administrator for full scanning capability.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SWORD PROTOCOL -->
+<!-- ============================================================ -->
+<section id="sword-protocol">
+<h2>Sword Protocol (Autonomous Response)</h2>
+
+<p>The Sword Protocol is Commander Bond's autonomous response capability. When a threat matches a Sword policy, Bond automatically executes a chain of remediation actions without waiting for human approval. This closes the gap between detection and response from minutes to milliseconds.</p>
+
+<div class="analogy-box"><p style="margin:0">If Bond is the spy who identifies threats, the Sword is the weapon he's authorized to use. Each Sword policy is a pre-approved set of standing orders: "if you see a ransomware attack, immediately kill the process, quarantine the file, and isolate the network."</p></div>
+
+<h3>Pre-built Policies</h3>
+<table>
+  <tr><th>Codename</th><th>Trigger</th><th>Escalation Chain</th><th>Cooldown</th></tr>
+  <tr><td>THUNDERBALL</td><td>Ransomware detection (canary, shadow copy, mass encrypt)</td><td>Kill process &rarr; Quarantine file &rarr; Isolate network</td><td>5 min</td></tr>
+  <tr><td>GOLDENEYE</td><td>C2 beaconing confirmed (CV &lt; 15%)</td><td>Block IP &rarr; Kill process</td><td>10 min</td></tr>
+  <tr><td>SKYFALL</td><td>Credential dumping (LSASS/SAM access)</td><td>Kill process &rarr; Block IP</td><td>5 min</td></tr>
+  <tr><td>SPECTRE</td><td>YARA signature match on file/process</td><td>Quarantine file &rarr; Kill process</td><td>5 min</td></tr>
+  <tr><td>GHOST PROTOCOL</td><td>Memory injection detected (RWX, unbacked exec)</td><td>Kill process &rarr; Quarantine file</td><td>5 min</td></tr>
+</table>
+
+<h3>Safety Controls</h3>
+<ul>
+  <li><strong>Rate Limiting</strong> &mdash; Each policy can only fire once per cooldown period</li>
+  <li><strong>Global Lockout</strong> &mdash; A master kill switch that disables all Sword policies instantly</li>
+  <li><strong>Execution Logging</strong> &mdash; Every Sword action is logged to the database with timestamp, policy, trigger, and result</li>
+  <li><strong>Manual Override</strong> &mdash; Policies can be individually toggled on/off from the SWORD PROTOCOL tab</li>
+</ul>
+
+<div class="warning-box"><p style="margin:0">Sword policies execute <strong>without human approval</strong>. Review and test all policies before enabling them. The ISOLATE NETWORK action in THUNDERBALL will cut all network connectivity &mdash; use with caution.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- OVERWATCH -->
+<!-- ============================================================ -->
+<section id="overwatch">
+<h2>Overwatch Protocol</h2>
+
+<p>Overwatch is Cereberus's self-defense system. It monitors the integrity of Cereberus's own backend code by maintaining SHA-256 baselines of all Python files. If an attacker compromises Cereberus itself (modifying detection rules, disabling modules, backdooring authentication), Overwatch detects the tampering and raises an alert.</p>
+
+<div class="analogy-box"><p style="margin:0">Security cameras protect the building, but who watches the cameras? Overwatch watches the watchers. If someone tampers with Cereberus's own code, Overwatch is the last line of defense that catches it.</p></div>
+
+<h3>How It Works</h3>
+<ol>
+  <li>On startup, Overwatch computes SHA-256 hashes of all <code>*.py</code> files in the backend directory</li>
+  <li>Periodically (every 5 minutes), it re-scans and compares against the stored baselines</li>
+  <li>Any file that has been modified, added, or deleted triggers a <strong>CRITICAL</strong> tamper alert</li>
+  <li>The alert includes the file path, expected hash, actual hash, and modification timestamp</li>
+</ol>
+
+<div class="tip-box"><p style="margin:0">Overwatch baselines are refreshed when Cereberus is restarted. After a legitimate code update, restart the service to establish new baselines.</p></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- EVENT BUS -->
+<!-- ============================================================ -->
+<section id="event-bus">
+<h2>EventBus (Internal Communication)</h2>
+
+<p>The EventBus is Cereberus's internal async pub/sub messaging system. It allows modules to communicate without direct dependencies &mdash; when the Event Log Monitor detects a suspicious event, it publishes it to the EventBus, and any module subscribed to that event type receives it instantly.</p>
+
+<div class="analogy-box"><p style="margin:0">Like the PA system in a building. Instead of one person running to every office to deliver a message, they broadcast it over the PA and everyone who needs to hear it listens. The Event Log Monitor broadcasts "suspicious login detected!" and both the Rule Engine and Commander Bond hear it simultaneously.</p></div>
+
+<h3>Event Types</h3>
+<ul>
+  <li><strong>security_event</strong> &mdash; Windows Security log events (login, privilege escalation, account management)</li>
+  <li><strong>sysmon_event</strong> &mdash; Sysmon events (process creation, network connections, registry changes, DNS queries)</li>
+  <li><strong>memory_anomaly</strong> &mdash; Memory scanner findings (RWX, unbacked exec, injected DLLs)</li>
+  <li><strong>yara_match</strong> &mdash; YARA rule matches on files or process memory</li>
+</ul>
+
+<h3>Wildcard Subscriptions</h3>
+<p>Commander Bond subscribes to <code>*</code> (all events) so the Sword Protocol can evaluate every event against its policies. Other modules subscribe only to specific event types they need.</p>
+
+<div class="tip-box"><p style="margin:0">The EventBus uses non-blocking queue dispatch, meaning no module can slow down another by processing events slowly. Events that aren't consumed within 5 seconds are dropped to prevent memory buildup.</p></div>
 </section>
 
 <!-- ============================================================ -->
@@ -1841,6 +2093,36 @@ td code { font-size: 13px; }
   <li>Gradually increase intensity to 5 (EVERYTHING) as you close gaps</li>
 </ol>
 
+<h3>How to scan files with YARA</h3>
+<ol>
+  <li>Click <strong>CMDR BOND</strong> in the sidebar</li>
+  <li>Switch to the <strong>Q-BRANCH</strong> tab</li>
+  <li>Click <strong>SCAN FILE</strong> or <strong>SCAN DIRECTORY</strong></li>
+  <li>Enter the path to scan (paths with <code>..</code> or pointing to system directories are blocked)</li>
+  <li>Review the results &mdash; matched rules, severity, and file details</li>
+  <li>For matched threats, use the Sword Protocol or manual remediation to respond</li>
+</ol>
+
+<h3>How to investigate memory anomalies</h3>
+<ol>
+  <li>Click <strong>MEM RECON</strong> in the sidebar</li>
+  <li>Click <strong>SCAN NOW</strong> to trigger a full memory scan</li>
+  <li>Review findings &mdash; RWX regions, unbacked executable memory, injected DLLs, shellcode patterns</li>
+  <li>Cross-reference flagged PIDs with <strong>ASSET TRKR</strong> to identify the processes</li>
+  <li>If confirmed malicious, create an incident or let the Sword Protocol's GHOST PROTOCOL policy handle it automatically</li>
+</ol>
+
+<h3>How to configure Sword Protocol policies</h3>
+<ol>
+  <li>Click <strong>CMDR BOND</strong> in the sidebar</li>
+  <li>Switch to the <strong>SWORD PROTOCOL</strong> tab</li>
+  <li>Review the 5 pre-built policies and their trigger conditions</li>
+  <li>Toggle individual policies on/off as needed</li>
+  <li>Use <strong>TEST</strong> to dry-run a policy before enabling it</li>
+  <li>Monitor the execution log for Sword actions</li>
+  <li>Use the <strong>GLOBAL LOCKOUT</strong> toggle to disable all policies in an emergency</li>
+</ol>
+
 <h3>How to check if your VPN is leaking</h3>
 <ol>
   <li>Click <strong>SEC COMMS</strong> in the sidebar</li>
@@ -1880,6 +2162,8 @@ td code { font-size: 13px; }
   <li><strong>Incidents &amp; Playbooks:</strong> 20 requests/minute each</li>
   <li><strong>IOC operations:</strong> 30 requests/minute</li>
   <li><strong>Data export:</strong> 5 requests/minute</li>
+  <li><strong>Registration:</strong> 3 attempts per 5 minutes <em>(New in v1.6.0)</em></li>
+  <li><strong>Database restore:</strong> 2 attempts per hour <em>(New in v1.6.0)</em></li>
 </ul>
 <p>Exceeded limits return HTTP 429 with an <code>X-RateLimit-Remaining</code> header.</p>
 
@@ -1922,8 +2206,42 @@ td code { font-size: 13px; }
 </ul>
 <p>If verification fails 3 times, a <code>failed_verification</code> alert is created on the Threat Board.</p>
 
-<h3>Default Credential Protection</h3>
-<p>The default admin account is flagged with <code>must_change_password</code> on first login. A startup warning is logged if the secret key has not been changed from its default value. Passwords require a minimum of 12 characters.</p>
+<h3>Default Credential Protection <em>(Enhanced in v1.6.0)</em></h3>
+<p>The default admin account is flagged with <code>must_change_password</code> on first login. The system <strong>blocks all API access</strong> (except password change, user info, and logout) until the password is changed. Short JWT expiry (5 minutes) is enforced during this period. The frontend redirects to a dedicated Change Password page.</p>
+
+<h3>Registration Lockdown <em>(New in v1.6.0)</em></h3>
+<p>After the first user is created, the <code>/auth/register</code> endpoint is locked. Additional registrations require an authenticated admin with MANAGE_USERS permission. The default role for new registrations is <code>viewer</code> (not admin). Rate limited to 3 attempts per 5 minutes.</p>
+
+<h3>Secret Key Enforcement <em>(New in v1.6.0)</em></h3>
+<p>If <code>DEBUG=false</code> and the secret key is still the default value (<code>CHANGE_ME_IN_PRODUCTION</code>), the application <strong>refuses to start</strong> with a fatal validation error. This prevents accidental deployment with the default secret key.</p>
+
+<h3>Path Traversal Protection <em>(New in v1.6.0)</em></h3>
+<p>All file path inputs are validated through <code>validate_file_path()</code> which rejects:</p>
+<ul>
+  <li><code>..</code> sequences (directory traversal)</li>
+  <li>Null bytes (<code>\x00</code>)</li>
+  <li>Paths outside allowed base directories</li>
+  <li>Shell metacharacters</li>
+</ul>
+<p>YARA scan paths are additionally blocked from targeting sensitive system directories (Windows, System32, Program Files).</p>
+
+<h3>TLS Configuration <em>(New in v1.6.0)</em></h3>
+<p>Production deployment uses nginx as a TLS termination proxy with:</p>
+<ul>
+  <li>TLS 1.2 and 1.3 only (older protocols disabled)</li>
+  <li>HSTS header (Strict-Transport-Security)</li>
+  <li>HTTP-to-HTTPS redirect</li>
+  <li>Secure cookie flag (configurable via <code>COOKIE_SECURE</code> env var)</li>
+</ul>
+
+<h3>JWT Library <em>(Changed in v1.6.0)</em></h3>
+<p>Replaced <code>python-jose</code> with <code>PyJWT</code> for JWT encoding/decoding. PyJWT is actively maintained and has no known CVEs.</p>
+
+<h3>Log Rotation <em>(New in v1.6.0)</em></h3>
+<p>Application logs are written to <code>logs/cereberus.log</code> with automatic rotation at 10 MB and 5 backup files. This prevents disk exhaustion from excessive logging.</p>
+
+<h3>Password Strength Validation <em>(New in v1.6.0)</em></h3>
+<p>All password creation and update operations (registration, admin user creation, password change) enforce a minimum of 12 characters via a shared <code>validate_password_strength()</code> function.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -1999,7 +2317,7 @@ td code { font-size: 13px; }
   <div class="concept"><strong>Kill Switch</strong><span>An emergency feature that blocks all internet traffic if your VPN disconnects, preventing data leaks.</span></div>
   <div class="concept"><strong>Lateral Movement</strong><span>An attacker moving from one computer to another inside your network after initial compromise.</span></div>
   <div class="concept"><strong>LOLBin</strong><span>Living-Off-the-Land Binary. Legitimate Windows tools (certutil, mshta, rundll32) abused by attackers to avoid detection.</span></div>
-  <div class="concept"><strong>MITRE ATT&amp;CK</strong><span>An industry-standard knowledge base of real-world cyberattack techniques. Cereberus maps its 42 detection rules across 11 categories to this framework.</span></div>
+  <div class="concept"><strong>MITRE ATT&amp;CK</strong><span>An industry-standard knowledge base of real-world cyberattack techniques. Cereberus maps its 50 detection rules across 13 categories (~43 techniques) to this framework.</span></div>
   <div class="concept"><strong>LSTM</strong><span>Long Short-Term Memory. An AI that predicts future threats by analyzing patterns in past events.</span></div>
   <div class="concept"><strong>Neutralize</strong><span>Marking a Bond threat or vulnerability as handled, removing it from the active UI to avoid confusion.</span></div>
   <div class="concept"><strong>Persistence</strong><span>Techniques malware uses to survive computer restarts by hiding in startup locations.</span></div>
@@ -2008,7 +2326,7 @@ td code { font-size: 13px; }
   <div class="concept"><strong>Port</strong><span>A numbered channel for network communication. Like apartment numbers &mdash; 443 = secure web, 445 = file sharing.</span></div>
   <div class="concept"><strong>RBAC</strong><span>Role-Based Access Control. Different users get different permissions based on their assigned role.</span></div>
   <div class="concept"><strong>Ransomware</strong><span>Malware that encrypts your files and demands payment for decryption. Cereberus detects it via canary files, shadow copy deletion, and mass encryption patterns.</span></div>
-  <div class="concept"><strong>Rule Engine</strong><span>42 hardcoded pattern-matching rules across 11 MITRE ATT&amp;CK categories that catch known attack signatures instantly.</span></div>
+  <div class="concept"><strong>Rule Engine</strong><span>50 hardcoded pattern-matching rules across 13 MITRE ATT&amp;CK categories that catch known attack signatures instantly.</span></div>
   <div class="concept"><strong>Remediation</strong><span>Taking action to fix a security problem. Like patching a hole in a fence.</span></div>
   <div class="concept"><strong>RPC</strong><span>Remote Procedure Call. A Windows service that lets programs communicate. Can be exploited if exposed.</span></div>
   <div class="concept"><strong>SMB</strong><span>Server Message Block. Windows file sharing protocol. Notoriously exploitable (WannaCry, EternalBlue).</span></div>
@@ -2017,6 +2335,14 @@ td code { font-size: 13px; }
   <div class="concept"><strong>Agent Smith</strong><span>Cereberus's controlled adversary simulator. Injects fake attack data to test detection capabilities without causing real damage.</span></div>
   <div class="concept"><strong>Threat Feed</strong><span>An external database of known threats that's updated regularly, like a wanted list from the FBI.</span></div>
   <div class="concept"><strong>VPN</strong><span>Virtual Private Network. Encrypts your internet traffic so nobody between you and the destination can read it.</span></div>
+  <div class="concept"><strong>YARA</strong><span>Industry-standard pattern matching engine for malware identification. Cereberus ships with 61 YARA rules across 4 categories (malware, webshells, suspicious strings, ransomware).</span></div>
+  <div class="concept"><strong>Memory Scanner</strong><span>Win32 API-based inspection of running process memory for code injection, shellcode, reflective DLL loading, and YARA signature matches.</span></div>
+  <div class="concept"><strong>Sword Protocol</strong><span>Commander Bond's autonomous response system. Pre-approved policies that automatically execute remediation chains (kill, quarantine, isolate) when specific threats are detected.</span></div>
+  <div class="concept"><strong>Overwatch</strong><span>Self-defense system that monitors Cereberus's own code via SHA-256 baselines. Detects tampering of backend Python files.</span></div>
+  <div class="concept"><strong>EventBus</strong><span>Internal async pub/sub messaging system. Modules publish and subscribe to events without direct dependencies. Supports wildcard subscriptions.</span></div>
+  <div class="concept"><strong>EvtSubscribe</strong><span>Native Windows API for push-based event log monitoring. Used as primary method with PowerShell polling as fallback.</span></div>
+  <div class="concept"><strong>Bridge Pattern</strong><span>Pydantic models (backend) paired with TypeScript interfaces (frontend) ensuring type-safe communication across the API boundary.</span></div>
+  <div class="concept"><strong>Q-Branch</strong><span>Bond's YARA arsenal. A tab in Commander Bond for managing YARA rules, scanning files/directories, and reviewing scan results.</span></div>
   <div class="concept"><strong>Z-Score</strong><span>A statistical measure of how unusual a number is compared to the average. High Z-Score = very unusual.</span></div>
 </div>
 </section>
@@ -2271,7 +2597,7 @@ td code { font-size: 13px; }
 <h3>Detection Rules</h3>
 <table>
   <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
-  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/detection-rules/</code></td><td>VIEW_DASHBOARD</td><td>List all 16 detection rules</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/detection-rules/</code></td><td>VIEW_DASHBOARD</td><td>List all 50 detection rules</td></tr>
   <tr><td><span class="method-badge method-get">GET</span></td><td><code>/detection-rules/matches</code></td><td>VIEW_DASHBOARD</td><td>Recent rule matches with details</td></tr>
   <tr><td><span class="method-badge method-get">GET</span></td><td><code>/detection-rules/stats</code></td><td>VIEW_DASHBOARD</td><td>Match statistics by severity and category</td></tr>
 </table>
@@ -2332,6 +2658,58 @@ td code { font-size: 13px; }
   <tr><td><span class="method-badge method-get">GET</span></td><td><code>/smith/categories</code></td><td>VIEW_DASHBOARD</td><td>Available attack categories</td></tr>
 </table>
 
+<h3>YARA Scanning <em>(New in v1.5.0)</em></h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/yara/rules</code></td><td>VIEW_DASHBOARD</td><td>List all YARA rules</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/yara/rules/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get rule details</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/yara/rules</code></td><td>MANAGE_SETTINGS</td><td>Create custom YARA rule</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/yara/rules/{id}</code></td><td>MANAGE_SETTINGS</td><td>Update YARA rule</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/yara/rules/{id}</code></td><td>MANAGE_SETTINGS</td><td>Delete YARA rule</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/yara/scan/file</code></td><td>EXECUTE_REMEDIATION</td><td>Scan a file with YARA rules</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/yara/scan/directory</code></td><td>EXECUTE_REMEDIATION</td><td>Scan directory recursively</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/yara/results</code></td><td>VIEW_DASHBOARD</td><td>List scan results</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/yara/results/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get scan result details</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/yara/stats</code></td><td>VIEW_DASHBOARD</td><td>YARA scanning statistics</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/yara/compile</code></td><td>MANAGE_SETTINGS</td><td>Recompile all YARA rules</td></tr>
+</table>
+
+<h3>Memory Scanner <em>(New in v1.5.0)</em></h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/memory/status</code></td><td>VIEW_DASHBOARD</td><td>Scanner module status</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/memory/scan</code></td><td>EXECUTE_REMEDIATION</td><td>Trigger full memory scan</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/memory/results</code></td><td>VIEW_DASHBOARD</td><td>List scan results</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/memory/results/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get scan result details</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/memory/scan/{pid}</code></td><td>EXECUTE_REMEDIATION</td><td>Scan specific process by PID</td></tr>
+</table>
+
+<h3>Sword Protocol <em>(New in v1.5.0)</em></h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/policies</code></td><td>VIEW_DASHBOARD</td><td>List all Sword policies</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/policies/{id}</code></td><td>VIEW_DASHBOARD</td><td>Get policy details</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/sword/policies</code></td><td>MANAGE_SETTINGS</td><td>Create custom Sword policy</td></tr>
+  <tr><td><span class="method-badge method-put">PUT</span></td><td><code>/bond/sword/policies/{id}</code></td><td>MANAGE_SETTINGS</td><td>Update Sword policy</td></tr>
+  <tr><td><span class="method-badge method-delete">DELETE</span></td><td><code>/bond/sword/policies/{id}</code></td><td>MANAGE_SETTINGS</td><td>Delete Sword policy</td></tr>
+  <tr><td><span class="method-badge method-patch">PATCH</span></td><td><code>/bond/sword/policies/{id}/toggle</code></td><td>MANAGE_SETTINGS</td><td>Enable/disable policy</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/sword/policies/{id}/test</code></td><td>MANAGE_SETTINGS</td><td>Dry-run a Sword policy</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/log</code></td><td>VIEW_DASHBOARD</td><td>Sword execution history</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/log/{id}</code></td><td>VIEW_DASHBOARD</td><td>Specific execution details</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/status</code></td><td>VIEW_DASHBOARD</td><td>Sword Protocol status &amp; lockout</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/sword/lockout</code></td><td>MANAGE_SETTINGS</td><td>Toggle global lockout</td></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/sword/stats</code></td><td>VIEW_DASHBOARD</td><td>Sword execution statistics</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/sword/evaluate</code></td><td>MANAGE_SETTINGS</td><td>Manually evaluate an alert against policies</td></tr>
+</table>
+
+<h3>Overwatch Protocol <em>(New in v1.5.0)</em></h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
+  <tr><td><span class="method-badge method-get">GET</span></td><td><code>/bond/overwatch/status</code></td><td>VIEW_DASHBOARD</td><td>Overwatch status and baseline info</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/overwatch/check</code></td><td>MANAGE_SETTINGS</td><td>Trigger immediate integrity check</td></tr>
+  <tr><td><span class="method-badge method-post">POST</span></td><td><code>/bond/overwatch/rebaseline</code></td><td>MANAGE_SETTINGS</td><td>Refresh SHA-256 baselines</td></tr>
+</table>
+
 <h3>Modules, Settings, Analytics, Audit, Search, Reports, Comments, Layouts, Maintenance</h3>
 <table>
   <tr><th>Method</th><th>Path</th><th>Permission</th><th>Description</th></tr>
@@ -2363,12 +2741,16 @@ td code { font-size: 13px; }
 <h2>Deployment &amp; Configuration</h2>
 
 <h3>Running Locally</h3>
-<pre><code># Start the backend (requires admin/elevated terminal for firewall commands)
-python -B -m uvicorn cereberus.backend.main:app --host 127.0.0.1 --port 8001
+<pre><code># Start the backend (from the cereberus/ directory)
+# Requires admin/elevated terminal for firewall commands
+cd cereberus
+python -B -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 
 # Start the frontend (in a separate terminal)
 cd cereberus/frontend
 npm run dev</code></pre>
+
+<div class="tip-box"><p style="margin:0">The Vite dev server proxies <code>/api</code> and <code>/ws</code> requests to the backend at <code>http://127.0.0.1:8000</code>. In production, the frontend is built and served directly by the backend as static files with a SPA catch-all route.</p></div>
 
 <h3>Docker Setup</h3>
 <pre><code># Build and start
@@ -2377,17 +2759,45 @@ docker-compose up -d
 # View logs
 docker-compose logs -f cereberus</code></pre>
 
+<h3>TLS Configuration <em>(New in v1.6.0)</em></h3>
+<p>For production, use nginx as a TLS termination proxy. Place your SSL certificates in the <code>certs/</code> directory:</p>
+<pre><code># Generate self-signed certificates for testing
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/cereberus.key -out certs/cereberus.crt \
+  -subj "/CN=cereberus.local"
+
+# Start with TLS via Docker
+docker-compose up -d</code></pre>
+<p>The nginx configuration (<code>nginx.conf</code>) handles HTTPS on port 443, HTTP-to-HTTPS redirect on port 80, HSTS headers, and TLS 1.2/1.3 enforcement.</p>
+
 <h3>Key Environment Variables (.env file)</h3>
 <table>
   <tr><th>Variable</th><th>What it does</th><th>Default</th></tr>
-  <tr><td><code>SECRET_KEY</code></td><td>Secret key used to sign login tokens. Change this in production!</td><td>Random</td></tr>
+  <tr><td><code>SECRET_KEY</code></td><td>Secret key for JWT tokens. <strong>Must change in production</strong> (app refuses to start with default when DEBUG=false)</td><td><code>CHANGE_ME_IN_PRODUCTION</code></td></tr>
+  <tr><td><code>DEBUG</code></td><td>Debug mode. Set to <code>false</code> in production</td><td><code>false</code></td></tr>
   <tr><td><code>DATABASE_URL</code></td><td>Where the database is stored</td><td><code>sqlite+aiosqlite:///./cereberus.db</code></td></tr>
-  <tr><td><code>DEFAULT_ADMIN_PASSWORD</code></td><td>Initial admin password (change immediately)</td><td><code>admin</code></td></tr>
+  <tr><td><code>DEFAULT_ADMIN_PASSWORD</code></td><td>Initial admin password (forced change on first login)</td><td><code>admin</code></td></tr>
+  <tr><td><code>COOKIE_SECURE</code></td><td>Set cookie Secure flag (true for HTTPS, false for local dev)</td><td><code>true</code></td></tr>
+  <tr><td><code>CORS_ORIGINS</code></td><td>Comma-separated list of allowed CORS origins</td><td><code>http://localhost:5173</code></td></tr>
+  <tr><td><code>LOG_DIR</code></td><td>Directory for log files</td><td><code>logs</code></td></tr>
+  <tr><td><code>LOG_MAX_BYTES</code></td><td>Max log file size before rotation</td><td><code>10000000</code> (10 MB)</td></tr>
+  <tr><td><code>LOG_BACKUP_COUNT</code></td><td>Number of rotated log backups</td><td><code>5</code></td></tr>
   <tr><td><code>VIRUSTOTAL_API_KEY</code></td><td>API key for VirusTotal threat feed</td><td>(empty)</td></tr>
   <tr><td><code>ABUSEIPDB_API_KEY</code></td><td>API key for AbuseIPDB threat feed</td><td>(empty)</td></tr>
   <tr><td><code>SMTP_HOST</code></td><td>Mail server for email notifications</td><td>(empty)</td></tr>
   <tr><td><code>SMTP_PORT</code></td><td>Mail server port</td><td><code>587</code></td></tr>
 </table>
+
+<h3>Windows Service <em>(New in v1.5.0)</em></h3>
+<p>Cereberus can run as a Windows Service for automatic startup. Use the installer script:</p>
+<pre><code># Install the service (requires Administrator)
+python scripts/install_service.py install
+
+# Start the service
+python scripts/install_service.py start
+
+# Remove the service
+python scripts/install_service.py remove</code></pre>
 </section>
 
 <!-- ============================================================ -->
@@ -2398,7 +2808,7 @@ docker-compose logs -f cereberus</code></pre>
   &mdash; END OF DOCUMENT &mdash;
 </p>
 <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 8px; font-family: var(--font-mono); letter-spacing: 1px;">
-  CEREBERUS v1.2.0 &bull; AI-Powered Cybersecurity Defense System &bull; DEFENSE NETWORK
+  CEREBERUS v1.6.0 &bull; AI-Powered Cybersecurity Defense System &bull; DEFENSE NETWORK
 </p>
 
 </div>
