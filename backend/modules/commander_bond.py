@@ -464,11 +464,20 @@ class CommanderBond(BaseModule):
         """Called by AlertManager — Bond evaluates every alert for Sword response."""
         if not self._sword._enabled:
             return []
-        return await self._sword.evaluate_event(
+        actions = await self._sword.evaluate_event(
             event,
             remediation_engine=self._remediation_engine,
             db_factory=self._db_session_factory,
         )
+        # Resolve the originating alert if Sword fully succeeded
+        alert_id = event.get("alert_id")
+        if alert_id and self._alert_manager and actions:
+            for action in actions:
+                if action.get("result") == "success":
+                    codename = action.get("codename", "UNKNOWN")
+                    await self._alert_manager.resolve_alert(alert_id, f"SWORD/{codename}")
+                    break
+        return actions
 
     def get_status(self) -> dict:
         """Return Bond's operational status for the frontend."""
@@ -1382,13 +1391,15 @@ class CommanderBond(BaseModule):
             )
             for action in actions:
                 if action.get("result") == "success" and self._alert_manager:
+                    details = dict(action)
+                    details["resolved_alert_id"] = event.get("alert_id")
                     await self._alert_manager.create_alert(
                         severity="high",
                         module_source="sword_protocol",
                         title=f"Sword Protocol: {action.get('codename', 'UNKNOWN')} executed",
                         description=f"Autonomous response executed. Result: {action.get('result')}. "
                                     f"Escalation level: {action.get('escalation_level', 0)}.",
-                        details=action,
+                        details=details,
                     )
         except Exception as e:
             self.logger.error("sword_evaluate_failed", error=str(e))
@@ -1702,7 +1713,7 @@ class SwordProtocol:
         log_entry = {
             "policy_id": policy.get("id", 0),
             "codename": codename,
-            "trigger_event": {k: v for k, v in event.items() if k in ("severity", "module_source", "title", "event_type", "rule_id")},
+            "trigger_event": {k: v for k, v in event.items() if k in ("severity", "module_source", "title", "event_type", "rule_id", "alert_id")},
             "actions_taken": actions_results,
             "result": overall,
             "escalation_level": escalation_level,
@@ -1725,6 +1736,7 @@ class SwordProtocol:
                         escalation_level=escalation_level,
                         duration_ms=duration_ms,
                         dry_run=self._dry_run,
+                        resolved_alert_id=event.get("alert_id"),
                     )
                     session.add(db_log)
                     # Update policy execution count

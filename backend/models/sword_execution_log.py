@@ -24,3 +24,4 @@ class SwordExecutionLog(Base):
     executed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     duration_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     dry_run: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    resolved_alert_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

@@ -413,6 +413,10 @@ async def lifespan(app: FastAPI):
     await _migrate_add_column("alerts", "snoozed_until", "DATETIME", "NULL")
     await _migrate_add_column("alerts", "escalated_to_incident_id", "INTEGER", "NULL")
 
+    # Bond alert resolution
+    await _migrate_add_column("alerts", "resolved_by", "VARCHAR(200)", "NULL")
+    await _migrate_add_column("sword_execution_log", "resolved_alert_id", "INTEGER", "NULL")
+
     # Phase 13: IOC Lifecycle columns
     await _migrate_add_column("iocs", "confidence", "INTEGER", "NULL")
     await _migrate_add_column("iocs", "expires_at", "DATETIME", "NULL")

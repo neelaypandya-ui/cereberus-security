@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBERUS — Autonomous Cybersecurity Defense</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-primary: #0a0e14;
+    --bg-secondary: #111820;
+    --bg-card: #151c26;
+    --cyan: #00e5ff;
+    --cyan-dim: rgba(0, 229, 255, 0.15);
+    --red: #ff1744;
+    --red-dim: rgba(255, 23, 68, 0.15);
+    --green: #00c853;
+    --green-dim: rgba(0, 200, 83, 0.15);
+    --amber: #ffab00;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted: #5f6368;
+    --border: #2a3441;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); }
+
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 60px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* Navigation */
+  .nav {
+    position: fixed; bottom: 30px; right: 40px; z-index: 100;
+    display: flex; gap: 12px; align-items: center;
+  }
+  .nav button {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-secondary); font-family: var(--font-mono);
+    font-size: 14px; padding: 8px 16px; cursor: pointer;
+    transition: all 0.15s ease; border-radius: 2px;
+  }
+  .nav button:hover { border-color: var(--cyan); color: var(--cyan); }
+  .nav .counter { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+
+  .dots {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-muted); cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .dot.active { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+  /* Speaker notes toggle */
+  .notes-toggle {
+    position: fixed; bottom: 30px; left: 40px; z-index: 100;
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 12px; padding: 6px 12px; cursor: pointer; border-radius: 2px;
+  }
+  .notes-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+  .speaker-notes {
+    position: fixed; bottom: 70px; left: 40px; right: 40px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 4px; padding: 16px 20px; z-index: 100;
+    font-family: var(--font-sans); font-size: 14px; color: var(--text-secondary);
+    line-height: 1.6; display: none; max-height: 150px; overflow-y: auto;
+  }
+  .speaker-notes.visible { display: block; }
+
+  /* Typography */
+  h1 { font-family: var(--font-mono); font-size: 56px; font-weight: 700; letter-spacing: 6px; }
+  h2 { font-family: var(--font-mono); font-size: 36px; font-weight: 500; letter-spacing: 3px; margin-bottom: 40px; }
+  h3 { font-family: var(--font-mono); font-size: 24px; font-weight: 500; letter-spacing: 2px; color: var(--cyan); margin-bottom: 20px; }
+  p { font-family: var(--font-sans); font-size: 20px; line-height: 1.7; color: var(--text-secondary); max-width: 800px; }
+  .subtitle { font-family: var(--font-mono); font-size: 18px; color: var(--text-muted); letter-spacing: 4px; margin-top: 16px; }
+
+  /* Classification stamp */
+  .classification {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 4px;
+    color: var(--red); border: 1px solid var(--red); padding: 3px 16px;
+    opacity: 0.6;
+  }
+
+  /* Components */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    width: 100%; max-width: 900px; margin-top: 30px;
+  }
+  .stat-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    padding: 28px 24px; text-align: center; border-radius: 4px;
+  }
+  .stat-card .number {
+    font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: var(--cyan);
+  }
+  .stat-card .label {
+    font-family: var(--font-mono); font-size: 13px; color: var(--text-muted);
+    letter-spacing: 2px; margin-top: 8px;
+  }
+
+  .feature-list {
+    list-style: none; width: 100%; max-width: 800px; margin-top: 20px;
+  }
+  .feature-list li {
+    font-family: var(--font-sans); font-size: 19px; color: var(--text-secondary);
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .feature-list li::before {
+    content: ''; width: 6px; height: 6px; background: var(--cyan);
+    border-radius: 50%; flex-shrink: 0;
+  }
+
+  .comparison-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    width: 100%; max-width: 900px; margin-top: 30px;
+  }
+  .comparison-col { text-align: left; }
+  .comparison-col h3 { font-size: 18px; margin-bottom: 16px; }
+  .comparison-col.bad h3 { color: var(--red); }
+  .comparison-col.good h3 { color: var(--green); }
+  .comparison-col ul { list-style: none; }
+  .comparison-col ul li {
+    font-family: var(--font-sans); font-size: 17px; color: var(--text-secondary);
+    padding: 10px 0; border-bottom: 1px solid rgba(42, 52, 65, 0.5);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .comparison-col.bad li::before { content: '\2717'; color: var(--red); font-weight: 700; }
+  .comparison-col.good li::before { content: '\2713'; color: var(--green); font-weight: 700; }
+
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    width: 100%; max-width: 900px; margin-top: 30px;
+  }
+  .tech-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    padding: 20px 16px; text-align: center; border-radius: 4px;
+  }
+  .tech-item .name { font-family: var(--font-mono); font-size: 14px; color: var(--cyan); letter-spacing: 1px; }
+  .tech-item .desc { font-family: var(--font-sans); font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+
+  .cta-box {
+    background: var(--bg-card); border: 1px solid var(--cyan);
+    padding: 40px 60px; border-radius: 4px; text-align: center;
+    margin-top: 30px; max-width: 600px;
+  }
+  .cta-box .email { font-family: var(--font-mono); font-size: 22px; color: var(--cyan); margin-top: 12px; }
+
+  /* Mockup terminal */
+  .terminal {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px 24px; width: 100%; max-width: 700px;
+    margin-top: 24px; text-align: left;
+  }
+  .terminal-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .terminal-bar span { width: 12px; height: 12px; border-radius: 50%; }
+  .terminal-bar .r { background: #ff5f57; }
+  .terminal-bar .y { background: #febc2e; }
+  .terminal-bar .g { background: #28c840; }
+  .terminal code {
+    font-family: var(--font-mono); font-size: 14px; line-height: 1.8; display: block;
+  }
+  .terminal .prompt { color: var(--green); }
+  .terminal .cmd { color: var(--text-primary); }
+  .terminal .output { color: var(--text-muted); }
+  .terminal .highlight { color: var(--cyan); }
+
+  /* Before/After */
+  .ba-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; width: 100%; max-width: 900px; margin-top: 30px; }
+  .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 24px 20px; }
+  .ba-card.before { border-color: rgba(255, 23, 68, 0.3); }
+  .ba-card.after { border-color: rgba(0, 200, 83, 0.3); }
+  .ba-card h4 { font-family: var(--font-mono); font-size: 14px; letter-spacing: 2px; margin-bottom: 12px; }
+  .ba-card.before h4 { color: var(--red); }
+  .ba-card.after h4 { color: var(--green); }
+  .ba-card p { font-size: 15px; line-height: 1.6; }
+  .ba-arrow { font-size: 32px; color: var(--cyan); }
+
+  .pill-grid {
+    display: flex; flex-wrap: wrap; gap: 10px; max-width: 800px; margin-top: 24px; justify-content: center;
+  }
+  .pill {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px;
+    padding: 8px 16px; border-radius: 2px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-secondary);
+  }
+
+  /* Logo */
+  .logo-mark {
+    font-family: var(--font-mono); font-size: 80px; font-weight: 700;
+    letter-spacing: 12px; color: var(--text-primary);
+    text-shadow: 0 0 40px rgba(0, 229, 255, 0.2);
+    margin-bottom: 8px;
+  }
+
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    width: 100%; max-width: 900px; margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- Slide 1: Title -->
+  <div class="slide active" data-notes="Cereberus is an AI-powered autonomous cybersecurity defense system for Windows. Named after the three-headed guardian of the underworld — it watches all gates simultaneously. Position this as enterprise-grade defense with zero manual intervention required.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <div class="logo-mark">CEREBERUS</div>
+    <div class="subtitle">AUTONOMOUS CYBERSECURITY DEFENSE</div>
+    <p style="text-align: center; margin-top: 24px; font-size: 17px;">Three-headed guardian. Zero blind spots.</p>
+  </div>
+
+  <!-- Slide 2: The Problem -->
+  <div class="slide" data-notes="Set the stakes. Every 39 seconds, a cyberattack occurs. The average cost of a data breach in 2025 is $4.88M. SOC teams are drowning in alerts — 62% report alert fatigue. The talent gap means 3.5M cybersecurity positions are unfilled globally. These aren't hypothetical risks. They're happening now.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>THE PROBLEM</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="number">39s</div>
+        <div class="label">BETWEEN ATTACKS</div>
+      </div>
+      <div class="stat-card">
+        <div class="number">$4.88M</div>
+        <div class="label">AVG BREACH COST</div>
+      </div>
+      <div class="stat-card">
+        <div class="number">3.5M</div>
+        <div class="label">UNFILLED POSITIONS</div>
+      </div>
+    </div>
+    <p style="margin-top: 30px; text-align: center;">Threats are accelerating. Talent is scarce. Manual response can't keep up.</p>
+  </div>
+
+  <!-- Slide 3: The Gap -->
+  <div class="slide" data-notes="The gap isn't that tools don't exist — it's that they don't work the way they should. Existing solutions create more problems than they solve: dashboards that require PhD-level expertise, alert volumes that cause fatigue, and 'autonomous' features that still need a human to click 'approve.' The industry has optimized for selling seats, not solving problems.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>THE GAP</h2>
+    <div class="comparison-grid">
+      <div class="comparison-col bad">
+        <h3>WHAT TOOLS GET WRONG</h3>
+        <ul>
+          <li>Alert fatigue — thousands per day, most false positives</li>
+          <li>Complex dashboards that require dedicated analysts</li>
+          <li>"Autonomous" response that still needs human approval</li>
+          <li>Vendor lock-in with opaque detection logic</li>
+          <li>One-size-fits-all policies that miss context</li>
+        </ul>
+      </div>
+      <div class="comparison-col good">
+        <h3>WHAT'S ACTUALLY NEEDED</h3>
+        <ul>
+          <li>Intelligent triage that eliminates noise</li>
+          <li>Real autonomy — detect, decide, and act</li>
+          <li>Transparent rules you can read and modify</li>
+          <li>Adaptive learning from your environment</li>
+          <li>Instant response, not "we'll get to it"</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Introducing Cereberus -->
+  <div class="slide" data-notes="One line: Cereberus is the cybersecurity system that thinks, acts, and learns — without waiting for you. It's not a dashboard. It's not a log aggregator. It's an autonomous defense system that detects threats across 50 rule categories, correlates intelligence from 6 live feeds, and neutralizes threats in real-time. Show the terminal mockup to convey the engineering-first ethos.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>INTRODUCING CEREBERUS</h2>
+    <p style="text-align: center; font-size: 22px; color: var(--text-primary); margin-bottom: 20px;">
+      The defense system that thinks, acts, and learns — without waiting for you.
+    </p>
+    <div class="terminal">
+      <div class="terminal-bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <code>
+        <span class="prompt">cereberus $</span> <span class="cmd">status</span><br>
+        <span class="output">  Commander Bond ........... </span><span class="highlight">SCANNING</span><br>
+        <span class="output">  Sword Protocol ........... </span><span class="highlight">ARMED</span><br>
+        <span class="output">  Threat Intelligence ...... </span><span class="highlight">6 FEEDS ACTIVE</span><br>
+        <span class="output">  Detection Rules .......... </span><span class="highlight">50 LOADED</span><br>
+        <span class="output">  Threats Neutralized ......</span> <span style="color: var(--green);">847</span><br>
+        <span class="output">  Uptime ...................</span> <span class="highlight">31d 14h 22m</span>
+      </code>
+    </div>
+  </div>
+
+  <!-- Slide 5: Commander Bond -->
+  <div class="slide" data-notes="Commander Bond is the autonomous intelligence engine at the heart of Cereberus. It's not just scanning — it's thinking. It runs continuous assessment cycles, correlating behavioral baselines with real-time threat intelligence. When it detects something anomalous, it doesn't create a ticket. It evaluates severity, matches Sword policies, and executes response — all within milliseconds. The name isn't just branding — it captures the ethos of autonomous, decisive action under pressure.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>COMMANDER BOND</h2>
+    <h3 style="text-align: center; color: var(--text-muted);">THE AUTONOMOUS INTELLIGENCE ENGINE</h3>
+    <ul class="feature-list">
+      <li>Continuous threat assessment with adaptive scan intervals</li>
+      <li>Behavioral baseline learning — knows what's normal for your system</li>
+      <li>Threat correlation across multiple intelligence sources</li>
+      <li>Autonomous decision-making — no human in the loop required</li>
+      <li>Guardian Protocol — graduated containment response (DEFCON 1-5)</li>
+      <li>Full explainability — every decision logged with reasoning</li>
+    </ul>
+  </div>
+
+  <!-- Slide 6: Sword Protocol -->
+  <div class="slide" data-notes="Sword Protocol is Bond's enforcement arm. When a threat is confirmed, Sword doesn't wait. It executes from an escalation chain: kill process, block IP, quarantine file, isolate network. Each policy has a codename (THUNDERBALL, GOLDFINGER, etc.), escalation levels, rate limiting, and cooldown periods. Dry-run mode lets you validate before going live. The before/after contrast is the key selling point here — show the speed difference.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>SWORD PROTOCOL</h2>
+    <h3 style="text-align: center; color: var(--text-muted);">AUTOMATED THREAT NEUTRALIZATION</h3>
+    <div class="ba-grid">
+      <div class="ba-card before">
+        <h4>BEFORE SWORD</h4>
+        <p>Threat detected at 14:32:01<br>Alert created at 14:32:02<br>Analyst sees alert at 14:47:15<br>Investigation starts at 14:52:30<br>Remediation at 15:18:44<br><br><strong style="color: var(--red);">Response time: 46 minutes</strong></p>
+      </div>
+      <div class="ba-arrow">&rarr;</div>
+      <div class="ba-card after">
+        <h4>AFTER SWORD</h4>
+        <p>Threat detected at 14:32:01<br>Bond evaluates at 14:32:01<br>Sword matches policy at 14:32:01<br>Process killed at 14:32:02<br>IP blocked at 14:32:02<br>Alert marked NEUTRALIZED<br><br><strong style="color: var(--green);">Response time: 1 second</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: 50 Detection Rules -->
+  <div class="slide" data-notes="50 purpose-built detection rules spanning 8 categories. These aren't generic SIEM rules — they're tuned for Windows environments with specific process, network, and behavioral indicators. Each rule has severity weighting, contextual details, and feeds directly into the Sword Protocol evaluation chain. Rules are readable Python, not proprietary query languages.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>50 DETECTION RULES</h2>
+    <div class="pill-grid">
+      <div class="pill">PROCESS ANOMALIES</div>
+      <div class="pill">NETWORK THREATS</div>
+      <div class="pill">FILE INTEGRITY</div>
+      <div class="pill">REGISTRY CHANGES</div>
+      <div class="pill">PRIVILEGE ESCALATION</div>
+      <div class="pill">LATERAL MOVEMENT</div>
+      <div class="pill">DATA EXFILTRATION</div>
+      <div class="pill">PERSISTENCE MECHANISMS</div>
+      <div class="pill">DNS TUNNELING</div>
+      <div class="pill">CREDENTIAL THEFT</div>
+      <div class="pill">CRYPTOMINING</div>
+      <div class="pill">RANSOMWARE BEHAVIOR</div>
+      <div class="pill">C2 COMMUNICATION</div>
+      <div class="pill">YARA SIGNATURES</div>
+    </div>
+    <p style="margin-top: 30px; text-align: center;">Every rule is readable Python. No proprietary query languages. No black boxes.</p>
+  </div>
+
+  <!-- Slide 8: Real-Time Intelligence -->
+  <div class="slide" data-notes="Cereberus pulls from 6 live threat intelligence feeds: AlienVault OTX, abuse.ch URLhaus, abuse.ch ThreatFox, FeodoTracker, emerging threats signatures, and blocklist.de. Feeds are updated continuously with TLS verification (certifi CA bundle for Windows compatibility). The ThreatCorrelator cross-references indicators across feeds to identify coordinated campaigns. Behavioral baselines adapt over time — what's 'normal' changes, and Cereberus changes with it.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>REAL-TIME INTELLIGENCE</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="number">6</div>
+        <div class="label">LIVE THREAT FEEDS</div>
+      </div>
+      <div class="stat-card">
+        <div class="number">24/7</div>
+        <div class="label">CONTINUOUS UPDATES</div>
+      </div>
+      <div class="stat-card">
+        <div class="number">5</div>
+        <div class="label">AI ANALYSIS ENGINES</div>
+      </div>
+    </div>
+    <ul class="feature-list" style="margin-top: 24px;">
+      <li>AlienVault OTX, abuse.ch URLhaus, ThreatFox, FeodoTracker, blocklist.de</li>
+      <li>Cross-feed correlation identifies coordinated campaigns</li>
+      <li>Behavioral baselines adapt to your environment over time</li>
+      <li>Anomaly detection with ensemble scoring — not just threshold alerts</li>
+    </ul>
+  </div>
+
+  <!-- Slide 9: Architecture -->
+  <div class="slide" data-notes="The stack is deliberately opinionated. FastAPI for async performance, SQLAlchemy with aiosqlite for zero-config persistence (WAL mode for concurrent reads), React/TypeScript frontend, PyTorch for ML inference. 6 middleware layers handle security (CORS, CSRF, ShieldWall WAF, Gatekeeper rate limiting, Audit logging, Request ID tracing). Zero shell=True calls — every subprocess is argument-list only. 37 database tables with automatic migration. The architecture prioritizes correctness over cleverness.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>ARCHITECTURE</h2>
+    <div class="tech-grid">
+      <div class="tech-item">
+        <div class="name">FASTAPI</div>
+        <div class="desc">Async Python backend</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">SQLALCHEMY</div>
+        <div class="desc">37 tables, WAL mode</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">REACT + TS</div>
+        <div class="desc">Type-safe frontend</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">PYTORCH</div>
+        <div class="desc">ML inference engine</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">6 MIDDLEWARE</div>
+        <div class="desc">Defense-in-depth</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">YARA</div>
+        <div class="desc">Signature scanning</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">EVENTBUS</div>
+        <div class="desc">Real-time pub/sub</div>
+      </div>
+      <div class="tech-item">
+        <div class="name">ZERO SHELL</div>
+        <div class="desc">No shell=True, ever</div>
+      </div>
+    </div>
+    <p style="margin-top: 24px; text-align: center; font-size: 17px;">Correctness over cleverness. Every design decision has a reason.</p>
+  </div>
+
+  <!-- Slide 10: For Engineers -->
+  <div class="slide" data-notes="Engineers care about extensibility, not marketing decks. Key points: API-first design with full OpenAPI docs, 39 route files covering every subsystem. Module system with BaseModule abstract class — write a new module in under 50 lines. RBAC with granular permissions. Full audit trail on every action. WebSocket real-time events. CSV export on every data table. Configuration via .env with Pydantic validation — no YAML hell.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>FOR ENGINEERS</h2>
+    <div class="two-col">
+      <div>
+        <h3>API-FIRST</h3>
+        <ul class="feature-list">
+          <li>39 RESTful route files with OpenAPI docs</li>
+          <li>WebSocket real-time event streaming</li>
+          <li>CSV export on every data table</li>
+          <li>Full RBAC with granular permissions</li>
+        </ul>
+      </div>
+      <div>
+        <h3>EXTENSIBLE</h3>
+        <ul class="feature-list">
+          <li>BaseModule pattern — new modules in 50 lines</li>
+          <li>Pydantic config validation — no YAML hell</li>
+          <li>Complete audit trail on every action</li>
+          <li>50 rules in readable Python, not DSLs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 11: For Business Owners -->
+  <div class="slide" data-notes="Business owners need three things: reduced risk, reduced cost, and confidence that the system works while they sleep. Cereberus delivers all three. Autonomous response means incidents are handled in seconds, not hours — that's the difference between a contained event and a breach notification. Reduced headcount requirements because the system handles what a junior SOC analyst would. Full compliance audit trail without additional tooling. And the Sword Protocol dry-run mode means you can validate the system before going fully autonomous.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <h2>FOR BUSINESS OWNERS</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="number" style="font-size: 36px;">46min &rarr; 1s</div>
+        <div class="label">RESPONSE TIME REDUCTION</div>
+      </div>
+      <div class="stat-card">
+        <div class="number" style="font-size: 36px;">100%</div>
+        <div class="label">AUDIT TRAIL COVERAGE</div>
+      </div>
+      <div class="stat-card">
+        <div class="number" style="font-size: 36px;">24/7</div>
+        <div class="label">AUTONOMOUS OPERATION</div>
+      </div>
+    </div>
+    <ul class="feature-list" style="margin-top: 24px;">
+      <li>Incidents handled in seconds — before damage can spread</li>
+      <li>Reduced SOC headcount requirements</li>
+      <li>Complete compliance audit trail without additional tooling</li>
+      <li>Dry-run mode — validate before full autonomy</li>
+      <li>The system that works while you sleep</li>
+    </ul>
+  </div>
+
+  <!-- Slide 12: Contact / CTA -->
+  <div class="slide" data-notes="Close with confidence. Don't oversell. Let the demo do the talking. Offer a live demo where they can see Commander Bond evaluate a real threat, watch Sword Protocol neutralize it in real-time, and review the full audit trail. The classification aesthetic throughout the deck reinforces the seriousness of the product domain without being kitschy.">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <div class="logo-mark" style="font-size: 48px; letter-spacing: 8px;">CEREBERUS</div>
+    <p style="text-align: center; font-size: 22px; color: var(--text-primary); margin-top: 20px; margin-bottom: 30px;">
+      See it in action.
+    </p>
+    <div class="cta-box">
+      <h3 style="color: var(--text-primary); margin-bottom: 8px;">REQUEST A LIVE DEMO</h3>
+      <p style="font-size: 16px; margin-bottom: 16px;">Watch Commander Bond detect, evaluate, and neutralize a threat in real-time.</p>
+      <div class="email">demo@cereberus.security</div>
+    </div>
+    <div class="subtitle" style="margin-top: 30px; font-size: 13px; color: var(--text-muted);">
+      AUTONOMOUS CYBERSECURITY DEFENSE &mdash; v1.6.0
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="dots" id="dots"></div>
+<div class="nav">
+  <span class="counter" id="counter">1 / 12</span>
+  <button id="prev">&larr; PREV</button>
+  <button id="next">NEXT &rarr;</button>
+</div>
+<button class="notes-toggle" id="notesToggle">SPEAKER NOTES</button>
+<div class="speaker-notes" id="speakerNotes"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('dots');
+  const counter = document.getElementById('counter');
+  const notesEl = document.getElementById('speakerNotes');
+  const notesToggle = document.getElementById('notesToggle');
+  let current = 0;
+  let notesVisible = false;
+
+  // Create dots
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsContainer.appendChild(dot);
+  });
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dotsContainer.children[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, slides.length - 1));
+    slides[current].classList.add('active');
+    dotsContainer.children[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${slides.length}`;
+    notesEl.textContent = slides[current].dataset.notes || '';
+  }
+
+  document.getElementById('prev').onclick = () => goTo(current - 1);
+  document.getElementById('next').onclick = () => goTo(current + 1);
+
+  notesToggle.onclick = () => {
+    notesVisible = !notesVisible;
+    notesEl.classList.toggle('visible', notesVisible);
+    notesEl.textContent = slides[current].dataset.notes || '';
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(current - 1); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End') goTo(slides.length - 1);
+    if (e.key === 'n' || e.key === 'N') notesToggle.click();
+  });
+
+  // Initialize notes
+  notesEl.textContent = slides[0].dataset.notes || '';
+</script>
+
+</body>
+</html>

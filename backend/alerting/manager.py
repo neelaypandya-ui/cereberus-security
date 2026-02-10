@@ -136,7 +136,9 @@ class AlertManager:
         )
 
         # Persist to database
-        await self._persist_to_db(alert)
+        alert_id = await self._persist_to_db(alert)
+        if alert_id is not None:
+            alert["id"] = alert_id
 
         # Dispatch to all channels
         await self._broadcast_ws(alert)
@@ -176,6 +178,7 @@ class AlertManager:
                     "severity": severity,
                     "title": title,
                     "details": details or {},
+                    "alert_id": alert.get("id"),
                 }
                 await self._commander_bond.evaluate_alert(event)
             except Exception as e:
@@ -183,10 +186,10 @@ class AlertManager:
 
         return alert
 
-    async def _persist_to_db(self, alert: dict) -> None:
-        """Write alert to the database."""
+    async def _persist_to_db(self, alert: dict) -> Optional[int]:
+        """Write alert to the database and return its ID."""
         if not self._db_session_factory:
-            return
+            return None
 
         try:
             from ..models.alert import Alert
@@ -204,12 +207,53 @@ class AlertManager:
                 )
                 session.add(db_alert)
                 await session.commit()
+                await session.refresh(db_alert)
+                return db_alert.id
         except Exception as e:
             logger.error("alert_db_persist_failed", error=str(e))
+            return None
 
-    async def _broadcast_ws(self, alert: dict) -> None:
-        """Broadcast alert to all connected WebSocket clients."""
-        message = json.dumps({"type": "alert", "data": alert})
+    async def resolve_alert(self, alert_id: int, resolved_by: str) -> None:
+        """Mark an alert as resolved by Bond/Sword and broadcast via WebSocket."""
+        if not self._db_session_factory:
+            return
+
+        try:
+            from ..models.alert import Alert
+
+            now = datetime.now(timezone.utc)
+            async with self._db_session_factory() as session:
+                from sqlalchemy import select
+                result = await session.execute(select(Alert).where(Alert.id == alert_id))
+                db_alert = result.scalar_one_or_none()
+                if not db_alert:
+                    logger.warning("resolve_alert_not_found", alert_id=alert_id)
+                    return
+                db_alert.acknowledged = True
+                db_alert.resolved_at = now
+                db_alert.resolved_by = resolved_by
+                await session.commit()
+
+            logger.info("alert_resolved_by_sword", alert_id=alert_id, resolved_by=resolved_by)
+
+            # Broadcast resolution via WebSocket
+            await self._broadcast_ws(None, message_override={
+                "type": "alert_resolved",
+                "data": {
+                    "alert_id": alert_id,
+                    "resolved_by": resolved_by,
+                    "resolved_at": now.isoformat(),
+                },
+            })
+        except Exception as e:
+            logger.error("resolve_alert_failed", alert_id=alert_id, error=str(e))
+
+    async def _broadcast_ws(self, alert: dict | None, message_override: dict | None = None) -> None:
+        """Broadcast alert or custom message to all connected WebSocket clients."""
+        if message_override:
+            message = json.dumps(message_override)
+        else:
+            message = json.dumps({"type": "alert", "data": alert})
         disconnected = []
 
         for ws in self._ws_connections:

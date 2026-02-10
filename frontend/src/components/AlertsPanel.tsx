@@ -13,6 +13,7 @@ interface Alert {
   vpn_status_at_event: string | null;
   acknowledged: boolean;
   resolved_at: string | null;
+  resolved_by: string | null;
   dismissed: boolean;
   snoozed_until: string | null;
   escalated_to_incident_id: number | null;
@@ -36,6 +37,7 @@ export function AlertsPanel() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showDismissed, setShowDismissed] = useState(false);
   const [showSnoozed, setShowSnoozed] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState<string | null>(null);
 
   const load = () => {
     const params: Record<string, unknown> = { limit: 100, show_dismissed: showDismissed, show_snoozed: showSnoozed };
@@ -78,37 +80,23 @@ export function AlertsPanel() {
     }
   };
 
-  const handleBulkDismiss = async (ids: number[]) => {
-    // Remove from list immediately if dismissed alerts are hidden
-    if (!showDismissed) {
-      setAlerts(prev => prev.filter(a => !ids.includes(a.id)));
-    } else {
-      setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: true } : a));
-    }
-    try {
-      await api.dismissAlerts(ids);
-      showToast('success', `${ids.length} alert(s) dismissed`);
-    } catch (e: unknown) {
-      load(); // Revert by reloading
-      showToast('error', 'Failed to dismiss alerts', (e as Error).message);
-    }
-  };
-
   const handleDismissAll = async () => {
-    // Wipe ALL alerts from DB (not just visible 100) — clear board instantly
+    setBulkLoading('dismiss');
     setAlerts([]);
     try {
       const result = await api.dismissAllAlerts() as { dismissed_count: number };
       showToast('success', `${result.dismissed_count} alert(s) dismissed`);
-      // Reload to get fresh state (will be empty if all dismissed)
       setTimeout(load, 500);
     } catch (e: unknown) {
-      load(); // Revert by reloading
+      load();
       showToast('error', 'Failed to dismiss all alerts', (e as Error).message);
+    } finally {
+      setBulkLoading(null);
     }
   };
 
   const handleAcknowledgeAll = async () => {
+    setBulkLoading('acknowledge');
     setAlerts(prev => prev.map(a => ({ ...a, acknowledged: true })));
     try {
       const result = await api.acknowledgeAllAlerts() as { acknowledged_count: number };
@@ -116,6 +104,8 @@ export function AlertsPanel() {
     } catch (e: unknown) {
       load();
       showToast('error', 'Failed to acknowledge all alerts', (e as Error).message);
+    } finally {
+      setBulkLoading(null);
     }
   };
 
@@ -208,6 +198,7 @@ export function AlertsPanel() {
           {alerts.some((a) => !a.acknowledged) && (
             <button
               onClick={handleAcknowledgeAll}
+              disabled={bulkLoading !== null}
               style={{
                 padding: '5px 14px',
                 fontSize: '16px',
@@ -217,15 +208,16 @@ export function AlertsPanel() {
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-default)',
                 borderRadius: '2px',
-                cursor: 'pointer',
+                cursor: bulkLoading ? 'not-allowed' : 'pointer',
                 textTransform: 'uppercase',
               }}
             >
-              ACKNOWLEDGE ALL
+              {bulkLoading === 'acknowledge' ? 'ACKNOWLEDGING...' : 'ACKNOWLEDGE ALL'}
             </button>
           )}
           <button
             onClick={handleDismissAll}
+            disabled={bulkLoading !== null}
             style={{
               padding: '5px 14px',
               fontSize: '16px',
@@ -235,12 +227,12 @@ export function AlertsPanel() {
               color: '#fff',
               border: '1px solid var(--severity-critical)',
               borderRadius: '2px',
-              cursor: 'pointer',
+              cursor: bulkLoading ? 'not-allowed' : 'pointer',
               textTransform: 'uppercase',
               fontWeight: 700,
             }}
           >
-            DISMISS ALL
+            {bulkLoading === 'dismiss' ? 'DISMISSING...' : 'DISMISS ALL'}
           </button>
         </div>
       )}
@@ -261,25 +253,30 @@ export function AlertsPanel() {
         )}
         {alerts.map((a) => {
           const mil = MILITARY_LABELS[a.severity] || MILITARY_LABELS.info;
+          const isNeutralized = !!a.resolved_by;
           return (
             <div
               key={a.id}
-              className={!a.acknowledged ? 'alert-pulse' : ''}
+              className={!a.acknowledged && !isNeutralized ? 'alert-pulse' : isNeutralized ? 'threat-neutralized' : ''}
               style={{
-                background: 'var(--bg-tertiary)',
-                border: `1px solid ${!a.acknowledged ? 'var(--amber-primary)' : 'var(--border-default)'}`,
-                borderLeft: `3px solid ${severityColor(a.severity)}`,
+                background: isNeutralized ? 'rgba(0, 200, 83, 0.05)' : 'var(--bg-tertiary)',
+                border: `1px solid ${isNeutralized ? 'var(--status-online)' : !a.acknowledged ? 'var(--amber-primary)' : 'var(--border-default)'}`,
+                borderLeft: `3px solid ${isNeutralized ? 'var(--status-online)' : severityColor(a.severity)}`,
                 borderRadius: '2px',
                 padding: '10px 14px',
-                opacity: a.acknowledged ? 0.5 : 1,
+                opacity: isNeutralized ? 0.7 : a.acknowledged ? 0.5 : 1,
               }}
             >
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                 onClick={() => setExpandedId(expandedId === a.id ? null : a.id)}
               >
-                <span className={`stamp-badge ${mil.stampClass}`}>{mil.label}</span>
-                <span style={{ fontSize: '18px', color: 'var(--text-primary)', flex: 1 }}>
+                {isNeutralized ? (
+                  <span className="stamp-badge stamp-cleared">NEUTRALIZED</span>
+                ) : (
+                  <span className={`stamp-badge ${mil.stampClass}`}>{mil.label}</span>
+                )}
+                <span style={{ fontSize: '18px', color: isNeutralized ? 'var(--status-online)' : 'var(--text-primary)', flex: 1 }}>
                   {a.title}
                 </span>
                 <span style={{ fontSize: '16px', color: 'var(--cyan-primary)', fontFamily: 'var(--font-mono)' }}>
@@ -288,7 +285,7 @@ export function AlertsPanel() {
                 <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   {new Date(a.timestamp).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}Z
                 </span>
-                {!a.acknowledged && (
+                {!a.acknowledged && !isNeutralized && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleAcknowledge([a.id]); }}
                     style={{
@@ -330,6 +327,11 @@ export function AlertsPanel() {
                   }}>
                     {a.description}
                   </div>
+                  {isNeutralized && a.resolved_at && (
+                    <div style={{ marginTop: '8px', fontSize: '15px', color: 'var(--status-online)', fontFamily: 'var(--font-mono)', letterSpacing: '1px', fontWeight: 700 }}>
+                      NEUTRALIZED BY {a.resolved_by} AT {new Date(a.resolved_at).toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' })}Z
+                    </div>
+                  )}
                   {a.vpn_status && (
                     <div style={{ marginTop: '6px', fontSize: '17px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       VPN STATUS: {a.vpn_status}
@@ -340,31 +342,33 @@ export function AlertsPanel() {
                       ESCALATED TO INCIDENT #{a.escalated_to_incident_id}
                     </div>
                   )}
-                  {/* Triage Actions */}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                    {!a.dismissed && (
+                  {/* Triage Actions — hidden for neutralized alerts (Bond handled it) */}
+                  {!isNeutralized && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                      {!a.dismissed && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDismiss(a.id); }}
+                          style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-default)', borderRadius: '2px', cursor: 'pointer' }}
+                        >
+                          DISMISS
+                        </button>
+                      )}
+                      {!a.escalated_to_incident_id && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEscalate(a.id); }}
+                          style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--red-dark)', color: '#fff', border: '1px solid var(--severity-critical)', borderRadius: '2px', cursor: 'pointer' }}
+                        >
+                          ESCALATE
+                        </button>
+                      )}
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDismiss(a.id); }}
-                        style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border-default)', borderRadius: '2px', cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); handleSnooze(a.id); }}
+                        style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: '#f59e0b', border: '1px solid #f59e0b33', borderRadius: '2px', cursor: 'pointer' }}
                       >
-                        DISMISS
+                        SNOOZE 1H
                       </button>
-                    )}
-                    {!a.escalated_to_incident_id && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleEscalate(a.id); }}
-                        style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--red-dark)', color: '#fff', border: '1px solid var(--severity-critical)', borderRadius: '2px', cursor: 'pointer' }}
-                      >
-                        ESCALATE
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleSnooze(a.id); }}
-                      style={{ padding: '3px 10px', fontSize: '14px', fontFamily: 'var(--font-mono)', letterSpacing: '1px', background: 'var(--bg-elevated)', color: '#f59e0b', border: '1px solid #f59e0b33', borderRadius: '2px', cursor: 'pointer' }}
-                    >
-                      SNOOZE 1H
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
