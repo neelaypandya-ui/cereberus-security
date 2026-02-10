@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBERUS — Instagram Post 2: Commander Bond</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #060a10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .post {
+    width: 1080px;
+    height: 1080px;
+    background: #060a10;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Background grid overlay */
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Radial glow from top center */
+  .bg-radial {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 60%);
+  }
+
+  /* Vignette effect */
+  .bg-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  }
+
+  /* Content layer */
+  .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* 1. Classification stamp */
+  .classification {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: #ff1744;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    padding: 6px 16px;
+    opacity: 0.5;
+    margin-bottom: 32px;
+  }
+
+  /* 2. Feature spotlight label */
+  .spotlight-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: #00e5ff;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* 3. Title */
+  .title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px;
+    font-weight: 800;
+    color: #f0f2f5;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    line-height: 1;
+    text-align: center;
+  }
+
+  /* 4. Subtitle */
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: #4a5568;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 12px;
+  }
+
+  /* 5. Cyan gradient divider */
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(90deg, #00e5ff, #0077ff);
+    margin: 28px auto;
+    border-radius: 1px;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4), 0 0 24px rgba(0, 229, 255, 0.15);
+  }
+
+  /* 6. Terminal card */
+  .terminal {
+    max-width: 720px;
+    width: 720px;
+    background: rgba(12, 18, 24, 0.9);
+    border: 1px solid #1e2d3d;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .terminal-chrome {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(30, 45, 61, 0.5);
+    padding: 10px 14px;
+    border-bottom: 1px solid #1e2d3d;
+  }
+
+  .terminal-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .terminal-dot.red { background: #ff5f57; }
+  .terminal-dot.yellow { background: #febc2e; }
+  .terminal-dot.green { background: #28c840; }
+
+  .terminal-body {
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2.0;
+  }
+
+  .terminal-prompt {
+    color: #00e676;
+  }
+
+  .terminal-command {
+    color: #f0f2f5;
+  }
+
+  .terminal-label {
+    color: #4a5568;
+  }
+
+  .terminal-value-cyan {
+    color: #00e5ff;
+  }
+
+  .terminal-value-green {
+    color: #00e676;
+  }
+
+  /* 7. Bottom text */
+  .bottom-text {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #a0a8b4;
+    margin-top: 28px;
+  }
+
+  /* 8. Handle */
+  .handle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: #4a5568;
+    letter-spacing: 2px;
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="post">
+  <!-- Background layers -->
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-vignette"></div>
+
+  <!-- Main content -->
+  <div class="content">
+    <!-- 1. Classification stamp -->
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+
+    <!-- 2. Feature spotlight label -->
+    <div class="spotlight-label">FEATURE SPOTLIGHT</div>
+
+    <!-- 3. Title -->
+    <div class="title">COMMANDER BOND</div>
+
+    <!-- 4. Subtitle -->
+    <div class="subtitle">THE AUTONOMOUS INTELLIGENCE ENGINE</div>
+
+    <!-- 5. Cyan gradient divider -->
+    <div class="divider"></div>
+
+    <!-- 6. Terminal card -->
+    <div class="terminal">
+      <div class="terminal-chrome">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+      </div>
+      <div class="terminal-body">
+        <div><span class="terminal-prompt">$</span> <span class="terminal-command">bond status</span></div>
+        <div><span class="terminal-label">  State ................ </span><span class="terminal-value-cyan">SCANNING</span></div>
+        <div><span class="terminal-label">  Threats Found ........ </span><span class="terminal-value-green">847</span></div>
+        <div><span class="terminal-label">  Scan Interval ........ </span><span class="terminal-value-cyan">ADAPTIVE</span></div>
+        <div><span class="terminal-label">  Behavioral Baseline .. </span><span class="terminal-value-cyan">LEARNING</span></div>
+        <div><span class="terminal-label">  Guardian Protocol .... </span><span class="terminal-value-cyan">DEFCON 5</span></div>
+        <div><span class="terminal-label">  Last Decision ........ </span><span class="terminal-value-cyan">NEUTRALIZE</span></div>
+      </div>
+    </div>
+
+    <!-- 7. Bottom text -->
+    <div class="bottom-text">No human in the loop required.</div>
+  </div>
+
+  <!-- 8. Handle -->
+  <div class="handle">@cereberus.security</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBERUS - Response Time Before/After</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: #060a10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .container {
+    width: 1080px;
+    height: 1080px;
+    background: #060a10;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Cyan grid overlay */
+  .container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Radial glow from top center */
+  .container::after {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 700px;
+    background: radial-gradient(ellipse at center, rgba(0,229,255,0.06) 0%, transparent 70%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Vignette */
+  .vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 0 40px;
+  }
+
+  /* Classification stamp */
+  .classification {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #ff1744;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,23,68,0.3);
+    padding: 6px 16px;
+    opacity: 0.5;
+    margin-bottom: 32px;
+  }
+
+  /* Title */
+  .title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: #f0f2f5;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+  }
+
+  /* Cyan divider */
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(90deg, #00e5ff, rgba(0,229,255,0.3));
+    margin: 24px 0;
+  }
+
+  /* Panels grid */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    gap: 0;
+    width: 100%;
+    max-width: 1000px;
+    align-items: center;
+  }
+
+  /* Arrow between panels */
+  .arrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    color: #00e5ff;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Panel base */
+  .panel {
+    background: rgba(17,26,36,0.7);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Before panel */
+  .panel-before {
+    border: 1px solid rgba(255,23,68,0.25);
+  }
+
+  .panel-before .panel-top-border {
+    height: 2px;
+    background: linear-gradient(90deg, #ff1744, #d50000);
+  }
+
+  .panel-before .panel-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #ff1744;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 24px 28px 0 28px;
+  }
+
+  .panel-before .panel-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 120px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(180deg, #ff1744, #d50000);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    padding: 8px 28px 0 28px;
+  }
+
+  .panel-before .panel-unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: #ff1744;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding: 0 28px;
+  }
+
+  /* After panel */
+  .panel-after {
+    border: 1px solid rgba(0,230,118,0.25);
+  }
+
+  .panel-after .panel-top-border {
+    height: 2px;
+    background: linear-gradient(90deg, #00e676, #00c853);
+  }
+
+  .panel-after .panel-header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #00e676;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 24px 28px 0 28px;
+  }
+
+  .panel-after .panel-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 120px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(180deg, #00e676, #00c853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    padding: 8px 28px 0 28px;
+  }
+
+  .panel-after .panel-unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: #00e676;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding: 0 28px;
+  }
+
+  /* Timeline items */
+  .timeline {
+    padding: 16px 28px 28px 28px;
+  }
+
+  .timeline-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #4a5568;
+    line-height: 2.2;
+    white-space: nowrap;
+  }
+
+  .timeline-item.highlight {
+    color: #00e676;
+    font-weight: 700;
+  }
+
+  /* Bottom quote */
+  .quote {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #a0a8b4;
+    margin-top: 24px;
+    max-width: 600px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* Handle */
+  .handle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #4a5568;
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="vignette"></div>
+    <div class="content">
+      <!-- Classification stamp -->
+      <div class="classification">TOP SECRET // CEREBERUS</div>
+
+      <!-- Title -->
+      <div class="title">RESPONSE TIME</div>
+
+      <!-- Cyan divider -->
+      <div class="divider"></div>
+
+      <!-- Side-by-side panels -->
+      <div class="panels">
+        <!-- BEFORE panel -->
+        <div class="panel panel-before">
+          <div class="panel-top-border"></div>
+          <div class="panel-header">BEFORE</div>
+          <div class="panel-number">46</div>
+          <div class="panel-unit">MINUTES</div>
+          <div class="timeline">
+            <div class="timeline-item">14:32:01&nbsp;&nbsp;Threat detected</div>
+            <div class="timeline-item">14:32:02&nbsp;&nbsp;Alert created</div>
+            <div class="timeline-item">14:47:15&nbsp;&nbsp;Analyst sees alert</div>
+            <div class="timeline-item">14:52:30&nbsp;&nbsp;Investigation starts</div>
+            <div class="timeline-item">15:18:44&nbsp;&nbsp;Remediation</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow">&rarr;</div>
+
+        <!-- AFTER panel -->
+        <div class="panel panel-after">
+          <div class="panel-top-border"></div>
+          <div class="panel-header">AFTER</div>
+          <div class="panel-number">1</div>
+          <div class="panel-unit">SECOND</div>
+          <div class="timeline">
+            <div class="timeline-item">14:32:01&nbsp;&nbsp;Threat detected</div>
+            <div class="timeline-item">14:32:01&nbsp;&nbsp;Bond evaluates</div>
+            <div class="timeline-item">14:32:01&nbsp;&nbsp;Policy matched</div>
+            <div class="timeline-item">14:32:02&nbsp;&nbsp;Process killed</div>
+            <div class="timeline-item highlight">14:32:02&nbsp;&nbsp;NEUTRALIZED</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom quote -->
+      <div class="quote">The difference between a contained event and a breach notification.</div>
+    </div>
+
+    <!-- Handle -->
+    <div class="handle">@cereberus.security</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEREBERUS — Instagram Post 1: Introduction</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #060a10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .post {
+    width: 1080px;
+    height: 1080px;
+    background: #060a10;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Background grid overlay */
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Radial glow from top center */
+  .bg-radial {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 60%);
+  }
+
+  /* Vignette effect */
+  .bg-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  }
+
+  /* Content layer */
+  .content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* 1. Classification stamp */
+  .classification {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: #ff1744;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    padding: 6px 16px;
+    opacity: 0.5;
+    margin-bottom: 48px;
+  }
+
+  /* 2. Logo text */
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 64px;
+    font-weight: 800;
+    color: #f0f2f5;
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* 3. Cyan gradient underline */
+  .logo-underline {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(90deg, #00e5ff, #0077ff);
+    margin-top: 16px;
+    border-radius: 1px;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4), 0 0 24px rgba(0, 229, 255, 0.15);
+  }
+
+  /* 4. Tagline */
+  .tagline {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: #4a5568;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-top: 24px;
+  }
+
+  /* 5. Divider */
+  .divider {
+    width: 200px;
+    height: 1px;
+    background: #1e2d3d;
+    margin: 32px 0;
+  }
+
+  /* 6. Stat boxes row */
+  .stats-row {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+  }
+
+  .stat-box {
+    width: 280px;
+    background: rgba(17, 26, 36, 0.7);
+    border: 1px solid #1e2d3d;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Cyan gradient top border via pseudo-element */
+  .stat-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #00e5ff, #0077ff);
+  }
+
+  .stat-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #00e5ff 0%, #0077ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    color: #4a5568;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* 7. Bottom tagline */
+  .bottom-tagline {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    color: #a0a8b4;
+    margin-top: 32px;
+  }
+
+  /* 8. Handle at bottom */
+  .handle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: #4a5568;
+    letter-spacing: 2px;
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="post">
+  <!-- Background layers -->
+  <div class="bg-grid"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-vignette"></div>
+
+  <!-- Main content -->
+  <div class="content">
+    <!-- 1. Classification stamp -->
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+
+    <!-- 2. Logo -->
+    <div class="logo">CEREBERUS</div>
+
+    <!-- 3. Underline -->
+    <div class="logo-underline"></div>
+
+    <!-- 4. Tagline -->
+    <div class="tagline">AUTONOMOUS CYBERSECURITY DEFENSE</div>
+
+    <!-- 5. Divider -->
+    <div class="divider"></div>
+
+    <!-- 6. Stats row -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-number">50</div>
+        <div class="stat-label">DETECTION RULES</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">6</div>
+        <div class="stat-label">THREAT FEEDS</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">&lt;1s</div>
+        <div class="stat-label">RESPONSE TIME</div>
+      </div>
+    </div>
+
+    <!-- 7. Bottom tagline -->
+    <div class="bottom-tagline">Three-headed guardian. Zero blind spots.</div>
+  </div>
+
+  <!-- 8. Handle -->
+  <div class="handle">@cereberus.security</div>
+</div>
+
+</body>
+</html>
