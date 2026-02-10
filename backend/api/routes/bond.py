@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
-from ...bridge import validate_and_log, BondStatusResponse, BondReportResponse, GuardianStatusResponse
+from ...bridge import validate_and_log, BondStatusResponse, BondReportResponse, GuardianStatusResponse, BondThreat, BondIntelligence, OverwatchStatusResponse, OverwatchIntegrityReport
 from ...dependencies import get_commander_bond
 
 router = APIRouter(prefix="/bond", tags=["bond"])
@@ -37,7 +37,7 @@ async def get_bond_report(
     reports = bond.get_reports()
     for r in reports:
         if r.get("id") == report_id:
-            return r
+            return validate_and_log(r, BondReportResponse, "GET /bond/reports/{id}")
     raise HTTPException(status_code=404, detail="Report not found")
 
 
@@ -50,7 +50,7 @@ async def get_bond_latest(
     latest = bond.get_latest_report()
     if not latest:
         return {"status": "NO INTELLIGENCE GATHERED", "threats": [], "threat_count": 0}
-    return latest
+    return validate_and_log(latest, BondReportResponse, "GET /bond/latest")
 
 
 @router.post("/scan")
@@ -74,7 +74,7 @@ async def get_bond_threats(
 ):
     """Get all threats across reports, filterable by category/severity."""
     bond = get_commander_bond()
-    return bond.get_all_threats(category=category, severity=severity)
+    return validate_and_log(bond.get_all_threats(category=category, severity=severity), BondThreat, "GET /bond/threats")
 
 
 @router.post("/threats/{threat_id}/neutralize")
@@ -108,7 +108,7 @@ async def get_bond_intelligence(
 ):
     """Get Bond's intelligence brain metrics — source quality, threat velocity, correlations."""
     bond = get_commander_bond()
-    return bond.get_intelligence()
+    return validate_and_log(bond.get_intelligence(), BondIntelligence, "GET /bond/intelligence")
 
 
 @router.post("/threats/{threat_id}/irrelevant")
@@ -168,7 +168,7 @@ async def get_overwatch_status(
 ):
     """Get Overwatch Protocol status — system integrity monitoring."""
     bond = get_commander_bond()
-    return bond.get_overwatch_status()
+    return validate_and_log(bond.get_overwatch_status(), OverwatchStatusResponse, "GET /bond/overwatch/status")
 
 
 @router.get("/overwatch/integrity")
@@ -177,7 +177,7 @@ async def get_overwatch_integrity(
 ):
     """Get latest integrity report — tampered/missing/new files."""
     bond = get_commander_bond()
-    return bond.get_overwatch_integrity()
+    return validate_and_log(bond.get_overwatch_integrity(), OverwatchIntegrityReport, "GET /bond/overwatch/integrity")
 
 
 @router.post("/overwatch/check")

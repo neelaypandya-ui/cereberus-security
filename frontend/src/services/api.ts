@@ -1,3 +1,5 @@
+import { validateResponse } from '../bridge/validators';
+
 const API_BASE = '/api/v1';
 
 let _refreshPromise: Promise<string | null> | null = null;
@@ -62,11 +64,18 @@ async function _refreshAndRetry<T>(path: string, options: RequestInit): Promise<
   return null;
 }
 
-// Dev-mode bridge validation registry: path pattern → [contractName, requiredKeys]
+// Bridge validation registry: path pattern → [contractName, requiredKeys]
 const _bridgeValidationMap: Record<string, [string, string[]]> = {
   '/smith/status': ['SmithStatusResponse', ['state', 'active', 'events_injected']],
-  '/bond/status': ['BondStatusResponse', ['state', 'active', 'intelligence_level']],
-  '/bond/guardian/status': ['GuardianStatusResponse', ['active', 'status', 'integrity_violations']],
+  '/bond/status': ['BondStatusResponse', ['state', 'threat_count', 'scan_interval_seconds']],
+  '/bond/guardian': ['GuardianStatusResponse', ['containment_level', 'level_name', 'lockdown_active']],
+  '/bond/overwatch/status': ['OverwatchStatus', ['status', 'files_baselined', 'tamper_count']],
+  '/network/connections': ['NetworkConnectionResponse', ['local_addr', 'remote_addr', 'protocol']],
+  '/yara/rules': ['YaraRuleResponse', ['id', 'name', 'enabled']],
+  '/yara/results': ['YaraScanResultResponse', ['id', 'scan_type', 'rule_name']],
+  '/memory/results': ['MemoryScanResultResponse', ['id', 'pid', 'process_name']],
+  '/bond/sword/policies': ['SwordPolicyResponse', ['id', 'codename', 'name']],
+  '/bond/sword/logs': ['SwordLogResponse', ['id', 'policy_id', 'codename']],
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -97,13 +106,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const data = await response.json();
 
-  // Dev-mode bridge validation
-  if (import.meta.env.DEV) {
-    const entry = _bridgeValidationMap[path];
-    if (entry) {
-      const { validateResponse } = await import('../bridge/validators');
-      validateResponse(data, entry[0], entry[1]);
-    }
+  // Bridge validation — console.warn only, never blocks
+  const entry = _bridgeValidationMap[path];
+  if (entry) {
+    validateResponse(data, entry[0], entry[1]);
   }
 
   return data;
@@ -734,4 +740,7 @@ export const api = {
   getOverwatchIntegrity: () => request('/bond/overwatch/integrity'),
   triggerOverwatchCheck: () =>
     request('/bond/overwatch/check', { method: 'POST' }),
+
+  // === Command Console: Security Protocol ===
+  getChecklistVerification: () => request('/checklists/verify'),
 };

@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
+from ...bridge import validate_and_log, YaraRuleResponse, YaraScanResultResponse
 from ...dependencies import get_yara_scanner, get_db
 from ...utils.input_validators import validate_file_path
 
@@ -53,7 +54,7 @@ async def list_yara_rules(
         select(YaraRule).order_by(YaraRule.id.desc()).offset(offset).limit(limit)
     )
     rules = result.scalars().all()
-    return [
+    data = [
         {
             "id": r.id,
             "name": r.name,
@@ -68,6 +69,7 @@ async def list_yara_rules(
         }
         for r in rules
     ]
+    return validate_and_log(data, YaraRuleResponse, "GET /yara/rules")
 
 
 @router.post("/rules")
@@ -250,7 +252,7 @@ async def get_scan_results(
         select(YaraScanResult).order_by(YaraScanResult.id.desc()).offset(offset).limit(limit)
     )
     results = result.scalars().all()
-    return [
+    data = [
         {
             "id": r.id,
             "scan_type": r.scan_type,
@@ -267,6 +269,7 @@ async def get_scan_results(
         }
         for r in results
     ]
+    return validate_and_log(data, YaraScanResultResponse, "GET /yara/results")
 
 
 @router.get("/stats")

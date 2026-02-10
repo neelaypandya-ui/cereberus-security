@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_MANAGE_SETTINGS, PERM_VIEW_DASHBOARD
+from ...bridge import validate_and_log, ThresholdResponse
 from ...dependencies import get_db, get_app_config
 
 router = APIRouter(prefix="/thresholds", tags=["thresholds"])
@@ -125,7 +126,7 @@ async def list_thresholds(
             "default_value": meta["default"],
             "type": meta["type"],
         })
-    return result
+    return validate_and_log(result, ThresholdResponse, "GET /thresholds/")
 
 
 @router.get("/{category}")
@@ -150,7 +151,7 @@ async def get_thresholds_by_category(
         })
     if not result:
         raise HTTPException(status_code=404, detail=f"No thresholds found for category: {category}")
-    return result
+    return validate_and_log(result, ThresholdResponse, "GET /thresholds/{category}")
 
 
 class ThresholdUpdate(BaseModel):

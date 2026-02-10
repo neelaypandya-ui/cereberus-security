@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...dependencies import get_db, get_app_config
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_FEEDS
+from ...bridge import validate_and_log, IOCResponse
 from ...models.ioc import IOC
 
 
@@ -109,7 +110,7 @@ async def list_iocs(
 
     result = await db.execute(query)
     rows = result.scalars().all()
-    return [_ioc_to_dict(r) for r in rows]
+    return validate_and_log([_ioc_to_dict(r) for r in rows], IOCResponse, "GET /ioc/")
 
 
 @router.get("/search")
@@ -127,7 +128,7 @@ async def search_iocs(
         .limit(limit)
     )
     rows = result.scalars().all()
-    return [_ioc_to_dict(r) for r in rows]
+    return validate_and_log([_ioc_to_dict(r) for r in rows], IOCResponse, "GET /ioc/search")
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -314,7 +315,7 @@ async def get_expiring_iocs(
         .limit(limit)
     )
     rows = result.scalars().all()
-    return [_ioc_to_dict(r) for r in rows]
+    return validate_and_log([_ioc_to_dict(r) for r in rows], IOCResponse, "GET /ioc/expiring")
 
 
 @router.post("/bulk-deactivate")
@@ -353,7 +354,7 @@ async def get_ioc(
     ioc = result.scalar_one_or_none()
     if not ioc:
         raise HTTPException(status_code=404, detail="IOC not found")
-    return _ioc_to_dict(ioc)
+    return validate_and_log(_ioc_to_dict(ioc), IOCResponse, "GET /ioc/{id}")
 
 
 @router.delete("/{ioc_id}")

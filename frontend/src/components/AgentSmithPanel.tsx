@@ -11,8 +11,8 @@ import type {
 
 type SmithStatusState = 'DORMANT' | 'CONFIGURING' | 'ACTIVE' | 'COMPLETING';
 
-// Local alias: extends bridge contract with optional legacy fields
-type SmithStatus = SmithStatusResponse & { guardian_lockdown?: boolean; guardian_lockdown_reason?: string };
+// Local alias: uses bridge contract directly (guardian fields now in contract)
+type SmithStatus = SmithStatusResponse;
 
 interface SmithCategory {
   id: string;

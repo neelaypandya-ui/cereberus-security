@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
-from ...bridge import validate_and_log, SmithStatusResponse, SmithSessionResult
+from ...bridge import validate_and_log, SmithStatusResponse, SmithSessionResult, SmithAttackEvent
 from ...dependencies import get_agent_smith
 
 router = APIRouter(prefix="/smith", tags=["smith"])
@@ -78,7 +78,7 @@ async def get_smith_result(
     results = smith.get_results()
     for r in results:
         if r.get("session_id") == session_id:
-            return r
+            return validate_and_log(r, SmithSessionResult, "GET /smith/results/{id}")
     raise HTTPException(status_code=404, detail="Session not found")
 
 
@@ -88,7 +88,7 @@ async def get_smith_attacks(
 ):
     """Get current/recent attack log for live feed."""
     smith = get_agent_smith()
-    return smith.get_attack_log()
+    return validate_and_log(smith.get_attack_log(), SmithAttackEvent, "GET /smith/attacks")
 
 
 @router.get("/categories")

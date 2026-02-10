@@ -1,4 +1,6 @@
 """Bridge contracts — Pydantic models defining API response shapes."""
+from __future__ import annotations
+
 from typing import Optional
 from pydantic import BaseModel
 
@@ -17,6 +19,7 @@ class SmithAttackEvent(BaseModel):
     category: str
     description: str
     detection: SmithDetection
+    pending: Optional[bool] = None
 
 class SmithStatusResponse(BaseModel):
     state: str
@@ -33,6 +36,15 @@ class SmithStatusResponse(BaseModel):
     attacks_pending: int = 0
     sessions_completed: int = 0
     unique_attacks_generated: int = 0
+    name: Optional[str] = None
+    enabled: Optional[bool] = None
+    running: Optional[bool] = None
+    health_status: Optional[str] = None
+    last_heartbeat: Optional[str] = None
+    max_duration: Optional[int] = None
+    attack_log_size: Optional[int] = None
+    guardian_lockdown: Optional[bool] = None
+    guardian_lockdown_reason: Optional[str] = None
 
 class SmithSessionResult(BaseModel):
     session_id: str
@@ -82,6 +94,18 @@ class BondReportResponse(BaseModel):
     summary: str
     all_clear: bool
 
+class SwordStatsResponse(BaseModel):
+    total_evaluations: int = 0
+    total_strikes: int = 0
+    total_rate_limited: int = 0
+    total_failed: int = 0
+    last_strike: Optional[str] = None
+    enabled: bool = False
+    lockout: bool = False
+    policies_loaded: int = 0
+    recent_executions: list[dict] = []
+
+
 class BondStatusResponse(BaseModel):
     state: str
     last_scan: Optional[str] = None
@@ -93,8 +117,8 @@ class BondStatusResponse(BaseModel):
     reports_buffered: int = 0
     neutralized_count: int = 0
     intelligence: Optional[BondIntelligence] = None
-    sword: Optional[dict] = None
-    overwatch: Optional[dict] = None
+    sword: Optional[SwordStatsResponse] = None
+    overwatch: Optional[OverwatchStatusResponse] = None
 
 
 # ── Guardian ──
@@ -123,14 +147,19 @@ class AlertResponse(BaseModel):
     dismissed: bool = False
     snoozed_until: Optional[str] = None
     escalated_to_incident_id: Optional[int] = None
+    details_json: Optional[dict] = None
+    interface_name: Optional[str] = None
+    feedback: Optional[str] = None
+    feedback_at: Optional[str] = None
+    feedback_by: Optional[str] = None
 
 
 # ── Network ──
 class NetworkConnectionResponse(BaseModel):
     local_addr: str
     local_port: int
-    remote_addr: str
-    remote_port: int
+    remote_addr: Optional[str] = None
+    remote_port: Optional[int] = None
     protocol: str
     status: str
     pid: int
@@ -176,6 +205,7 @@ class YaraRuleResponse(BaseModel):
     enabled: bool = True
     created_by: Optional[str] = None
     created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     tags: list[str] = []
     match_count: int = 0
     last_match_at: Optional[str] = None
@@ -186,7 +216,8 @@ class YaraScanResultResponse(BaseModel):
     target: str
     rule_name: str
     rule_namespace: Optional[str] = None
-    strings_matched: list[str] = []
+    strings_matched: list[dict] = []
+    meta: dict = {}
     severity: str = "medium"
     scanned_at: Optional[str] = None
     file_hash: Optional[str] = None
@@ -215,10 +246,12 @@ class SwordPolicyResponse(BaseModel):
     trigger_conditions: dict = {}
     escalation_chain: list[dict] = []
     cooldown_seconds: int = 300
+    rate_limit: Optional[dict] = None
     enabled: bool = True
     requires_confirmation: bool = False
     execution_count: int = 0
     last_triggered: Optional[str] = None
+    created_at: Optional[str] = None
 
 class SwordLogResponse(BaseModel):
     id: int
@@ -239,3 +272,13 @@ class OverwatchStatusResponse(BaseModel):
     tamper_count: int = 0
     last_check: Optional[str] = None
     check_interval_seconds: int = 600
+
+
+class OverwatchIntegrityReport(BaseModel):
+    status: str = "clean"
+    tampered: list[str] = []
+    missing: list[str] = []
+    new: list[str] = []
+    total_baselined: int = 0
+    tamper_count_total: int = 0
+    checked_at: Optional[str] = None

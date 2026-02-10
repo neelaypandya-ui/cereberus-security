@@ -43,6 +43,7 @@ from .routes.thresholds import router as thresholds_router
 from .routes.yara import router as yara_router
 from .routes.memory import router as memory_router
 from .routes.sword import router as sword_router
+from .routes.checklists import router as checklists_router
 from .websockets.events import router as ws_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -88,6 +89,7 @@ api_router.include_router(thresholds_router)
 api_router.include_router(yara_router)
 api_router.include_router(memory_router)
 api_router.include_router(sword_router)
+api_router.include_router(checklists_router)
 
 # WebSocket router is mounted at root level (no prefix)
 websocket_router = ws_router

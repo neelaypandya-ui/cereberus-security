@@ -33,6 +33,7 @@ import { DetectionRulesPanel } from '../components/DetectionRulesPanel';
 import { CommanderBondPanel } from '../components/CommanderBondPanel';
 import { AgentSmithPanel } from '../components/AgentSmithPanel';
 import { MemoryScannerPanel } from '../components/MemoryScannerPanel';
+import { SecurityProtocolPanel } from '../components/SecurityProtocolPanel';
 import { SearchBar } from '../components/SearchBar';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { StatusTicker } from '../components/ui/StatusTicker';
@@ -74,6 +75,7 @@ const NAV_ITEMS = [
   { id: 'bond', label: 'CMDR BOND', icon: '\u{1F575}', fullLabel: 'Commander Bond' },
   { id: 'smith', label: 'AGENT SMITH', icon: '\u{1F916}', fullLabel: 'Agent Smith' },
   { id: 'memory', label: 'MEM RECON', icon: '\u{1F9EC}', fullLabel: 'Memory Reconnaissance' },
+  { id: 'protocol', label: 'SEC PROTOCOL', icon: '\u{1F4CB}', fullLabel: 'Security Protocol' },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
   { id: 'settings', label: 'SYS CONFIG', icon: '\u2699', fullLabel: 'System Configuration' },
 ] as const;
@@ -83,7 +85,7 @@ const NAV_GROUPS = {
   INTELLIGENCE: { label: 'INTELLIGENCE', icon: '\u26A1', items: ['network', 'threats', 'email', 'rules', 'bond', 'memory'] },
   DEFENSE: { label: 'DEFENSE', icon: '\u{1F6E1}', items: ['incidents', 'playbooks', 'smith'] },
   OPERATIONS: { label: 'OPERATIONS', icon: '\u2699', items: ['processes', 'vulnerabilities', 'resources', 'persistence', 'vpn', 'aiops', 'disk', 'modules'] },
-  ADMIN: { label: 'ADMIN', icon: '\u{1F512}', items: ['audit', 'integrations', 'personnel', 'settings'] },
+  ADMIN: { label: 'ADMIN', icon: '\u{1F512}', items: ['audit', 'integrations', 'personnel', 'protocol', 'settings'] },
 } as const;
 
 // Build a lookup from nav id -> group key
@@ -117,6 +119,7 @@ const PANEL_CODES: Record<string, string> = {
   bond: 'BND-22',
   smith: 'SMH-23',
   memory: 'MEM-25',
+  protocol: 'CMD-26',
   modules: 'MOD-13',
   settings: 'CFG-14',
 };
@@ -754,6 +757,7 @@ function Dashboard() {
           {activeNav === 'bond' && <PanelErrorBoundary panelName="COMMANDER BOND"><CommanderBondPanel /></PanelErrorBoundary>}
           {activeNav === 'smith' && <PanelErrorBoundary panelName="AGENT SMITH"><AgentSmithPanel /></PanelErrorBoundary>}
           {activeNav === 'memory' && <PanelErrorBoundary panelName="MEM RECON"><MemoryScannerPanel /></PanelErrorBoundary>}
+          {activeNav === 'protocol' && <PanelErrorBoundary panelName="SEC PROTOCOL"><SecurityProtocolPanel /></PanelErrorBoundary>}
           {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}
           {activeNav === 'settings' && <PanelErrorBoundary panelName="SYS CONFIG"><SettingsPanel /></PanelErrorBoundary>}
         </div>

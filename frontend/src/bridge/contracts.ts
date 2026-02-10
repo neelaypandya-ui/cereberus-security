@@ -21,6 +21,7 @@ export interface SmithAttackEvent {
   category: string;
   description: string;
   detection: SmithDetection;
+  pending?: boolean;
 }
 
 /** @bridge SmithStatusResponse */
@@ -39,6 +40,15 @@ export interface SmithStatusResponse {
   attacks_pending: number;
   sessions_completed: number;
   unique_attacks_generated: number;
+  name?: string;
+  enabled?: boolean;
+  running?: boolean;
+  health_status?: string;
+  last_heartbeat?: string;
+  max_duration?: number;
+  attack_log_size?: number;
+  guardian_lockdown?: boolean;
+  guardian_lockdown_reason?: string;
 }
 
 /** @bridge SmithSessionResult */
@@ -162,6 +172,11 @@ export interface AlertResponse {
   dismissed: boolean;
   snoozed_until: string | null;
   escalated_to_incident_id: number | null;
+  details_json?: Record<string, unknown>;
+  interface_name?: string;
+  feedback?: string;
+  feedback_at?: string;
+  feedback_by?: string;
 }
 
 
@@ -171,8 +186,8 @@ export interface AlertResponse {
 export interface NetworkConnectionResponse {
   local_addr: string;
   local_port: number;
-  remote_addr: string;
-  remote_port: number;
+  remote_addr: string | null;
+  remote_port: number | null;
   protocol: string;
   status: string;
   pid: number;
@@ -227,6 +242,7 @@ export interface YaraRuleResponse {
   enabled: boolean;
   created_by: string | null;
   created_at: string | null;
+  updated_at: string | null;
   tags: string[];
   match_count: number;
   last_match_at: string | null;
@@ -239,7 +255,8 @@ export interface YaraScanResultResponse {
   target: string;
   rule_name: string;
   rule_namespace: string | null;
-  strings_matched: string[];
+  strings_matched: Array<Record<string, unknown>>;
+  meta: Record<string, unknown>;
   severity: string;
   scanned_at: string | null;
   file_hash: string | null;
@@ -274,10 +291,12 @@ export interface SwordPolicyResponse {
   trigger_conditions: Record<string, unknown>;
   escalation_chain: Array<{ type: string; target: string; duration?: number }>;
   cooldown_seconds: number;
+  rate_limit: Record<string, unknown> | null;
   enabled: boolean;
   requires_confirmation: boolean;
   execution_count: number;
   last_triggered: string | null;
+  created_at: string | null;
 }
 
 /** @bridge SwordLogResponse */
