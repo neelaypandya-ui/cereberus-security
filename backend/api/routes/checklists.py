@@ -20,7 +20,6 @@ from ...dependencies import (
     get_yara_scanner,
     get_anomaly_detector,
     get_behavioral_baseline,
-    get_threat_forecaster,
     get_vuln_scanner,
     get_memory_scanner,
 )
@@ -202,7 +201,6 @@ async def verify_shield(db: AsyncSession) -> dict:
             ("Rule Engine", get_rule_engine),
             ("Anomaly Detector", get_anomaly_detector),
             ("Behavioral Baseline", get_behavioral_baseline),
-            ("Threat Forecaster", get_threat_forecaster),
         ]
         total_count = len(module_checks)
         healthy_count = 0
@@ -674,25 +672,7 @@ async def verify_ai_warfare(db: AsyncSession) -> dict:
         items.append(_item("ai.baselines_building", "Behavioral baselines building",
                            "Coverage > 0% or sample_count > 0", False, f"Check error: {e}"))
 
-    # 4 — LSTM forecaster operational
-    try:
-        tf = _safe_module(get_threat_forecaster)
-        if tf is None:
-            items.append(_item("ai.lstm_operational", "LSTM forecaster operational",
-                               "Forecaster initialized and has model", False, "Module not initialized"))
-        else:
-            init = getattr(tf, "initialized", False)
-            has_model = getattr(tf, "model", None) is not None
-            ok = init or has_model
-            items.append(_item("ai.lstm_operational", "LSTM forecaster operational",
-                               "Forecaster initialized and has model", ok,
-                               "Operational" if ok else "No model loaded"))
-    except Exception as e:
-        logger.debug("check_failed", check="lstm_operational", error=str(e))
-        items.append(_item("ai.lstm_operational", "LSTM forecaster operational",
-                           "Forecaster initialized and has model", False, f"Check error: {e}"))
-
-    # 5 — Anomaly event rate within normal bounds
+    # 4 — Anomaly event rate within normal bounds
     try:
         from ...models.anomaly_event import AnomalyEvent
         result = await db.execute(

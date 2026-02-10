@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { IntelCard } from './ui/IntelCard';
 import { GaugeChart } from './charts/GaugeChart';
-import { DualLineChart } from './charts/DualLineChart';
 import { DonutChart } from './charts/DonutChart';
 import { BarChart as CereberusBarChart } from './charts/BarChart';
 
@@ -18,7 +17,6 @@ interface AiStatusData {
   detectors: Record<string, ModelInfo>;
   ensemble: { last_score: number | null; last_is_anomaly: boolean | null; drift_score: number };
   baseline: { total_buckets: number; total_possible: number; coverage_percent: number; total_samples: number };
-  forecaster: { initialized: boolean; has_model: boolean };
 }
 
 interface ModelRegistry {
@@ -53,19 +51,6 @@ interface FeedbackStats {
   by_module: Record<string, { true_positive: number; false_positive: number }>;
 }
 
-interface PredictionStep {
-  cpu_percent: number;
-  memory_percent: number;
-  step: number;
-  minutes_ahead: number;
-}
-
-interface PredictionData {
-  predictions: PredictionStep[];
-  forecast_alerts: Array<{ metric: string; predicted_value: number; threshold: number; minutes_until_breach: number }>;
-  actual_recent: Array<{ cpu_percent: number; memory_percent: number; timestamp: string }>;
-}
-
 interface TrainingState {
   model: string;
   loading: boolean;
@@ -81,19 +66,14 @@ interface AiOpsPanelProps {
     baseline_progress: { coverage_percent: number; total_samples: number };
     detector_scores: Record<string, number>;
   } | null;
-  predictions?: {
-    predictions: PredictionStep[];
-    forecast_alerts: Array<{ metric: string; predicted_value: number; threshold: number; minutes_until_breach: number }>;
-  } | null;
   trainingProgress?: { model_name: string; epoch: number; total_epochs: number; loss: number } | null;
 }
 
-export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, trainingProgress }: AiOpsPanelProps) {
+export function AiOpsPanel({ aiStatus: wsAiStatus, trainingProgress }: AiOpsPanelProps) {
   const [status, setStatus] = useState<AiStatusData | null>(null);
   const [models, setModels] = useState<ModelRegistry[]>([]);
   const [anomalyEvents, setAnomalyEvents] = useState<AnomalyEventRecord[]>([]);
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
-  const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
   const [training, setTraining] = useState<TrainingState>({ model: '', loading: false });
   const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
 
@@ -109,11 +89,6 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
       setModels(m as ModelRegistry[]);
       setAnomalyEvents(e as AnomalyEventRecord[]);
       setFeedbackStats(f as FeedbackStats);
-    } catch (err) { console.error('[CEREBERUS]', err); }
-
-    try {
-      const p = await api.getAiPredictions();
-      setPredictionData(p as PredictionData);
     } catch (err) { console.error('[CEREBERUS]', err); }
   }, []);
 
@@ -136,11 +111,10 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
     }
   }, [trainingProgress]);
 
-  const handleTrain = async (type: 'anomaly' | 'resource' | 'baseline') => {
+  const handleTrain = async (type: 'anomaly' | 'baseline') => {
     setTraining({ model: type, loading: true });
     try {
       if (type === 'anomaly') await api.trainAnomalyModels();
-      else if (type === 'resource') await api.trainResourceForecaster();
       else await api.trainBaseline();
       await loadData();
     } catch (err) { console.error('[CEREBERUS]', err); }
@@ -149,24 +123,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
 
   const modelCards = [
     { name: 'AUTOENCODER', key: 'autoencoder', color: '#00e5ff' },
-    { name: 'ISOLATION FOREST', key: 'isolation_forest', color: '#ff9800' },
-    { name: 'Z-SCORE', key: 'zscore', color: '#4caf50' },
-    { name: 'LSTM FORECASTER', key: 'lstm_forecaster', color: '#e040fb' },
   ];
-
-  // Build prediction chart data
-  const predChart: Array<Record<string, unknown>> = [];
-  if (predictionData?.actual_recent) {
-    predictionData.actual_recent.forEach((a, i) => {
-      predChart.push({ label: `T-${predictionData.actual_recent.length - i}`, actual_cpu: a.cpu_percent, predicted_cpu: null });
-    });
-  }
-  if (predictionData?.predictions || wsPredictions?.predictions) {
-    const preds = wsPredictions?.predictions || predictionData?.predictions || [];
-    preds.forEach((p) => {
-      predChart.push({ label: `+${p.minutes_ahead}m`, actual_cpu: null, predicted_cpu: p.cpu_percent });
-    });
-  }
 
   // Feature attribution for bar chart
   const topAttrs: Array<{ name: string; value: number }> = [];
@@ -194,16 +151,11 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* SECTION I: MODEL STATUS MATRIX */}
       <IntelCard title="MODEL STATUS MATRIX" classification="SECTION I" status="active">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
           {modelCards.map((mc) => {
             const detectorInfo = status?.detectors?.[mc.key];
-            const isForecaster = mc.key === 'lstm_forecaster';
-            const initialized = isForecaster
-              ? status?.forecaster?.initialized
-              : detectorInfo?.initialized;
-            const hasModel = isForecaster
-              ? status?.forecaster?.has_model
-              : (detectorInfo?.has_model ?? detectorInfo?.has_baseline);
+            const initialized = detectorInfo?.initialized;
+            const hasModel = detectorInfo?.has_model ?? detectorInfo?.has_baseline;
             const registry = models.find((m) => m.model_name === mc.key && m.is_current);
 
             return (
@@ -251,49 +203,16 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
         </div>
       </IntelCard>
 
-      {/* SECTION II: ENSEMBLE OPERATIONS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <IntelCard title="DETECTOR WEIGHTS" classification="SECTION II-A" status="active">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { name: 'AUTOENCODER', weight: 0.4, score: wsAiStatus?.detector_scores?.autoencoder, color: '#00e5ff' },
-              { name: 'ISOLATION FOREST', weight: 0.35, score: wsAiStatus?.detector_scores?.isolation_forest, color: '#ff9800' },
-              { name: 'Z-SCORE', weight: 0.25, score: wsAiStatus?.detector_scores?.zscore, color: '#4caf50' },
-            ].map((d) => (
-              <div key={d.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', letterSpacing: '1px', color: 'var(--text-secondary)' }}>
-                    {d.name}
-                  </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: d.color }}>
-                    W:{d.weight} {d.score !== undefined ? `S:${d.score.toFixed(3)}` : ''}
-                  </span>
-                </div>
-                <div style={{ height: '4px', background: 'var(--bg-primary)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${d.weight * 100}%`,
-                    background: d.color,
-                    borderRadius: '2px',
-                    opacity: 0.7,
-                  }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </IntelCard>
-
-        <IntelCard title="DRIFT MONITOR" classification="SECTION II-B" status={driftScore > 0.6 ? 'critical' : driftScore > 0.3 ? 'warning' : 'active'}>
-          <GaugeChart value={driftScore} max={1} height={140} label="Model Drift" />
-        </IntelCard>
-      </div>
+      {/* SECTION II: DRIFT MONITOR */}
+      <IntelCard title="DRIFT MONITOR" classification="SECTION II" status={driftScore > 0.6 ? 'critical' : driftScore > 0.3 ? 'warning' : 'active'}>
+        <GaugeChart value={driftScore} max={1} height={140} label="Model Drift" />
+      </IntelCard>
 
       {/* SECTION III: TRAINING COMMAND */}
       <IntelCard title="TRAINING COMMAND" classification="SECTION III" status="active">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
           {[
-            { label: 'TRAIN ANOMALY DETECTORS', type: 'anomaly' as const, desc: 'Autoencoder + IsolationForest + Z-Score' },
-            { label: 'TRAIN RESOURCE FORECASTER', type: 'resource' as const, desc: 'LSTM time-series predictor' },
+            { label: 'TRAIN ANOMALY DETECTOR', type: 'anomaly' as const, desc: 'Autoencoder network anomaly detection' },
             { label: 'BUILD BASELINES', type: 'baseline' as const, desc: 'Behavioral baseline from history' },
           ].map((btn) => (
             <div key={btn.type} style={{
@@ -356,53 +275,9 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
         </div>
       </IntelCard>
 
-      {/* SECTION IV: PREDICTIVE THREAT FORECAST */}
-      <IntelCard title="PREDICTIVE THREAT FORECAST" classification="SECTION IV" status="active">
-        {predChart.length > 0 ? (
-          <DualLineChart
-            data={predChart}
-            actualKey="actual_cpu"
-            predictedKey="predicted_cpu"
-            xKey="label"
-            height={220}
-            thresholdValue={90}
-            thresholdLabel="CPU LIMIT"
-          />
-        ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '40px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '17px',
-            color: 'var(--text-muted)',
-            letterSpacing: '1px',
-          }}>
-            AWAITING FORECAST DATA — TRAIN RESOURCE FORECASTER TO ENABLE
-          </div>
-        )}
-        {(wsPredictions?.forecast_alerts || predictionData?.forecast_alerts || []).length > 0 && (
-          <div style={{ marginTop: '12px' }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '15px',
-              letterSpacing: '1px',
-              color: 'var(--severity-critical)',
-              marginBottom: '6px',
-            }}>
-              FORECAST ALERTS
-            </div>
-            {(wsPredictions?.forecast_alerts || predictionData?.forecast_alerts || []).map((a, i) => (
-              <div key={i} className="stamp-badge stamp-flash" style={{ display: 'inline-block', marginRight: '8px', marginBottom: '4px' }}>
-                {a.metric.replace('_', ' ').toUpperCase()}: {a.predicted_value}% in {a.minutes_until_breach}min
-              </div>
-            ))}
-          </div>
-        )}
-      </IntelCard>
-
-      {/* SECTION V: FEATURE ATTRIBUTION + FEEDBACK */}
+      {/* SECTION IV: FEATURE ATTRIBUTION + FEEDBACK */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <IntelCard title="FEATURE ATTRIBUTION" classification="SECTION V-A" status="active">
+        <IntelCard title="FEATURE ATTRIBUTION" classification="SECTION IV-A" status="active">
           {topAttrs.length > 0 ? (
             <CereberusBarChart
               data={topAttrs}
@@ -423,7 +298,7 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
           )}
         </IntelCard>
 
-        <IntelCard title="FEEDBACK ANALYSIS" classification="SECTION V-B" status="active">
+        <IntelCard title="FEEDBACK ANALYSIS" classification="SECTION IV-B" status="active">
           {feedbackDonut.some((d) => d.value > 0) ? (
             <>
               <DonutChart
@@ -456,8 +331,8 @@ export function AiOpsPanel({ aiStatus: wsAiStatus, predictions: wsPredictions, t
         </IntelCard>
       </div>
 
-      {/* SECTION VI: ANOMALY EVENT LOG */}
-      <IntelCard title="ANOMALY EVENT LOG" classification="SECTION VI" status="active">
+      {/* SECTION V: ANOMALY EVENT LOG */}
+      <IntelCard title="ANOMALY EVENT LOG" classification="SECTION V" status="active">
         <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '16px' }}>
             <thead>

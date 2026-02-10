@@ -14,7 +14,6 @@ from ...dependencies import (
     get_ensemble_detector,
     get_network_sentinel,
     get_resource_monitor,
-    get_threat_forecaster,
     get_threat_intelligence,
     get_vpn_guardian,
 )
@@ -219,22 +218,6 @@ async def websocket_events(websocket: WebSocket):
                 }
             except Exception as e:
                 logger.debug("ws_ai_status_failed", error=str(e))
-
-            # Prediction update
-            try:
-                forecaster = get_threat_forecaster()
-                if forecaster.initialized and forecaster.model is not None:
-                    rm = get_resource_monitor()
-                    history = rm.get_history(limit=60)
-                    if len(history) >= 30:
-                        trend = await forecaster.predict_trend(history, steps=6)
-                        alerts = forecaster.check_forecast_alerts(trend)
-                        batch_data["prediction_update"] = {
-                            "predictions": trend,
-                            "forecast_alerts": alerts,
-                        }
-            except Exception as e:
-                logger.debug("ws_prediction_failed", error=str(e))
 
             # Send batch
             if batch_data:

@@ -7,7 +7,6 @@ from .routes.analytics import router as analytics_router
 from .routes.audit import router as audit_router
 from .routes.auth import router as auth_router
 from .routes.dashboard import router as dashboard_router
-from .routes.email import router as email_router
 from .routes.integrity import router as integrity_router
 from .routes.modules import router as modules_router
 from .routes.network import router as network_router
@@ -31,7 +30,6 @@ from .routes.notifications import router as notifications_router
 from .routes.export import router as export_router
 from .routes.users import router as users_router
 from .routes.comments import router as comments_router
-from .routes.layouts import router as layouts_router
 from .routes.maintenance import router as maintenance_router
 from .routes.event_log import router as event_log_router
 from .routes.detection_rules import router as detection_rules_router
@@ -58,7 +56,6 @@ api_router.include_router(security_router)
 api_router.include_router(integrity_router)
 api_router.include_router(processes_router)
 api_router.include_router(vulnerabilities_router)
-api_router.include_router(email_router)
 api_router.include_router(threats_router)
 api_router.include_router(resources_router)
 api_router.include_router(persistence_router)
@@ -76,7 +73,6 @@ api_router.include_router(notifications_router)
 api_router.include_router(export_router)
 api_router.include_router(users_router)
 api_router.include_router(comments_router)
-api_router.include_router(layouts_router)
 api_router.include_router(maintenance_router)
 api_router.include_router(event_log_router)
 api_router.include_router(detection_rules_router)

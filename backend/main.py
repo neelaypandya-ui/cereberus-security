@@ -34,7 +34,6 @@ from .dependencies import (
     get_brute_force_shield,
     get_commander_bond,
     get_data_exporter,
-    get_email_analyzer,
     get_ensemble_detector,
     get_event_bus,
     get_event_log_monitor,
@@ -42,7 +41,6 @@ from .dependencies import (
     get_file_integrity,
     get_incident_manager,
     get_ioc_matcher,
-    get_isolation_forest_detector,
     get_memory_scanner,
     get_network_sentinel,
     get_notification_dispatcher,
@@ -53,12 +51,10 @@ from .dependencies import (
     get_remediation_engine,
     get_resource_monitor,
     get_rule_engine,
-    get_threat_forecaster,
     get_threat_intelligence,
     get_vpn_guardian,
     get_vuln_scanner,
     get_yara_scanner,
-    get_zscore_detector,
 )
 from .models.user import User
 from .utils.cache import TTLCache
@@ -506,14 +502,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("behavioral_baseline_init_failed", error=str(e))
 
-    # Initialize threat forecaster
-    threat_forecaster = get_threat_forecaster()
-    try:
-        await threat_forecaster.initialize()
-        logger.info("threat_forecaster_initialized")
-    except Exception as e:
-        logger.error("threat_forecaster_init_failed", error=str(e))
-
     # Start Network Sentinel
     network_sentinel = None
     if config.module_network_sentinel:
@@ -528,10 +516,6 @@ async def lifespan(app: FastAPI):
             logger.error("anomaly_detector_init_failed", error=str(e))
         # Wire ensemble detector
         try:
-            ifo = get_isolation_forest_detector()
-            await ifo.initialize()
-            zs = get_zscore_detector()
-            await zs.initialize()
             ensemble = get_ensemble_detector()
             network_sentinel.set_ensemble_detector(ensemble)
             logger.info("ensemble_detector_wired_to_network_sentinel")
@@ -547,58 +531,6 @@ async def lifespan(app: FastAPI):
             logger.info("network_sentinel_launched")
         except Exception as e:
             logger.error("network_sentinel_launch_failed", error=str(e))
-
-        # Delayed real-data AI auto-training
-        async def _delayed_real_data_train():
-            """Wait 5 min, collect 10 real snapshots, train on real data."""
-            try:
-                await asyncio.sleep(300)  # Wait 5 minutes for real data
-                logger.info("real_data_ai_training_starting")
-
-                ns = get_network_sentinel()
-                ad = get_anomaly_detector()
-                if not (ad.initialized and hasattr(ad, 'extract_features')):
-                    return
-
-                import numpy as np
-                samples = []
-                for i in range(10):
-                    conns = ns.get_live_connections()
-                    if conns:
-                        features = ad.extract_features(conns)
-                        samples.append(features)
-                    if i < 9:
-                        await asyncio.sleep(30)
-
-                if len(samples) < 5:
-                    logger.warning("real_data_train_insufficient_samples", count=len(samples))
-                    return
-
-                real_data = np.vstack([s.reshape(1, -1) for s in samples])
-                # Augment with small noise
-                noise = np.random.normal(0, 0.03, (20, real_data.shape[1]))
-                mean_sample = real_data.mean(axis=0)
-                augmented = mean_sample + noise
-                train_data = np.vstack([real_data, augmented])
-
-                ifo = get_isolation_forest_detector()
-                if ifo._model is None:
-                    ifo.train(train_data)
-                    await ifo.save_model()
-                    logger.info("isolation_forest_real_data_trained", samples=len(train_data))
-
-                zs = get_zscore_detector()
-                if zs._mean is None:
-                    zs.update_baseline(train_data)
-                    await zs.save_baseline()
-                    logger.info("zscore_real_data_trained", samples=len(train_data))
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.error("real_data_train_failed", error=str(e))
-
-        if network_sentinel:
-            _register_task("delayed_real_data_train", _delayed_real_data_train)
 
     # Start Brute Force Shield
     brute_force_shield = None
@@ -641,16 +573,6 @@ async def lifespan(app: FastAPI):
             logger.info("vuln_scanner_launched")
         except Exception as e:
             logger.error("vuln_scanner_launch_failed", error=str(e))
-
-    # Start Email Analyzer
-    email_analyzer = None
-    if config.module_email_analyzer:
-        email_analyzer = get_email_analyzer()
-        try:
-            _register_task("email_analyzer", lambda: email_analyzer.start())
-            logger.info("email_analyzer_launched")
-        except Exception as e:
-            logger.error("email_analyzer_launch_failed", error=str(e))
 
     # Start Resource Monitor
     resource_monitor = None
@@ -823,12 +745,6 @@ async def lifespan(app: FastAPI):
                 # Retrain if resource monitor has sufficient data
                 rm = get_resource_monitor()
                 history = rm.get_history(limit=360)
-                if len(history) >= 31:
-                    fc = get_threat_forecaster()
-                    if fc.initialized:
-                        await fc.train(history, epochs=30)
-                        await fc.save_model()
-                        logger.info("auto_retrain_forecaster_complete")
                 # Update baselines
                 bl = get_behavioral_baseline()
                 await bl.bulk_update_from_snapshots(history)
@@ -857,49 +773,6 @@ async def lifespan(app: FastAPI):
                 logger.error("retention_cleanup_error", error=str(e))
 
     _register_task("retention_cleanup", _retention_cleanup_loop)
-
-    # Chunk 11: Threat Forecaster broadcast loop — The Oracle speaks
-    async def _forecast_check_loop():
-        """Run threat forecaster every 5 min, broadcast predictions, create alerts."""
-        await asyncio.sleep(600)  # Wait 10 min for sufficient data
-        while True:
-            try:
-                rm = get_resource_monitor()
-                fc = get_threat_forecaster()
-                if not fc.initialized:
-                    await asyncio.sleep(300)
-                    continue
-
-                history = rm.get_history(limit=360)
-                if len(history) < 30:
-                    await asyncio.sleep(300)
-                    continue
-
-                predictions = await fc.predict_trend(history, steps=6)
-                if predictions:
-                    # Broadcast prediction_update via WebSocket
-                    await ws_manager.broadcast({
-                        "type": "prediction_update",
-                        "data": predictions,
-                    })
-
-                    # Check for threshold breaches
-                    forecast_alerts = fc.check_forecast_alerts(predictions)
-                    for fa in forecast_alerts:
-                        await alert_manager.create_alert(
-                            severity="medium",
-                            module="threat_forecaster",
-                            title=f"Predicted {fa['metric']} breach in {fa['minutes_until_breach']}min",
-                            details=json.dumps(fa),
-                        )
-                await asyncio.sleep(300)  # 5-minute interval
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error("forecast_check_error", error=str(e))
-                await asyncio.sleep(300)
-
-    _register_task("forecast_check", _forecast_check_loop)
 
     # Health monitor loop — auto-restarts crashed tasks, broadcasts degradation warnings
     async def _health_monitor_loop():
@@ -977,7 +850,6 @@ async def lifespan(app: FastAPI):
         (file_integrity, "file_integrity"),
         (process_analyzer, "process_analyzer"),
         (vuln_scanner, "vuln_scanner"),
-        (email_analyzer, "email_analyzer"),
         (resource_monitor, "resource_monitor"),
         (persistence_scanner, "persistence_scanner"),
         (event_log_monitor, "event_log_monitor"),
@@ -1116,10 +988,6 @@ async def health():
         if config.module_vuln_scanner:
             vs = get_vuln_scanner()
             modules["vuln_scanner"] = await vs.health_check()
-
-        if config.module_email_analyzer:
-            ea = get_email_analyzer()
-            modules["email_analyzer"] = await ea.health_check()
 
         if config.module_resource_monitor:
             rm = get_resource_monitor()

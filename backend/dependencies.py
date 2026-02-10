@@ -25,18 +25,13 @@ _brute_force_shield = None
 _file_integrity = None
 _process_analyzer = None
 _vuln_scanner = None
-_email_analyzer = None
 _threat_intelligence = None
 _resource_monitor = None
 _persistence_scanner = None
 _anomaly_detector = None
-_nlp_analyzer = None
 _threat_correlator = None
-_isolation_forest_detector = None
-_zscore_detector = None
 _ensemble_detector = None
 _behavioral_baseline = None
-_threat_forecaster = None
 
 # Phase 7 engine singletons
 _remediation_engine = None
@@ -292,15 +287,6 @@ def get_vuln_scanner():
     return _vuln_scanner
 
 
-def get_email_analyzer():
-    """Get the Email Analyzer module singleton."""
-    global _email_analyzer
-    if _email_analyzer is None:
-        from .modules.email_analyzer import EmailAnalyzer
-        _email_analyzer = EmailAnalyzer()
-    return _email_analyzer
-
-
 def get_threat_intelligence():
     """Get the Threat Intelligence module singleton."""
     global _threat_intelligence
@@ -354,15 +340,6 @@ def get_anomaly_detector():
     return _anomaly_detector
 
 
-def get_nlp_analyzer():
-    """Get the NLP Analyzer AI singleton."""
-    global _nlp_analyzer
-    if _nlp_analyzer is None:
-        from .ai.nlp_analyzer import NLPAnalyzer
-        _nlp_analyzer = NLPAnalyzer()
-    return _nlp_analyzer
-
-
 def get_threat_correlator():
     """Get the Threat Correlator AI singleton."""
     global _threat_correlator
@@ -376,42 +353,13 @@ def get_threat_correlator():
     return _threat_correlator
 
 
-def get_isolation_forest_detector():
-    """Get the Isolation Forest Detector singleton."""
-    global _isolation_forest_detector
-    if _isolation_forest_detector is None:
-        from .ai.isolation_forest_detector import IsolationForestDetector
-        config = get_app_config()
-        _isolation_forest_detector = IsolationForestDetector(
-            model_dir=config.ai_model_dir,
-        )
-    return _isolation_forest_detector
-
-
-def get_zscore_detector():
-    """Get the Z-Score Detector singleton."""
-    global _zscore_detector
-    if _zscore_detector is None:
-        from .ai.zscore_detector import ZScoreDetector
-        config = get_app_config()
-        _zscore_detector = ZScoreDetector(
-            model_dir=config.ai_model_dir,
-        )
-    return _zscore_detector
-
-
 def get_ensemble_detector():
     """Get the Ensemble Detector singleton."""
     global _ensemble_detector
     if _ensemble_detector is None:
         from .ai.ensemble_detector import EnsembleDetector
-        config = get_app_config()
         _ensemble_detector = EnsembleDetector(
             autoencoder=get_anomaly_detector(),
-            isolation_forest=get_isolation_forest_detector(),
-            zscore=get_zscore_detector(),
-            weights=config.ai_ensemble_weights,
-            consensus_threshold=config.ai_consensus_threshold,
         )
     return _ensemble_detector
 
@@ -423,18 +371,6 @@ def get_behavioral_baseline():
         from .ai.behavioral_baseline import BehavioralBaselineEngine
         _behavioral_baseline = BehavioralBaselineEngine()
     return _behavioral_baseline
-
-
-def get_threat_forecaster():
-    """Get the Threat Forecaster singleton."""
-    global _threat_forecaster
-    if _threat_forecaster is None:
-        from .ai.threat_forecaster import ThreatForecaster
-        config = get_app_config()
-        _threat_forecaster = ThreatForecaster(
-            model_dir=config.ai_model_dir,
-        )
-    return _threat_forecaster
 
 
 # --- Phase 7: Engine singletons ---

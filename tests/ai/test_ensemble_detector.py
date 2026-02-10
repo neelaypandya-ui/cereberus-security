@@ -4,8 +4,6 @@ import numpy as np
 import pytest
 
 from backend.ai.anomaly_detector import AnomalyDetector
-from backend.ai.isolation_forest_detector import IsolationForestDetector
-from backend.ai.zscore_detector import ZScoreDetector
 from backend.ai.ensemble_detector import EnsembleDetector
 
 
@@ -15,7 +13,7 @@ def make_normal_data(n=100):
 
 
 @pytest.fixture
-def trained_detectors():
+def trained_autoencoder():
     data = make_normal_data()
     connections = []
     for row in data:
@@ -29,7 +27,6 @@ def trained_detectors():
         }])
 
     ae = AnomalyDetector(model_dir="test_models", threshold=0.5)
-    # Initialize using a new event loop (Python 3.14 compatible)
     import asyncio
     loop = asyncio.new_event_loop()
     try:
@@ -37,24 +34,13 @@ def trained_detectors():
     finally:
         loop.close()
 
-    ifo = IsolationForestDetector(model_dir="test_models")
-    ifo.train(data)
-
-    zs = ZScoreDetector(model_dir="test_models")
-    zs.update_baseline(data)
-
-    return ae, ifo, zs
+    return ae
 
 
 class TestEnsembleDetector:
     @pytest.mark.asyncio
-    async def test_predict_returns_all_fields(self, trained_detectors):
-        ae, ifo, zs = trained_detectors
-        ensemble = EnsembleDetector(
-            autoencoder=ae,
-            isolation_forest=ifo,
-            zscore=zs,
-        )
+    async def test_predict_returns_all_fields(self, trained_autoencoder):
+        ensemble = EnsembleDetector(autoencoder=trained_autoencoder)
         features = make_normal_data(1)[0]
         result = await ensemble.predict(features)
 
@@ -65,31 +51,11 @@ class TestEnsembleDetector:
         assert "confidence" in result
 
     @pytest.mark.asyncio
-    async def test_normal_data_not_anomalous(self, trained_detectors):
-        ae, ifo, zs = trained_detectors
-        ensemble = EnsembleDetector(
-            autoencoder=ae,
-            isolation_forest=ifo,
-            zscore=zs,
-        )
+    async def test_normal_data_not_anomalous(self, trained_autoencoder):
+        ensemble = EnsembleDetector(autoencoder=trained_autoencoder)
         features = make_normal_data(1)[0]
         result = await ensemble.predict(features)
-        # Normal data should generally not be flagged
         assert result["ensemble_score"] < 0.8
-
-    @pytest.mark.asyncio
-    async def test_consensus_voting(self, trained_detectors):
-        ae, ifo, zs = trained_detectors
-        ensemble = EnsembleDetector(
-            autoencoder=ae,
-            isolation_forest=ifo,
-            zscore=zs,
-            consensus_threshold=2,
-        )
-        outlier = np.ones(12, dtype=np.float32) * 100.0
-        result = await ensemble.predict(outlier)
-        # Outlier should trigger at least some detectors
-        assert len(result["agreeing_detectors"]) >= 0  # May vary
 
     @pytest.mark.asyncio
     async def test_empty_detectors(self):
@@ -100,26 +66,16 @@ class TestEnsembleDetector:
         assert result["is_anomaly"] is False
 
     @pytest.mark.asyncio
-    async def test_drift_score(self, trained_detectors):
-        ae, ifo, zs = trained_detectors
-        ensemble = EnsembleDetector(
-            autoencoder=ae,
-            isolation_forest=ifo,
-            zscore=zs,
-        )
+    async def test_drift_score(self, trained_autoencoder):
+        ensemble = EnsembleDetector(autoencoder=trained_autoencoder)
         features = make_normal_data(1)[0]
         await ensemble.predict(features)
         drift = ensemble.get_drift_score()
         assert 0.0 <= drift <= 1.0
 
     @pytest.mark.asyncio
-    async def test_get_last_result(self, trained_detectors):
-        ae, ifo, zs = trained_detectors
-        ensemble = EnsembleDetector(
-            autoencoder=ae,
-            isolation_forest=ifo,
-            zscore=zs,
-        )
+    async def test_get_last_result(self, trained_autoencoder):
+        ensemble = EnsembleDetector(autoencoder=trained_autoencoder)
         assert ensemble.get_last_result() is None
         features = make_normal_data(1)[0]
         await ensemble.predict(features)

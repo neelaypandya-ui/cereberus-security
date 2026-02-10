@@ -20,7 +20,6 @@ from ...dependencies import (
     get_brute_force_shield,
     get_file_integrity,
     get_process_analyzer,
-    get_email_analyzer,
     get_persistence_scanner,
     get_event_log_monitor,
     get_ransomware_detector,
@@ -30,7 +29,6 @@ from ...dependencies import (
     get_anomaly_detector,
     get_ensemble_detector,
     get_behavioral_baseline,
-    get_threat_forecaster,
     get_rule_engine,
     get_yara_scanner,
     get_incident_manager,
@@ -107,7 +105,6 @@ async def generate_report(
         ("file_integrity", get_file_integrity, config.module_file_integrity),
         ("process_analyzer", get_process_analyzer, config.module_process_analyzer),
         ("vuln_scanner", get_vuln_scanner, config.module_vuln_scanner),
-        ("email_analyzer", get_email_analyzer, config.module_email_analyzer),
         ("resource_monitor", get_resource_monitor, config.module_resource_monitor),
         ("persistence_scanner", get_persistence_scanner, config.module_persistence_scanner),
         ("threat_intelligence", get_threat_intelligence, config.module_threat_intelligence),
@@ -182,7 +179,6 @@ async def generate_report(
     # --- AI warfare, detection, bond status (all sync — fast) ---
     ai_status = {
         "ensemble_initialized": False, "drift_score": 0.0,
-        "lstm_initialized": False, "lstm_has_model": False,
         "baseline_coverage": 0, "baseline_samples": 0,
     }
     try:
@@ -193,13 +189,6 @@ async def generate_report(
             if hasattr(ad, "get_drift_score"):
                 drift = ad.get_drift_score()
             ai_status["drift_score"] = drift
-    except Exception:
-        pass
-    try:
-        tf = _safe_get(get_threat_forecaster)
-        if tf:
-            ai_status["lstm_initialized"] = getattr(tf, "initialized", False)
-            ai_status["lstm_has_model"] = getattr(tf, "model", None) is not None
     except Exception:
         pass
     try:
@@ -283,9 +272,6 @@ async def generate_report(
         recommendations.append(f"AI model drift is elevated ({ai_status['drift_score']:.3f}) — consider retraining the anomaly detector.")
     if not ai_status["ensemble_initialized"]:
         recommendations.append("AI ensemble detector is not initialized — anomaly detection may be degraded.")
-    if not ai_status["lstm_has_model"]:
-        recommendations.append("LSTM threat forecaster has no model loaded — predictive capabilities unavailable.")
-
     # Detection engine recommendations
     re_stats = detection_status["rule_engine"]
     if re_stats.get("rules_enabled", 0) < 50:

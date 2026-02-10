@@ -65,25 +65,6 @@ interface AiStatus {
   detector_scores: Record<string, number>;
 }
 
-interface PredictionUpdate {
-  predictions: Array<{
-    cpu_percent: number;
-    memory_percent: number;
-    disk_percent: number;
-    net_bytes_sent: number;
-    net_bytes_recv: number;
-    step: number;
-    minutes_ahead: number;
-  }>;
-  forecast_alerts: Array<{
-    metric: string;
-    predicted_value: number;
-    threshold: number;
-    minutes_until_breach: number;
-    step: number;
-  }>;
-}
-
 interface TrainingProgress {
   model_name: string;
   epoch: number;
@@ -132,7 +113,6 @@ export function useWebSocket() {
   const [anomalyAlert, setAnomalyAlert] = useState<AnomalyAlert | null>(null);
   const [resourceStats, setResourceStats] = useState<ResourceStats | null>(null);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
-  const [predictions, setPredictions] = useState<PredictionUpdate | null>(null);
   const [trainingProgress, setTrainingProgress] = useState<TrainingProgress | null>(null);
   const [incidentUpdate, setIncidentUpdate] = useState<IncidentUpdate | null>(null);
   const [remediationAction, setRemediationAction] = useState<RemediationActionUpdate | null>(null);
@@ -184,8 +164,6 @@ export function useWebSocket() {
           setThreatLevel(data.level || 'none');
         } else if (msg.type === 'ai_status') {
           setAiStatus(msg.data as AiStatus);
-        } else if (msg.type === 'prediction_update') {
-          setPredictions(msg.data as PredictionUpdate);
         } else if (msg.type === 'training_progress') {
           setTrainingProgress(msg.data as TrainingProgress);
         } else if (msg.type === 'incident_update') {
@@ -246,7 +224,7 @@ export function useWebSocket() {
 
   return {
     vpnStatus, networkStats, alerts, threatLevel, anomalyAlert, resourceStats,
-    aiStatus, predictions, trainingProgress,
+    aiStatus, trainingProgress,
     incidentUpdate, remediationAction, playbookTrigger, iocMatch,
     connected, connecting, lastMessage,
   };

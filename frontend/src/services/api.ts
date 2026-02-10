@@ -241,17 +241,6 @@ export const api = {
   remediateVulnerability: (data: { category: string; port?: number; service?: string }) =>
     request('/vulnerabilities/remediate', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Email Analyzer
-  analyzeEmail: (text: string, urls: string[] = []) =>
-    request('/email/analyze', {
-      method: 'POST',
-      body: JSON.stringify({ text, urls }),
-    }),
-  getRecentEmailAnalyses: (limit?: number) => {
-    const query = limit ? `?limit=${limit}` : '';
-    return request(`/email/recent${query}`);
-  },
-
   // Resource Monitor
   getResourceCurrent: () => request('/resources/current'),
   getResourceHistory: (limit?: number) => {
@@ -333,10 +322,6 @@ export const api = {
     const query = epochs ? `?epochs=${epochs}` : '';
     return request(`/ai/train/anomaly${query}`, { method: 'POST' });
   },
-  trainResourceForecaster: (epochs?: number) => {
-    const query = epochs ? `?epochs=${epochs}` : '';
-    return request(`/ai/train/resource${query}`, { method: 'POST' });
-  },
   trainBaseline: () => request('/ai/train/baseline', { method: 'POST' }),
   getAiModels: () => request('/ai/models'),
   rollbackModel: (modelName: string, version: number) =>
@@ -350,7 +335,6 @@ export const api = {
     const query = searchParams.toString();
     return request(`/ai/anomaly-events${query ? '?' + query : ''}`);
   },
-  getAiPredictions: () => request('/ai/predictions'),
   getAiBaselines: () => request('/ai/baselines'),
   getAiDrift: () => request('/ai/drift'),
   getFeedbackStats: () => request('/ai/feedback-stats'),
@@ -505,15 +489,6 @@ export const api = {
   updateComment: (id: number, content: string) =>
     request(`/comments/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
   deleteComment: (id: number) => request(`/comments/${id}`, { method: 'DELETE' }),
-
-  // === Phase 9: Layouts ===
-  getLayouts: () => request('/layouts/'),
-  createLayout: (data: { name: string; layout_json: unknown; is_default?: boolean }) =>
-    request('/layouts/', { method: 'POST', body: JSON.stringify(data) }),
-  getDefaultLayout: () => request('/layouts/default'),
-  updateLayout: (id: number, data: Record<string, unknown>) =>
-    request(`/layouts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteLayout: (id: number) => request(`/layouts/${id}`, { method: 'DELETE' }),
 
   // === Phase 9: Maintenance ===
   triggerBackup: () => request('/maintenance/backup', { method: 'POST' }),

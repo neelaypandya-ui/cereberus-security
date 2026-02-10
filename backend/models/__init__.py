@@ -35,7 +35,6 @@ from .role import Role
 from .user_role import UserRole
 from .comment import Comment
 from .api_key import APIKey
-from .dashboard_layout import DashboardLayout
 # Phase 10
 from .file_baseline import FileBaseline
 # Phase 11
@@ -78,7 +77,6 @@ __all__ = [
     "UserRole",
     "Comment",
     "APIKey",
-    "DashboardLayout",
     "FileBaseline",
     "BurnedToken",
     "YaraRule",

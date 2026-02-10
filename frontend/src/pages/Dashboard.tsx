@@ -8,7 +8,6 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { PanelErrorBoundary } from '../components/PanelErrorBoundary';
 import { KeyboardShortcutsOverlay } from '../components/KeyboardShortcutsOverlay';
-import { VpnStatusPanel } from '../components/VpnStatusPanel/VpnStatusPanel';
 import { OverviewPanel } from '../components/OverviewPanel';
 import { NetworkPanel } from '../components/NetworkPanel';
 import { AlertsPanel } from '../components/AlertsPanel';
@@ -21,7 +20,6 @@ import { ThreatIntelPanel } from '../components/ThreatIntelPanel';
 import { ResourcePanel } from '../components/ResourcePanel';
 import { PersistencePanel } from '../components/PersistencePanel';
 import { AnalyticsPanel } from '../components/AnalyticsPanel';
-import { EmailAnalyzerPanel } from '../components/EmailAnalyzerPanel';
 import { AuditLogPanel } from '../components/AuditLogPanel';
 import { AiOpsPanel } from '../components/AiOpsPanel';
 import { IncidentResponsePanel } from '../components/IncidentResponsePanel';
@@ -60,7 +58,6 @@ const NAV_ITEMS = [
   { id: 'resources', label: 'SYS DIAG', icon: '\u{1F4CA}', fullLabel: 'Systems Diagnostics' },
   { id: 'persistence', label: 'WATCHLIST', icon: '\u{1F512}', fullLabel: 'Watchlist' },
   { id: 'analytics', label: 'INTEL BRIEF', icon: '\u{1F4C8}', fullLabel: 'Intelligence Briefing' },
-  { id: 'email', label: 'COMINT', icon: '\u2709', fullLabel: 'COMINT Analysis' },
   { id: 'alerts', label: 'THREAT BOARD', icon: '\u26A1', fullLabel: 'Threat Board' },
   { id: 'audit', label: 'OPS LOG', icon: '\u{1F4DD}', fullLabel: 'Operations Log' },
   { id: 'vpn', label: 'SEC COMMS', icon: '\u2693', fullLabel: 'Secure Comms' },
@@ -80,7 +77,7 @@ const NAV_ITEMS = [
 
 const NAV_GROUPS = {
   COMMAND: { label: 'COMMAND', icon: '\u25C6', items: ['overview', 'alerts', 'analytics'] },
-  INTELLIGENCE: { label: 'INTELLIGENCE', icon: '\u26A1', items: ['network', 'threats', 'email', 'rules', 'bond', 'memory'] },
+  INTELLIGENCE: { label: 'INTELLIGENCE', icon: '\u26A1', items: ['network', 'threats', 'rules', 'bond', 'memory'] },
   DEFENSE: { label: 'DEFENSE', icon: '\u{1F6E1}', items: ['incidents', 'playbooks'] },
   OPERATIONS: { label: 'OPERATIONS', icon: '\u2699', items: ['processes', 'vulnerabilities', 'resources', 'persistence', 'vpn', 'aiops', 'disk', 'modules'] },
   ADMIN: { label: 'ADMIN', icon: '\u{1F512}', items: ['audit', 'integrations', 'personnel', 'protocol', 'settings'] },
@@ -103,7 +100,6 @@ const PANEL_CODES: Record<string, string> = {
   resources: 'DIA-06',
   persistence: 'WCH-07',
   analytics: 'INT-08',
-  email: 'COM-09',
   alerts: 'ALT-10',
   audit: 'OPS-11',
   vpn: 'VPN-12',
@@ -147,7 +143,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('overview');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const { vpnStatus, networkStats, threatLevel, alerts: wsAlerts, aiStatus, predictions, trainingProgress, connected: wsConnected, connecting: wsConnecting } = useWebSocket();
+  const { networkStats, threatLevel, alerts: wsAlerts, aiStatus, trainingProgress, connected: wsConnected, connecting: wsConnecting } = useWebSocket();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { hasPermission, role } = usePermissions();
   const utcTime = useUtcClock();
@@ -272,7 +268,6 @@ function Dashboard() {
       threats: 'threat_intelligence',
       resources: 'resource_monitor',
       persistence: 'persistence_scanner',
-      email: 'email_analyzer',
       vpn: 'vpn_guardian',
     };
     const moduleName = moduleMap[navId];
@@ -703,12 +698,6 @@ function Dashboard() {
               onMarkRead={markRead}
               onMarkAllRead={markAllRead}
             />
-            <VpnStatusPanel
-              connected={vpnStatus?.connected ?? summary?.vpn?.connected ?? false}
-              protocol={vpnStatus?.protocol ?? summary?.vpn?.protocol ?? null}
-              vpnIp={vpnStatus?.vpn_ip ?? summary?.vpn?.vpn_ip ?? null}
-              provider={vpnStatus?.provider ?? summary?.vpn?.provider ?? null}
-            />
           </div>
         </header>
 
@@ -732,14 +721,12 @@ function Dashboard() {
           {activeNav === 'resources' && <PanelErrorBoundary panelName="SYS DIAGNOSTICS"><ResourcePanel /></PanelErrorBoundary>}
           {activeNav === 'persistence' && <PanelErrorBoundary panelName="WATCHLIST"><PersistencePanel /></PanelErrorBoundary>}
           {activeNav === 'analytics' && <PanelErrorBoundary panelName="INTEL BRIEFING"><AnalyticsPanel /></PanelErrorBoundary>}
-          {activeNav === 'email' && <PanelErrorBoundary panelName="COMINT"><EmailAnalyzerPanel /></PanelErrorBoundary>}
           {activeNav === 'alerts' && <PanelErrorBoundary panelName="THREAT BOARD"><AlertsPanel /></PanelErrorBoundary>}
           {activeNav === 'audit' && <PanelErrorBoundary panelName="OPS LOG"><AuditLogPanel /></PanelErrorBoundary>}
           {activeNav === 'aiops' && (
             <PanelErrorBoundary panelName="AI OPS">
               <AiOpsPanel
                 aiStatus={aiStatus}
-                predictions={predictions}
                 trainingProgress={trainingProgress}
               />
             </PanelErrorBoundary>

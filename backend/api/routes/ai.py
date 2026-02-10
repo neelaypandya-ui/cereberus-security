@@ -13,11 +13,8 @@ from ...dependencies import (
     get_behavioral_baseline,
     get_db,
     get_ensemble_detector,
-    get_isolation_forest_detector,
     get_network_sentinel,
     get_resource_monitor,
-    get_threat_forecaster,
-    get_zscore_detector,
 )
 from ...models.ai_model_registry import AIModelRegistry
 from ...models.alert import Alert
@@ -32,7 +29,7 @@ async def train_anomaly_models(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
 ):
-    """Train all 3 anomaly detectors on recent baseline data."""
+    """Train autoencoder anomaly detector on recent baseline data."""
     network_sentinel = get_network_sentinel()
     connections = network_sentinel.get_live_connections()
 
@@ -83,103 +80,11 @@ async def train_anomaly_models(
     except Exception as e:
         results["autoencoder"] = {"error": str(e)}
 
-    # 2. Train Isolation Forest
-    try:
-        ifo = get_isolation_forest_detector()
-        ifo_stats = ifo.train(feature_matrix)
-        await ifo.save_model()
-        results["isolation_forest"] = ifo_stats
-
-        version = await _get_next_version(db, "isolation_forest")
-        registry = AIModelRegistry(
-            model_name="isolation_forest",
-            version=version,
-            file_path=str(ifo.model_path),
-            samples_count=n_samples,
-            epochs=0,
-            final_loss=0.0,
-            metrics_json=json.dumps(ifo_stats),
-            status="active",
-            is_current=True,
-        )
-        await _set_current_model(db, "isolation_forest")
-        db.add(registry)
-        await db.commit()
-    except Exception as e:
-        results["isolation_forest"] = {"error": str(e)}
-
-    # 3. Train Z-Score detector
-    try:
-        zs = get_zscore_detector()
-        zs_stats = zs.update_baseline(feature_matrix)
-        await zs.save_baseline()
-        results["zscore"] = zs_stats
-
-        version = await _get_next_version(db, "zscore")
-        registry = AIModelRegistry(
-            model_name="zscore",
-            version=version,
-            file_path=str(zs.baseline_path),
-            samples_count=n_samples,
-            epochs=0,
-            final_loss=0.0,
-            metrics_json=json.dumps(zs_stats),
-            status="active",
-            is_current=True,
-        )
-        await _set_current_model(db, "zscore")
-        db.add(registry)
-        await db.commit()
-    except Exception as e:
-        results["zscore"] = {"error": str(e)}
-
     # Reset ensemble score history so drift measures post-training stability only
     ensemble = get_ensemble_detector()
     ensemble.reset_score_history()
 
     return {"status": "completed", "results": results}
-
-
-@router.post("/train/resource")
-async def train_resource_forecaster(
-    epochs: int = Query(50, ge=1, le=500),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_permission(PERM_MANAGE_AI)),
-):
-    """Train ThreatForecaster LSTM on resource snapshots."""
-    resource_monitor = get_resource_monitor()
-    history = resource_monitor.get_history(limit=360)
-
-    if len(history) < 31:
-        raise HTTPException(status_code=400, detail=f"Need at least 31 snapshots, have {len(history)}")
-
-    forecaster = get_threat_forecaster()
-    if not forecaster.initialized:
-        await forecaster.initialize()
-
-    stats = await forecaster.train(history, epochs=epochs)
-    if "error" in stats:
-        raise HTTPException(status_code=400, detail=stats["error"])
-
-    await forecaster.save_model()
-
-    version = await _get_next_version(db, "lstm_forecaster")
-    registry = AIModelRegistry(
-        model_name="lstm_forecaster",
-        version=version,
-        file_path=str(forecaster.model_path),
-        samples_count=stats.get("samples", 0),
-        epochs=epochs,
-        final_loss=stats.get("final_loss", 0.0),
-        metrics_json=json.dumps(stats),
-        status="active",
-        is_current=True,
-    )
-    await _set_current_model(db, "lstm_forecaster")
-    db.add(registry)
-    await db.commit()
-
-    return {"status": "completed", "results": stats}
 
 
 @router.post("/train/baseline")
@@ -255,11 +160,8 @@ async def ai_status(
 ):
     """Comprehensive AI health status."""
     anomaly_detector = get_anomaly_detector()
-    ifo = get_isolation_forest_detector()
-    zs = get_zscore_detector()
     ensemble = get_ensemble_detector()
     baseline = get_behavioral_baseline()
-    forecaster = get_threat_forecaster()
 
     drift = ensemble.get_drift_score()
     last_ensemble = ensemble.get_last_result()
@@ -271,15 +173,6 @@ async def ai_status(
                 "threshold": anomaly_detector.threshold,
                 "has_model": anomaly_detector.model is not None,
             },
-            "isolation_forest": {
-                "initialized": ifo.initialized,
-                "has_model": ifo._model is not None,
-            },
-            "zscore": {
-                "initialized": zs.initialized,
-                "has_baseline": zs._mean is not None,
-                "sample_count": zs._count,
-            },
         },
         "ensemble": {
             "last_score": last_ensemble.get("ensemble_score") if last_ensemble else None,
@@ -287,10 +180,6 @@ async def ai_status(
             "drift_score": drift,
         },
         "baseline": baseline.get_learning_progress(),
-        "forecaster": {
-            "initialized": forecaster.initialized,
-            "has_model": forecaster.model is not None,
-        },
     }
 
 
@@ -328,31 +217,6 @@ async def get_anomaly_events(
         }
         for r in rows
     ]
-
-
-@router.get("/predictions")
-async def get_predictions(
-    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
-):
-    """Current resource predictions and forecast alerts."""
-    forecaster = get_threat_forecaster()
-    resource_monitor = get_resource_monitor()
-
-    if not forecaster.initialized or forecaster.model is None:
-        return {"predictions": [], "forecast_alerts": [], "message": "Forecaster not trained yet"}
-
-    history = resource_monitor.get_history(limit=60)
-    if len(history) < 30:
-        return {"predictions": [], "forecast_alerts": [], "message": "Insufficient history data"}
-
-    trend = await forecaster.predict_trend(history, steps=6)
-    alerts = forecaster.check_forecast_alerts(trend)
-
-    return {
-        "predictions": trend,
-        "forecast_alerts": alerts,
-        "actual_recent": history[-6:] if len(history) >= 6 else history,
-    }
 
 
 @router.get("/baselines")

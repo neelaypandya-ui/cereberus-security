@@ -54,7 +54,6 @@ class CereberusConfig(BaseSettings):
     # Modules
     module_network_sentinel: bool = True
     module_brute_force_shield: bool = True
-    module_email_analyzer: bool = True
     module_file_integrity: bool = True
     module_process_analyzer: bool = True
     module_vuln_scanner: bool = True
@@ -212,11 +211,8 @@ class CereberusConfig(BaseSettings):
     # AI
     ai_anomaly_threshold: float = 2.0
     ai_model_dir: str = "models"
-    ai_ensemble_weights: list[float] = [0.4, 0.35, 0.25]
-    ai_consensus_threshold: int = 3
     ai_baseline_learning_hours: int = 24
     ai_auto_retrain_interval_hours: int = 24
-    ai_forecast_horizon_minutes: int = 60
     ai_drift_threshold: float = 0.3
 
     # Alerting

@@ -11,13 +11,13 @@
 
 **AI-Powered Cybersecurity Defense System for Windows**
 
-Cereberus is a real-time security monitoring and automated defense platform that combines 15 specialized detection modules, ensemble AI anomaly detection, YARA scanning, memory forensics, and autonomous response into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and automated threat neutralization.
+Cereberus is a real-time security monitoring and automated defense platform that combines 14 specialized detection modules, AI anomaly detection, YARA scanning, memory forensics, and autonomous response into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and automated threat neutralization.
 
 ---
 
 ## Features
 
-### 15 Security Modules
+### 14 Security Modules
 | Module | Description |
 |--------|-------------|
 | **VPN Guardian** | VPN connection monitoring, kill switch, DNS/IP/IPv6 leak detection |
@@ -26,7 +26,6 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | **File Integrity** | SHA-256 baseline hashing, change detection, IOC hash checking |
 | **Process Analyzer** | Process enumeration, unsigned/hidden/injected process detection, dynamic CPU thresholds |
 | **Vulnerability Scanner** | Port scanning, weak config detection, one-click remediation |
-| **Email Analyzer** | NLP-based phishing detection, URL extraction, threat scoring |
 | **Resource Monitor** | CPU/memory/disk/network metrics, threshold alerting |
 | **Persistence Scanner** | Registry Run keys, startup folders, scheduled task tracking |
 | **Threat Intelligence** | Correlation engine (14 patterns), cross-module event fusion |
@@ -37,10 +36,9 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | **Disk Analyzer** | Disk usage analysis and monitoring |
 
 ### AI System
-- **Ensemble Anomaly Detection** &mdash; Autoencoder + Isolation Forest + Z-Score with consensus voting
+- **Autoencoder Anomaly Detection** &mdash; Neural network trained on network behavior with drift monitoring
 - **50 Detection Rules** &mdash; Rule-based engine covering MITRE ATT&CK (~43 techniques)
 - **Behavioral Baselines** &mdash; Welford's online algorithm for drift detection
-- **LSTM Threat Forecasting** &mdash; Predict threat escalation before it happens
 - **Explainability** &mdash; Feature attribution for every anomaly detection
 - **Auto-Retrain** &mdash; Models retrain on fresh data automatically
 
@@ -80,7 +78,7 @@ Cereberus is a real-time security monitoring and automated defense platform that
 - **Auto-port cleanup** &mdash; stale backend processes killed automatically on startup
 
 ### Dashboard
-25 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
+23 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
 
 ---
 
@@ -90,7 +88,7 @@ Cereberus is a real-time security monitoring and automated defense platform that
 |-------|-----------|
 | Backend | FastAPI, SQLAlchemy (async), aiosqlite, Pydantic |
 | Frontend | React 18, TypeScript, Vite, Recharts |
-| AI/ML | PyTorch, scikit-learn, NumPy, Pandas |
+| AI/ML | PyTorch, NumPy |
 | Auth | JWT (PyJWT), httpOnly cookies, CSRF, RBAC |
 | Scanning | YARA, ctypes Win32 memory access |
 | Networking | psutil, aiohttp, httpx |
@@ -189,20 +187,20 @@ See `certs/README.md` for detailed instructions.
 ```
 cereberus/
 ├── backend/
-│   ├── ai/                 # 10 AI classes (anomaly, ensemble, LSTM, rules, correlation)
+│   ├── ai/                 # 5 AI classes (anomaly, ensemble, baselines, rules, correlation)
 │   ├── alerting/           # Alert manager
-│   ├── api/routes/         # 42 route files, 200+ endpoints
+│   ├── api/routes/         # 39 route files, 200+ endpoints
 │   ├── auth/               # RBAC system (4 roles, 13 permissions)
 │   ├── engine/             # Remediation, incidents, playbooks
 │   ├── intel/              # Threat feeds, IOC matcher, YARA scanner
 │   ├── maintenance/        # Retention cleanup, backup/restore
-│   ├── models/             # 37 SQLAlchemy tables
-│   ├── modules/            # 15 security modules
+│   ├── models/             # 36 SQLAlchemy tables
+│   ├── modules/            # 14 security modules
 │   ├── notifications/      # Webhook + SMTP dispatchers
 │   ├── service/            # Windows Service wrapper
 │   └── main.py             # FastAPI app + lifespan
 ├── frontend/
-│   ├── src/components/     # 25 dashboard panels
+│   ├── src/components/     # 23 dashboard panels
 │   ├── src/hooks/          # WebSocket, permissions, keyboard shortcuts
 │   ├── src/pages/          # Dashboard, Login, ChangePassword
 │   └── src/services/       # API client

@@ -8,17 +8,13 @@ class TestAiRoutes:
 
     def test_ai_status_shape(self):
         """Verify the expected shape of the AI status response."""
-        # This tests the structure of what the /ai/status endpoint returns
-        expected_keys = {"detectors", "ensemble", "baseline", "forecaster"}
+        expected_keys = {"detectors", "ensemble", "baseline"}
         sample = {
             "detectors": {
                 "autoencoder": {"initialized": False, "threshold": 0.5, "has_model": False},
-                "isolation_forest": {"initialized": False, "has_model": False},
-                "zscore": {"initialized": False, "has_baseline": False, "sample_count": 0},
             },
             "ensemble": {"last_score": None, "last_is_anomaly": None, "drift_score": 0.0},
             "baseline": {"total_buckets": 0, "total_possible": 1680, "coverage_percent": 0.0, "total_samples": 0},
-            "forecaster": {"initialized": False, "has_model": False},
         }
         assert set(sample.keys()) == expected_keys
 
@@ -39,18 +35,6 @@ class TestAiRoutes:
         }
         required = {"id", "timestamp", "detector_type", "anomaly_score", "is_anomaly", "explanation"}
         assert required.issubset(set(sample.keys()))
-
-    def test_prediction_shape(self):
-        """Verify the expected shape of prediction response."""
-        sample = {
-            "predictions": [
-                {"cpu_percent": 45.0, "memory_percent": 60.0, "step": 1, "minutes_ahead": 10},
-            ],
-            "forecast_alerts": [],
-            "actual_recent": [],
-        }
-        assert "predictions" in sample
-        assert "forecast_alerts" in sample
 
     def test_model_registry_shape(self):
         """Verify the expected shape of model registry entries."""
