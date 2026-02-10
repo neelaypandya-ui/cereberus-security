@@ -39,23 +39,57 @@ export function AlertsPanel() {
   }, [filter, showDismissed, showSnoozed]);
 
   const handleAcknowledge = async (ids: number[]) => {
+    // Optimistic UI — update state immediately, no lag
+    setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, acknowledged: true } : a));
     try {
       await api.acknowledgeAlerts(ids);
-      load();
       showToast('success', `${ids.length} alert(s) acknowledged`);
-    } catch (e: unknown) { showToast('error', 'Failed to acknowledge alert', (e as Error).message); }
+    } catch (e: unknown) {
+      // Revert on failure
+      setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, acknowledged: false } : a));
+      showToast('error', 'Failed to acknowledge alert', (e as Error).message);
+    }
   };
 
   const handleDismiss = async (id: number) => {
-    try { await api.dismissAlert(id); load(); showToast('success', 'Alert dismissed'); } catch (e: unknown) { showToast('error', 'Failed to dismiss alert', (e as Error).message); }
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: true } : a));
+    try {
+      await api.dismissAlert(id);
+      showToast('success', 'Alert dismissed');
+    } catch (e: unknown) {
+      setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: false } : a));
+      showToast('error', 'Failed to dismiss alert', (e as Error).message);
+    }
+  };
+
+  const handleBulkDismiss = async (ids: number[]) => {
+    setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: true } : a));
+    try {
+      await api.dismissAlerts(ids);
+      showToast('success', `${ids.length} alert(s) dismissed`);
+    } catch (e: unknown) {
+      setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: false } : a));
+      showToast('error', 'Failed to dismiss alerts', (e as Error).message);
+    }
   };
 
   const handleEscalate = async (id: number) => {
-    try { await api.escalateAlert(id); load(); showToast('success', 'Alert escalated to incident'); } catch (e: unknown) { showToast('error', 'Failed to escalate alert', (e as Error).message); }
+    try {
+      const result = await api.escalateAlert(id) as { incident_id?: number };
+      setAlerts(prev => prev.map(a => a.id === id ? { ...a, escalated_to_incident_id: result.incident_id ?? -1 } : a));
+      showToast('success', 'Alert escalated to incident');
+    } catch (e: unknown) { showToast('error', 'Failed to escalate alert', (e as Error).message); }
   };
 
   const handleSnooze = async (id: number) => {
-    try { await api.snoozeAlert(id); load(); showToast('success', 'Alert snoozed for 1 hour'); } catch (e: unknown) { showToast('error', 'Failed to snooze alert', (e as Error).message); }
+    setAlerts(prev => prev.filter(a => a.id !== id));
+    try {
+      await api.snoozeAlert(id);
+      showToast('success', 'Alert snoozed for 1 hour');
+    } catch (e: unknown) {
+      load(); // Revert by reloading on failure
+      showToast('error', 'Failed to snooze alert', (e as Error).message);
+    }
   };
 
   const severityColor = (s: string) => {
@@ -122,26 +156,47 @@ export function AlertsPanel() {
         </label>
       </div>
 
-      {/* Bulk Acknowledge */}
-      {alerts.some((a) => !a.acknowledged) && (
-        <div style={{ marginBottom: '12px' }}>
-          <button
-            onClick={() => handleAcknowledge(alerts.filter((a) => !a.acknowledged).map((a) => a.id))}
-            style={{
-              padding: '5px 14px',
-              fontSize: '16px',
-              fontFamily: 'var(--font-mono)',
-              letterSpacing: '1px',
-              background: 'var(--bg-tertiary)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-              borderRadius: '2px',
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-            }}
-          >
-            ACKNOWLEDGE ALL VISIBLE
-          </button>
+      {/* Bulk Operations */}
+      {(alerts.some((a) => !a.acknowledged) || alerts.some((a) => !a.dismissed)) && (
+        <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
+          {alerts.some((a) => !a.acknowledged) && (
+            <button
+              onClick={() => handleAcknowledge(alerts.filter((a) => !a.acknowledged).map((a) => a.id))}
+              style={{
+                padding: '5px 14px',
+                fontSize: '16px',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '1px',
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-default)',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+              }}
+            >
+              ACKNOWLEDGE ALL VISIBLE
+            </button>
+          )}
+          {alerts.some((a) => !a.dismissed) && (
+            <button
+              onClick={() => handleBulkDismiss(alerts.filter((a) => !a.dismissed).map((a) => a.id))}
+              style={{
+                padding: '5px 14px',
+                fontSize: '16px',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '1px',
+                background: 'var(--bg-tertiary)',
+                color: 'var(--severity-medium)',
+                border: '1px solid var(--severity-medium)',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+              }}
+            >
+              DISMISS ALL VISIBLE
+            </button>
+          )}
         </div>
       )}
 

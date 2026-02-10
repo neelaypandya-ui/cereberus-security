@@ -500,11 +500,13 @@ export function CommanderBondPanel() {
     setNeutralizingId(threatId);
     try {
       await api.neutralizeBondThreat(threatId);
-      // Refresh data after neutralizing
+      showToast('success', 'Threat neutralized');
       loadBondStatus();
       loadLatest();
       if (activeTab === 'dossiers') loadReports();
-    } catch (err) { console.error('[CEREBERUS]', err); } finally {
+    } catch (err) {
+      showToast('error', 'Failed to neutralize threat', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
       setNeutralizingId(null);
     }
   };
@@ -513,10 +515,13 @@ export function CommanderBondPanel() {
     setNeutralizingAll(true);
     try {
       await api.neutralizeAllBondThreats();
+      showToast('success', 'All threats neutralized');
       loadBondStatus();
       loadLatest();
       if (activeTab === 'dossiers') loadReports();
-    } catch (err) { console.error('[CEREBERUS]', err); } finally {
+    } catch (err) {
+      showToast('error', 'Failed to neutralize threats', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
       setNeutralizingAll(false);
     }
   };

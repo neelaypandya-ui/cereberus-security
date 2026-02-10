@@ -63,13 +63,13 @@ async def get_alerts(
     return validate_and_log(data, AlertResponse, "GET /alerts")
 
 
-class AcknowledgeRequest(BaseModel):
+class AlertIdsRequest(BaseModel):
     alert_ids: list[int]
 
 
 @router.post("/acknowledge")
 async def acknowledge_alerts(
-    body: AcknowledgeRequest,
+    body: AlertIdsRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
 ):
@@ -81,6 +81,22 @@ async def acknowledge_alerts(
     )
     await db.commit()
     return {"acknowledged": body.alert_ids}
+
+
+@router.post("/dismiss")
+async def dismiss_alerts(
+    body: AlertIdsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
+):
+    """Dismiss one or more alerts in bulk."""
+    await db.execute(
+        update(Alert)
+        .where(Alert.id.in_(body.alert_ids))
+        .values(dismissed=True)
+    )
+    await db.commit()
+    return {"dismissed": body.alert_ids}
 
 
 @router.get("/{alert_id}")

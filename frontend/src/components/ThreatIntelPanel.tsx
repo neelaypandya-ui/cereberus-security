@@ -58,6 +58,18 @@ interface ThreatFeedRecord {
   poll_interval_seconds: number;
 }
 
+interface BondThreat {
+  id: string;
+  name: string;
+  description: string;
+  severity: string;
+  category: string;
+  source: string;
+  iocs: Array<{ type: string; value: string }>;
+  mitigation: string;
+  cvss_score: number | null;
+}
+
 const PRIORITY_MAP: Record<string, { label: string; stampClass: string }> = {
   critical: { label: 'FLASH', stampClass: 'stamp-flash' },
   high: { label: 'IMMEDIATE', stampClass: 'stamp-immediate' },
@@ -74,7 +86,7 @@ export function ThreatIntelPanel() {
   const [correlations, setCorrelations] = useState<Correlation[]>([]);
   const [feed, setFeed] = useState<FeedEvent[]>([]);
   const [expandedCorr, setExpandedCorr] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'correlations' | 'ioc' | 'feeds' | 'timeline'>('correlations');
+  const [activeTab, setActiveTab] = useState<'correlations' | 'threats' | 'ioc' | 'feeds' | 'timeline'>('correlations');
 
   // IOC state
   const [iocs, setIocs] = useState<IOCRecord[]>([]);
@@ -84,6 +96,12 @@ export function ThreatIntelPanel() {
 
   // Feed state
   const [feeds, setFeeds] = useState<ThreatFeedRecord[]>([]);
+
+  // Threats state (Bond threats — for neutralization)
+  const [threats, setThreats] = useState<BondThreat[]>([]);
+  const [threatsLoading, setThreatsLoading] = useState(false);
+  const [neutralizingId, setNeutralizingId] = useState<string | null>(null);
+  const [neutralizingAll, setNeutralizingAll] = useState(false);
 
   // Timeline state
   interface TimelineEvent {
@@ -144,6 +162,7 @@ export function ThreatIntelPanel() {
     if (activeTab === 'ioc') loadIocs();
     if (activeTab === 'feeds') loadFeeds();
     if (activeTab === 'timeline') loadTimeline();
+    if (activeTab === 'threats') loadThreats();
   }, [activeTab, iocTypeFilter, timelineLookback]);
 
   const handleAddIoc = async () => {
@@ -175,6 +194,38 @@ export function ThreatIntelPanel() {
       }
       loadIocs();
     } catch (e: unknown) { showToast('error', 'Failed to update IOC', (e as Error).message); }
+  };
+
+  const loadThreats = async () => {
+    setThreatsLoading(true);
+    try {
+      const data = await api.getBondThreats({}) as BondThreat[];
+      setThreats(data);
+    } catch (e: unknown) { showToast('error', 'Failed to load threats', (e as Error).message); } finally {
+      setThreatsLoading(false);
+    }
+  };
+
+  const handleNeutralize = async (threatId: string) => {
+    setNeutralizingId(threatId);
+    try {
+      await api.neutralizeBondThreat(threatId);
+      setThreats(prev => prev.filter(t => t.id !== threatId));
+      showToast('success', 'Threat neutralized');
+    } catch (e: unknown) { showToast('error', 'Failed to neutralize threat', (e as Error).message); } finally {
+      setNeutralizingId(null);
+    }
+  };
+
+  const handleNeutralizeAll = async () => {
+    setNeutralizingAll(true);
+    try {
+      await api.neutralizeAllBondThreats();
+      setThreats([]);
+      showToast('success', 'All threats neutralized');
+    } catch (e: unknown) { showToast('error', 'Failed to neutralize threats', (e as Error).message); } finally {
+      setNeutralizingAll(false);
+    }
   };
 
   const confidenceColor = (c: number | null): string => {
@@ -216,6 +267,7 @@ export function ThreatIntelPanel() {
 
   const tabs = [
     { key: 'correlations' as const, label: 'CORRELATIONS' },
+    { key: 'threats' as const, label: 'ACTIVE THREATS' },
     { key: 'timeline' as const, label: 'TIMELINE' },
     { key: 'ioc' as const, label: 'IOC DATABASE' },
     { key: 'feeds' as const, label: 'FEED STATUS' },
@@ -363,6 +415,105 @@ export function ThreatIntelPanel() {
             )}
           </IntelCard>
         </>
+      )}
+
+      {/* ACTIVE THREATS TAB */}
+      {activeTab === 'threats' && (
+        <IntelCard title="ACTIVE THREAT DOSSIERS" classification="TOP SECRET//SCI">
+          {threatsLoading ? (
+            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px', textAlign: 'center' }}>
+              RETRIEVING THREAT INTELLIGENCE...
+            </div>
+          ) : threats.length === 0 ? (
+            <div style={{ padding: '30px', color: 'var(--text-muted)', fontSize: '17px', fontFamily: 'var(--font-mono)', letterSpacing: '2px', textAlign: 'center' }}>
+              NO ACTIVE THREATS — ALL CLEAR
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'var(--text-muted)', letterSpacing: '1px' }}>
+                  {threats.length} ACTIVE THREAT{threats.length !== 1 ? 'S' : ''}
+                </span>
+                <button
+                  onClick={handleNeutralizeAll}
+                  disabled={neutralizingAll}
+                  style={{
+                    padding: '6px 18px',
+                    background: 'transparent',
+                    border: '1px solid var(--severity-critical)',
+                    color: 'var(--severity-critical)',
+                    fontSize: '14px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    letterSpacing: '2px',
+                    cursor: neutralizingAll ? 'not-allowed' : 'pointer',
+                    opacity: neutralizingAll ? 0.5 : 1,
+                  }}
+                >
+                  {neutralizingAll ? 'NEUTRALIZING...' : 'NEUTRALIZE ALL'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '500px', overflow: 'auto' }}>
+                {threats.map((threat) => {
+                  const sev = PRIORITY_MAP[threat.severity] || PRIORITY_MAP.info;
+                  return (
+                    <div key={threat.id} style={{
+                      padding: '12px',
+                      background: 'var(--bg-tertiary)',
+                      borderRadius: '2px',
+                      borderLeft: `3px solid ${severityColor(threat.severity)}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                        <span className={`stamp-badge ${sev.stampClass}`}>{sev.label}</span>
+                        <span style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '1px', color: 'var(--text-primary)', flex: 1 }}>
+                          {threat.name}
+                        </span>
+                        {threat.cvss_score != null && (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: threat.cvss_score >= 9 ? 'var(--severity-critical)' : threat.cvss_score >= 7 ? 'var(--severity-high)' : 'var(--severity-medium)' }}>
+                            CVSS {threat.cvss_score}
+                          </span>
+                        )}
+                        <span style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: '1px' }}>
+                          {threat.category.toUpperCase()}
+                        </span>
+                        <button
+                          onClick={() => handleNeutralize(threat.id)}
+                          disabled={neutralizingId === threat.id}
+                          style={{
+                            padding: '4px 14px',
+                            background: 'transparent',
+                            border: '1px solid var(--severity-critical)',
+                            color: 'var(--severity-critical)',
+                            fontSize: '13px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 700,
+                            letterSpacing: '1px',
+                            cursor: neutralizingId === threat.id ? 'not-allowed' : 'pointer',
+                            opacity: neutralizingId === threat.id ? 0.5 : 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {neutralizingId === threat.id ? 'NEUTRALIZING...' : 'NEUTRALIZE'}
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '6px', lineHeight: 1.5 }}>
+                        {threat.description}
+                      </div>
+                      {threat.mitigation && (
+                        <div style={{ fontSize: '15px', color: 'var(--cyan-primary)', fontFamily: 'var(--font-mono)', marginBottom: '4px' }}>
+                          MITIGATION: {threat.mitigation}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        SOURCE: {threat.source} | IOCs: {threat.iocs?.length || 0}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </IntelCard>
       )}
 
       {/* TIMELINE TAB */}

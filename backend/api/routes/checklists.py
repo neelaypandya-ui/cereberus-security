@@ -193,28 +193,35 @@ async def verify_shield(db: AsyncSession) -> dict:
     items = []
     config = get_app_config()
 
-    from ...models.settings import ModuleStatus
-
-    # 1 — All modules online
+    # 1 — All modules online (query live singletons, not empty ModuleStatus table)
     try:
-        total = await db.execute(select(func.count()).select_from(ModuleStatus))
-        total_count = total.scalar() or 0
-        healthy = await db.execute(
-            select(func.count()).select_from(ModuleStatus).where(
-                and_(ModuleStatus.enabled == True, ModuleStatus.health_status == "healthy")
-            )
-        )
-        healthy_count = healthy.scalar() or 0
+        module_checks = [
+            ("VPN Guardian", get_vpn_guardian),
+            ("Resource Monitor", get_resource_monitor),
+            ("Threat Intelligence", get_threat_intelligence),
+            ("Commander Bond", get_commander_bond),
+            ("Rule Engine", get_rule_engine),
+            ("Anomaly Detector", get_anomaly_detector),
+            ("Behavioral Baseline", get_behavioral_baseline),
+            ("Threat Forecaster", get_threat_forecaster),
+            ("Agent Smith", get_agent_smith),
+        ]
+        total_count = len(module_checks)
+        healthy_count = 0
+        for _name, getter in module_checks:
+            mod = _safe_module(getter)
+            if mod is not None:
+                healthy_count += 1
         items.append(_item(
             "shield.modules_online", "All modules online",
-            "Every module: enabled and healthy",
-            total_count > 0 and healthy_count == total_count,
+            "Every module: initialized and reachable",
+            healthy_count == total_count,
             f"{healthy_count}/{total_count} healthy",
         ))
     except Exception as e:
         logger.debug("check_failed", check="modules_online", error=str(e))
         items.append(_item("shield.modules_online", "All modules online",
-                           "Every module: enabled and healthy", False, f"Check error: {e}"))
+                           "Every module: initialized and reachable", False, f"Check error: {e}"))
 
     # 2 — VPN connection active
     try:
