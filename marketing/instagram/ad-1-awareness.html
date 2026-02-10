@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEREBERUS — Instagram Ad 1: Awareness</title>
+<title>CEREBERUS — Instagram Ad 1: Brand Awareness</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     margin: 0;
-    background: #060a10;
+    background: #000;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -21,180 +21,391 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* ─── Frame ─── */
   .post {
     width: 1080px;
     height: 1080px;
-    background: #060a10;
     position: relative;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     flex-shrink: 0;
+    background: #000;
   }
 
-  /* Background grid overlay */
-  .bg-grid {
+  /* ─── Full-bleed dashboard screenshot ─── */
+  .bg-screenshot {
     position: absolute;
     inset: 0;
     z-index: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
+    background: url('screenshots/full-dashboard.png') center center / cover no-repeat;
+    animation: slowZoom 20s ease-in-out infinite alternate;
+    transform-origin: center center;
+    will-change: transform;
   }
 
-  /* Radial glow from top center — dramatic for ad */
-  .bg-radial {
+  @keyframes slowZoom {
+    0%   { transform: scale(1.0); }
+    100% { transform: scale(1.08); }
+  }
+
+  /* ─── Heavy gradient overlays (top + bottom) ─── */
+  .overlay-top {
     position: absolute;
     inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse 120% 70% at 50% 0%, rgba(0, 229, 255, 0.10) 0%, transparent 65%);
-  }
-
-  /* Vignette effect — stronger for ad */
-  .bg-vignette {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
-  }
-
-  /* Content layer */
-  .content {
-    position: relative;
     z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.88) 0%,
+      rgba(0, 0, 0, 0.65) 18%,
+      rgba(0, 0, 0, 0.15) 40%,
+      rgba(0, 0, 0, 0.05) 50%,
+      rgba(0, 0, 0, 0.15) 60%,
+      rgba(0, 0, 0, 0.65) 82%,
+      rgba(0, 0, 0, 0.92) 100%
+    );
+  }
+
+  /* Extra darkening at edges for text safety */
+  .overlay-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.45) 100%);
+  }
+
+  /* ─── Animated scanlines ─── */
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.12) 2px,
+      rgba(0, 0, 0, 0.12) 4px
+    );
+    animation: scanScroll 8s linear infinite;
+  }
+
+  @keyframes scanScroll {
+    0%   { background-position-y: 0px; }
+    100% { background-position-y: 40px; }
+  }
+
+  /* Subtle cyan tint overlay for cinematic feel */
+  .overlay-tint {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    background: radial-gradient(ellipse 100% 60% at 50% 35%, rgba(0, 229, 255, 0.03) 0%, transparent 70%);
+  }
+
+  /* ─── Content layer ─── */
+  .content {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
+    justify-content: center;
   }
 
-  /* 1. Classification stamp */
-  .classification {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    color: #ff1744;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    border: 1px solid rgba(255, 23, 68, 0.3);
-    padding: 6px 16px;
-    opacity: 0.5;
-    margin-bottom: 80px;
+  /* ─── Top: Logo ─── */
+  .logo-area {
+    position: absolute;
+    top: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
-  /* 2. Logo text */
-  .logo {
+  .logo-text {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 60px;
+    font-size: 28px;
     font-weight: 800;
     color: #f0f2f5;
-    letter-spacing: 14px;
+    letter-spacing: 12px;
     text-transform: uppercase;
-    line-height: 1;
+    text-shadow:
+      0 0 30px rgba(0, 229, 255, 0.25),
+      0 0 60px rgba(0, 229, 255, 0.10);
   }
 
-  /* 3. Cyan gradient underline */
-  .logo-underline {
-    width: 60px;
+  .logo-accent {
+    width: 40px;
     height: 2px;
-    background: linear-gradient(90deg, #00e5ff, #0077ff);
-    margin-top: 16px;
-    border-radius: 1px;
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.25);
+    margin-top: 10px;
+    background: linear-gradient(90deg, transparent, #00e5ff, transparent);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
   }
 
-  /* 4. Main headline */
-  .headline {
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 24px;
-    font-weight: 600;
-    color: #f0f2f5;
+  /* ─── Center: Hero tagline ─── */
+  .hero-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
-    max-width: 600px;
-    line-height: 1.4;
-    margin-top: 48px;
+    gap: 0;
   }
 
-  /* 5. Inline stats */
-  .stats-inline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    font-weight: 400;
+  .hero-line {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 900;
+    color: #ffffff;
+    text-transform: uppercase;
+    line-height: 1.05;
+    letter-spacing: -1px;
+    text-shadow:
+      0 2px 20px rgba(0, 0, 0, 0.8),
+      0 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .hero-line-1 {
+    font-size: 58px;
+  }
+
+  .hero-line-2 {
+    font-size: 48px;
+    margin-top: 4px;
+    color: rgba(240, 242, 245, 0.45);
+  }
+
+  .hero-break {
+    width: 3px;
+    height: 28px;
+    background: rgba(0, 229, 255, 0.35);
+    margin: 18px 0;
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+  }
+
+  .hero-line-3 {
+    font-size: 62px;
+  }
+
+  .hero-accent {
     color: #00e5ff;
-    letter-spacing: 1px;
-    margin-top: 32px;
+    text-shadow:
+      0 0 30px rgba(0, 229, 255, 0.4),
+      0 2px 20px rgba(0, 0, 0, 0.8);
   }
 
-  /* 6. CTA button */
-  .cta {
-    margin-top: 40px;
+  /* ─── Stat pills ─── */
+  .stat-pills {
+    display: flex;
+    gap: 12px;
+    margin-top: 44px;
+  }
+
+  .pill {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     color: #00e5ff;
-    letter-spacing: 3px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
-    background: transparent;
-    border: 1px solid rgba(0, 229, 255, 0.5);
-    border-radius: 24px;
-    padding: 12px 32px;
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
-    cursor: default;
+    background: rgba(0, 229, 255, 0.06);
+    border: 1px solid rgba(0, 229, 255, 0.20);
+    border-radius: 20px;
+    padding: 8px 20px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+  }
+
+  .pill-separator {
+    display: flex;
+    align-items: center;
+    color: rgba(0, 229, 255, 0.2);
+    font-size: 18px;
     user-select: none;
   }
 
-  /* 7. Handle at bottom */
-  .handle {
+  /* ─── CTA button ─── */
+  .cta-area {
+    margin-top: 48px;
+  }
+
+  .cta-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #00e5ff;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: rgba(0, 229, 255, 0.05);
+    border: 1.5px solid rgba(0, 229, 255, 0.50);
+    border-radius: 30px;
+    padding: 14px 40px;
+    cursor: default;
+    user-select: none;
+    animation: ctaPulse 3s ease-in-out infinite;
+    box-shadow:
+      0 0 20px rgba(0, 229, 255, 0.10),
+      inset 0 0 20px rgba(0, 229, 255, 0.03);
+  }
+
+  @keyframes ctaPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 20px rgba(0, 229, 255, 0.10),
+        0 0 40px rgba(0, 229, 255, 0.05),
+        inset 0 0 20px rgba(0, 229, 255, 0.03);
+      border-color: rgba(0, 229, 255, 0.45);
+    }
+    50% {
+      box-shadow:
+        0 0 25px rgba(0, 229, 255, 0.20),
+        0 0 60px rgba(0, 229, 255, 0.10),
+        inset 0 0 25px rgba(0, 229, 255, 0.06);
+      border-color: rgba(0, 229, 255, 0.70);
+    }
+  }
+
+  /* ─── Bottom branding ─── */
+  .bottom-handle {
+    position: absolute;
+    bottom: 38px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 400;
-    color: #4a5568;
-    letter-spacing: 2px;
+    color: rgba(240, 242, 245, 0.25);
+    letter-spacing: 2.5px;
+  }
+
+  /* ─── Subtle corner accents ─── */
+  .corner {
     position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
+    z-index: 10;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+  .corner-tl {
+    top: 28px; left: 28px;
+    border-top: 1px solid rgba(0, 229, 255, 0.15);
+    border-left: 1px solid rgba(0, 229, 255, 0.15);
+  }
+  .corner-tr {
+    top: 28px; right: 28px;
+    border-top: 1px solid rgba(0, 229, 255, 0.15);
+    border-right: 1px solid rgba(0, 229, 255, 0.15);
+  }
+  .corner-bl {
+    bottom: 28px; left: 28px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    border-left: 1px solid rgba(0, 229, 255, 0.15);
+  }
+  .corner-br {
+    bottom: 28px; right: 28px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    border-right: 1px solid rgba(0, 229, 255, 0.15);
+  }
+
+  /* ─── Top-right "LIVE" badge ─── */
+  .live-badge {
+    position: absolute;
+    top: 32px;
+    right: 56px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(0, 255, 136, 0.7);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .live-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #00ff88;
+    animation: liveBlink 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);
+  }
+
+  @keyframes liveBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
   }
 </style>
 </head>
 <body>
 
 <div class="post">
-  <!-- Background layers -->
-  <div class="bg-grid"></div>
-  <div class="bg-radial"></div>
-  <div class="bg-vignette"></div>
+  <!-- Layer 0: Full-bleed dashboard screenshot (slow zoom) -->
+  <div class="bg-screenshot"></div>
+
+  <!-- Layer 1: Heavy gradient overlay (top + bottom darken) -->
+  <div class="overlay-top"></div>
+
+  <!-- Layer 2: Vignette for edge safety -->
+  <div class="overlay-vignette"></div>
+
+  <!-- Layer 3: Animated scanlines -->
+  <div class="scanlines"></div>
+
+  <!-- Layer 4: Subtle cyan tint -->
+  <div class="overlay-tint"></div>
+
+  <!-- Corner accents -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <!-- LIVE indicator -->
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
 
   <!-- Main content -->
   <div class="content">
-    <!-- 1. Classification stamp -->
-    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <!-- Top: Logo -->
+    <div class="logo-area">
+      <div class="logo-text">CEREBERUS</div>
+      <div class="logo-accent"></div>
+    </div>
 
-    <!-- 2. Logo -->
-    <div class="logo">CEREBERUS</div>
+    <!-- Center: Hero tagline -->
+    <div class="hero-block">
+      <div class="hero-line hero-line-1">YOUR SOC GOES</div>
+      <div class="hero-line hero-line-2">HOME AT 5PM.</div>
+      <div class="hero-break"></div>
+      <div class="hero-line hero-line-3"><span class="hero-accent">CEREBERUS</span> DOESN'T.</div>
+    </div>
 
-    <!-- 3. Underline -->
-    <div class="logo-underline"></div>
+    <!-- Stat pills -->
+    <div class="stat-pills">
+      <div class="pill">50 RULES</div>
+      <div class="pill-separator">|</div>
+      <div class="pill">6 FEEDS</div>
+      <div class="pill-separator">|</div>
+      <div class="pill">&lt; 1 SEC</div>
+    </div>
 
-    <!-- 4. Main headline -->
-    <div class="headline">The defense system that doesn't sleep.</div>
-
-    <!-- 5. Inline stats -->
-    <div class="stats-inline">50 Rules &middot; 6 Feeds &middot; &lt;1s Response</div>
-
-    <!-- 6. CTA button -->
-    <div class="cta">REQUEST DEMO</div>
+    <!-- CTA -->
+    <div class="cta-area">
+      <div class="cta-btn">REQUEST A DEMO</div>
+    </div>
   </div>
 
-  <!-- 7. Handle -->
-  <div class="handle">@cereberus.security</div>
+  <!-- Bottom handle -->
+  <div class="bottom-handle">cereberus.defense</div>
 </div>
 
 </body>

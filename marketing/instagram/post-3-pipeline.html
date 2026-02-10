@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CEREBERUS — Instagram Post 3: The Pipeline</title>
+<title>CEREBERUS — Instagram Post 3: Detection Pipeline</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -24,85 +24,76 @@
   .post {
     width: 1080px;
     height: 1080px;
-    background: #060a10;
+    background: #0a0e14;
     position: relative;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     flex-shrink: 0;
   }
 
-  /* Background grid overlay */
+  /* ── Background layers ── */
   .bg-grid {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
+      linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
+    background-size: 54px 54px;
   }
 
-  /* Radial glow from top center */
   .bg-radial {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 60%);
+    background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(0, 229, 255, 0.07) 0%, transparent 60%);
   }
 
-  /* Vignette effect */
   .bg-vignette {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
   }
 
-  /* Content layer */
-  .content {
-    position: relative;
-    z-index: 1;
+  /* ── Header area ── */
+  .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
+    padding-top: 32px;
   }
 
-  /* 1. Classification stamp */
   .classification {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
     color: #ff1744;
     letter-spacing: 5px;
     text-transform: uppercase;
     border: 1px solid rgba(255, 23, 68, 0.3);
-    padding: 6px 16px;
+    padding: 5px 14px;
     opacity: 0.5;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
   }
 
-  /* 2. Small label */
-  .label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 400;
-    color: #00e5ff;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-bottom: 10px;
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 6px;
   }
 
-  /* 3. Title */
   .title {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 44px;
+    font-size: 38px;
     font-weight: 800;
     color: #f0f2f5;
     letter-spacing: 6px;
@@ -110,120 +101,756 @@
     line-height: 1;
   }
 
-  /* 4. Subtitle */
+  .timing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: #00e5ff;
+    letter-spacing: 1px;
+    animation: badge-pulse 2s ease-in-out infinite;
+  }
+
+  .timing-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00e5ff;
+    animation: dot-blink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes badge-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(0, 229, 255, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
+  }
+
+  @keyframes dot-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
   .subtitle {
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
     font-weight: 400;
-    color: #a0a8b4;
-    margin-top: 12px;
+    color: #4a5568;
+    letter-spacing: 4px;
+    text-transform: uppercase;
   }
 
-  /* 5. Cyan gradient divider */
-  .divider {
-    width: 48px;
-    height: 2px;
-    background: linear-gradient(90deg, #00e5ff, #0077ff);
-    margin: 24px 0;
-    border-radius: 1px;
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4), 0 0 24px rgba(0, 229, 255, 0.15);
+  /* ── Main layout: left sidebar + center pipeline ── */
+  .main-layout {
+    position: absolute;
+    top: 148px;
+    left: 0;
+    right: 0;
+    bottom: 80px;
+    z-index: 5;
+    display: flex;
+    gap: 0;
   }
 
-  /* 6. Pipeline */
-  .pipeline {
+  /* ── Left sidebar: AI Ops screenshot ── */
+  .sidebar-left {
+    width: 240px;
+    min-width: 240px;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
+    padding: 8px 12px 8px 20px;
   }
 
-  /* Connector line between steps */
-  .connector {
-    width: 2px;
-    height: 20px;
-    background: #00e5ff;
-    opacity: 0.5;
+  .sidebar-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    color: #00e5ff;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    text-align: center;
+    opacity: 0.7;
   }
 
-  .connector.connector-green {
-    background: #00e676;
-  }
-
-  /* Pipeline step card */
-  .step-card {
-    max-width: 680px;
-    width: 680px;
-    background: rgba(17, 26, 36, 0.7);
-    border: 1px solid #1e2d3d;
+  .screenshot-frame {
+    position: relative;
+    border: 1px solid rgba(0, 229, 255, 0.2);
     border-radius: 6px;
-    padding: 16px 20px;
+    overflow: hidden;
+    background: rgba(10, 14, 20, 0.9);
+  }
+
+  .screenshot-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .screenshot-frame::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.5), transparent);
+    z-index: 3;
+  }
+
+  .ai-ops-frame {
+    width: 200px;
+    height: 320px;
+  }
+
+  .ai-ops-frame img {
+    width: 480px;
+    height: auto;
+    object-fit: cover;
+    object-position: left top;
+    transform: translateX(-30px) translateY(-20px);
+    filter: brightness(0.85) saturate(1.1);
+  }
+
+  .sidebar-stat {
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  .sidebar-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 800;
+    color: #4caf50;
+    line-height: 1;
+  }
+
+  .sidebar-stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 500;
+    color: #4a5568;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* Live indicator for sidebar */
+  .live-indicator {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 6px;
+    margin-top: 14px;
   }
 
-  .step-card.step-final {
-    border-color: #00e676;
-  }
-
-  /* Step number circle */
-  .step-number {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+  .live-dot {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    border: 1px solid #00e5ff;
+    background: #4caf50;
+    animation: live-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes live-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6); }
+    50% { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+  }
+
+  .live-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: #4caf50;
+    letter-spacing: 2px;
+  }
+
+  /* ── Center pipeline ── */
+  .pipeline-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px;
+    position: relative;
+  }
+
+  /* Pipeline backbone line */
+  .pipeline-backbone {
+    position: absolute;
+    left: 50%;
+    top: 28px;
+    bottom: 28px;
+    width: 2px;
+    background: linear-gradient(to bottom,
+      rgba(0, 229, 255, 0.0) 0%,
+      rgba(0, 229, 255, 0.15) 5%,
+      rgba(0, 229, 255, 0.15) 80%,
+      rgba(76, 175, 80, 0.15) 90%,
+      rgba(76, 175, 80, 0.0) 100%
+    );
+    transform: translateX(-50%);
+    z-index: 0;
+  }
+
+  /* Animated dots flowing down the backbone */
+  .flow-dot {
+    position: absolute;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #00e5ff;
+    transform: translateX(-50%);
+    animation: flow-down 3s linear infinite;
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+    z-index: 1;
+  }
+
+  .flow-dot:nth-child(2) { animation-delay: -0.6s; }
+  .flow-dot:nth-child(3) { animation-delay: -1.2s; }
+  .flow-dot:nth-child(4) { animation-delay: -1.8s; }
+  .flow-dot:nth-child(5) { animation-delay: -2.4s; }
+
+  .flow-dot.green-dot {
+    background: #4caf50;
+    box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
+    animation: flow-down-green 3s linear infinite;
+  }
+
+  .flow-dot.green-dot:nth-child(7) { animation-delay: -1.5s; }
+
+  @keyframes flow-down {
+    0% { top: 0%; opacity: 0; }
+    5% { opacity: 1; }
+    75% { opacity: 1; }
+    85% { opacity: 0; }
+    100% { top: 85%; opacity: 0; }
+  }
+
+  @keyframes flow-down-green {
+    0% { top: 70%; opacity: 0; }
+    15% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Pipeline steps */
+  .pipeline-steps {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .step {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-height: 88px;
+    position: relative;
+  }
+
+  /* Step number column */
+  .step-num-col {
+    width: 44px;
+    min-width: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 14px;
+    position: relative;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #00e5ff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 800;
     color: #00e5ff;
-    line-height: 1;
+    background: #0a0e14;
+    position: relative;
+    z-index: 3;
   }
 
-  .step-final .step-number {
-    border-color: #00e676;
-    color: #00e676;
+  .step-num.completed {
+    border-color: #4caf50;
+    color: #0a0e14;
+    background: #4caf50;
   }
 
-  /* Step description */
-  .step-desc {
+  .step-num.completed::after {
+    content: '';
+    /* checkmark drawn via box-shadow trick — use text instead */
+  }
+
+  .step.final .step-num {
+    width: 32px;
+    height: 32px;
+    border-color: #4caf50;
+    color: #0a0e14;
+    background: #4caf50;
+    font-size: 16px;
+  }
+
+  /* Connector between step numbers */
+  .step-connector {
     flex: 1;
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 15px;
-    font-weight: 400;
+    width: 2px;
+    background: linear-gradient(to bottom, rgba(0, 229, 255, 0.3), rgba(0, 229, 255, 0.1));
+    margin-top: 4px;
+  }
+
+  .step.final .step-connector {
+    display: none;
+  }
+
+  /* Step content card */
+  .step-card {
+    flex: 1;
+    background: rgba(14, 20, 28, 0.85);
+    border: 1px solid rgba(30, 45, 61, 0.8);
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+
+  .step-card:hover {
+    border-color: rgba(0, 229, 255, 0.4);
+  }
+
+  .step.final .step-card {
+    border-color: rgba(76, 175, 80, 0.5);
+    background: rgba(76, 175, 80, 0.06);
+  }
+
+  .step-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .step-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
     color: #f0f2f5;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .step.final .step-name {
+    color: #4caf50;
+  }
+
+  .step-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #00e5ff;
+    background: rgba(0, 229, 255, 0.08);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    border-radius: 3px;
+    padding: 2px 8px;
+    letter-spacing: 1px;
+  }
+
+  .step.final .step-time {
+    color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+    border-color: rgba(76, 175, 80, 0.3);
+  }
+
+  .step-detail {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #6b7a8d;
     line-height: 1.4;
   }
 
-  /* Timing badge */
-  .step-timing {
+  /* Step 1: Screenshot inset */
+  .step-screenshot-inset {
+    width: 100%;
+    height: 44px;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    position: relative;
+    margin-top: 2px;
+  }
+
+  .step-screenshot-inset img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    object-position: center bottom;
+    transform: translateY(-70%);
+    filter: brightness(0.8) saturate(1.1);
+  }
+
+  .step-screenshot-inset::after {
+    content: 'LIVE SIGINT FEED';
+    position: absolute;
+    bottom: 2px;
+    right: 6px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 7px;
+    font-weight: 600;
     color: #00e5ff;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
+    opacity: 0.6;
+  }
+
+  /* Step 2: Rule progress bar */
+  .rule-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  .rule-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 229, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .rule-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #00e5ff, #0077ff);
+    border-radius: 3px;
+    animation: progress-fill 2s ease-out infinite;
+    transform-origin: left;
+  }
+
+  @keyframes progress-fill {
+    0% { transform: scaleX(0); }
+    30% { transform: scaleX(1); }
+    100% { transform: scaleX(1); }
+  }
+
+  .rule-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #00e5ff;
     white-space: nowrap;
   }
 
-  .step-final .step-timing {
-    color: #00e676;
+  /* Step 3: Baseline callout */
+  .baseline-callout {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 229, 255, 0.04);
+    border-left: 2px solid rgba(0, 229, 255, 0.3);
+    padding: 5px 10px;
+    border-radius: 0 3px 3px 0;
+    margin-top: 2px;
   }
 
-  /* 7. Handle at bottom */
-  .handle {
+  .baseline-callout-icon {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 400;
-    color: #4a5568;
-    letter-spacing: 2px;
+    font-size: 14px;
+    color: #00e5ff;
+    opacity: 0.7;
+  }
+
+  .baseline-callout-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: #6b7a8d;
+    letter-spacing: 1px;
+  }
+
+  .baseline-callout-text span {
+    color: #00e5ff;
+    font-weight: 600;
+  }
+
+  /* Step 4: Sword animation */
+  .sword-visual {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  .sword-strike {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    overflow: hidden;
+  }
+
+  .sword-line {
     position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #ff6f00 20%, #ffab00 50%, #ff6f00 80%, transparent 100%);
+    transform: translateY(-50%);
+    animation: sword-slash 1.8s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(255, 111, 0, 0.5);
+  }
+
+  .sword-sparks {
+    position: absolute;
+    top: 50%;
+    right: 15%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+  }
+
+  .sword-sparks::before,
+  .sword-sparks::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #ffab00;
+    animation: spark 1.8s ease-out infinite;
+  }
+
+  .sword-sparks::before {
+    top: -4px;
+    left: 0;
+    animation-delay: 0.7s;
+  }
+
+  .sword-sparks::after {
+    top: 2px;
+    left: 4px;
+    animation-delay: 0.85s;
+  }
+
+  @keyframes sword-slash {
+    0% { clip-path: inset(0 100% 0 0); opacity: 0; }
+    10% { opacity: 1; }
+    40% { clip-path: inset(0 0% 0 0); }
+    60% { clip-path: inset(0 0% 0 0); opacity: 1; }
+    80% { opacity: 0.3; }
+    100% { opacity: 0; clip-path: inset(0 0% 0 0); }
+  }
+
+  @keyframes spark {
+    0%, 60% { opacity: 0; transform: translate(0, 0) scale(0); }
+    70% { opacity: 1; transform: translate(-2px, -3px) scale(1.5); }
+    100% { opacity: 0; transform: translate(-8px, -10px) scale(0); }
+  }
+
+  .sword-protocol-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: #ff6f00;
+    letter-spacing: 2px;
+    font-weight: 600;
+    animation: protocol-flash 1.8s ease-in-out infinite;
+  }
+
+  @keyframes protocol-flash {
+    0%, 100% { opacity: 0.4; }
+    40%, 60% { opacity: 1; }
+  }
+
+  /* Step 5: Neutralized stamp */
+  .neutralized-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+  }
+
+  .neutralized-check {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #4caf50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: check-pop 2.5s ease-out infinite;
+  }
+
+  .neutralized-check svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  @keyframes check-pop {
+    0%, 80% { transform: scale(1); }
+    85% { transform: scale(1.2); }
+    90% { transform: scale(0.95); }
+    95%, 100% { transform: scale(1); }
+  }
+
+  .neutralized-stamp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 800;
+    color: #4caf50;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    border: 2px solid rgba(76, 175, 80, 0.5);
+    padding: 3px 14px;
+    border-radius: 3px;
+    animation: stamp-glow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes stamp-glow {
+    0%, 100% { box-shadow: 0 0 6px rgba(76, 175, 80, 0.2); }
+    50% { box-shadow: 0 0 18px rgba(76, 175, 80, 0.5); }
+  }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 40px;
+    background: linear-gradient(to top, rgba(10, 14, 20, 0.95) 0%, transparent 100%);
+  }
+
+  .bottom-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7a8d;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .bottom-text strong {
+    color: #4caf50;
+    font-weight: 800;
+  }
+
+  .handle {
+    position: absolute;
+    bottom: 8px;
+    right: 30px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 400;
+    color: #2a3444;
+    letter-spacing: 2px;
+    z-index: 10;
+  }
+
+  /* ── Scanline overlay for military feel ── */
+  .scanline-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.03) 3px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+  }
+
+  /* ── Decorative corner brackets ── */
+  .corner-bracket {
+    position: absolute;
+    z-index: 9;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+
+  .corner-bracket.tl {
+    top: 16px; left: 16px;
+    border-top: 1px solid rgba(0, 229, 255, 0.15);
+    border-left: 1px solid rgba(0, 229, 255, 0.15);
+  }
+
+  .corner-bracket.tr {
+    top: 16px; right: 16px;
+    border-top: 1px solid rgba(0, 229, 255, 0.15);
+    border-right: 1px solid rgba(0, 229, 255, 0.15);
+  }
+
+  .corner-bracket.bl {
+    bottom: 16px; left: 16px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    border-left: 1px solid rgba(0, 229, 255, 0.15);
+  }
+
+  .corner-bracket.br {
+    bottom: 16px; right: 16px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    border-right: 1px solid rgba(0, 229, 255, 0.15);
+  }
+
+  /* ── Animated data stream on right edge ── */
+  .data-stream-right {
+    position: absolute;
+    right: 30px;
+    top: 160px;
+    bottom: 100px;
+    width: 1px;
+    background: rgba(0, 229, 255, 0.06);
+    z-index: 4;
+  }
+
+  .data-stream-right .stream-dot {
+    position: absolute;
+    right: -1px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #00e5ff;
+    opacity: 0.4;
+    animation: stream-fall 4s linear infinite;
+  }
+
+  .data-stream-right .stream-dot:nth-child(2) { animation-delay: -1.3s; }
+  .data-stream-right .stream-dot:nth-child(3) { animation-delay: -2.6s; }
+
+  @keyframes stream-fall {
+    0% { top: 0%; opacity: 0; }
+    10% { opacity: 0.5; }
+    90% { opacity: 0.5; }
+    100% { top: 100%; opacity: 0; }
   }
 </style>
 </head>
@@ -234,74 +861,187 @@
   <div class="bg-grid"></div>
   <div class="bg-radial"></div>
   <div class="bg-vignette"></div>
+  <div class="scanline-overlay"></div>
 
-  <!-- Main content -->
-  <div class="content">
-    <!-- 1. Classification stamp -->
-    <div class="classification">TOP SECRET // CEREBERUS</div>
+  <!-- Corner brackets -->
+  <div class="corner-bracket tl"></div>
+  <div class="corner-bracket tr"></div>
+  <div class="corner-bracket bl"></div>
+  <div class="corner-bracket br"></div>
 
-    <!-- 2. Small label -->
-    <div class="label">TECHNICAL DEEP DIVE</div>
-
-    <!-- 3. Title -->
-    <div class="title">THE PIPELINE</div>
-
-    <!-- 4. Subtitle -->
-    <div class="subtitle">From raw event to neutralized threat in &lt; 1 second</div>
-
-    <!-- 5. Divider -->
-    <div class="divider"></div>
-
-    <!-- 6. Pipeline steps -->
-    <div class="pipeline">
-      <!-- Step 1 -->
-      <div class="step-card">
-        <div class="step-number">1</div>
-        <div class="step-desc">Event captured via Windows EventBus</div>
-        <div class="step-timing">&lt; 1ms</div>
-      </div>
-
-      <div class="connector"></div>
-
-      <!-- Step 2 -->
-      <div class="step-card">
-        <div class="step-number">2</div>
-        <div class="step-desc">50 detection rules evaluate in parallel</div>
-        <div class="step-timing">&lt; 10ms</div>
-      </div>
-
-      <div class="connector"></div>
-
-      <!-- Step 3 -->
-      <div class="step-card">
-        <div class="step-number">3</div>
-        <div class="step-desc">Commander Bond correlates with baseline</div>
-        <div class="step-timing">&lt; 100ms</div>
-      </div>
-
-      <div class="connector"></div>
-
-      <!-- Step 4 -->
-      <div class="step-card">
-        <div class="step-number">4</div>
-        <div class="step-desc">Sword Protocol matches escalation policy</div>
-        <div class="step-timing">&lt; 50ms</div>
-      </div>
-
-      <div class="connector connector-green"></div>
-
-      <!-- Step 5 — final, green accent -->
-      <div class="step-card step-final">
-        <div class="step-number">5</div>
-        <div class="step-desc">Threat NEUTRALIZED</div>
-        <div class="step-timing">&lt; 1s TOTAL</div>
-      </div>
-    </div>
+  <!-- Right-edge data stream -->
+  <div class="data-stream-right">
+    <div class="stream-dot"></div>
+    <div class="stream-dot"></div>
+    <div class="stream-dot"></div>
   </div>
 
-  <!-- 7. Handle -->
+  <!-- ═══ HEADER ═══ -->
+  <div class="header">
+    <div class="classification">TOP SECRET // CEREBERUS</div>
+    <div class="title-row">
+      <div class="title">DETECTION PIPELINE</div>
+      <div class="timing-badge">&lt; 1 SECOND</div>
+    </div>
+    <div class="subtitle">FROM EVENT TO NEUTRALIZED &mdash; FIVE AUTONOMOUS STAGES</div>
+  </div>
+
+  <!-- ═══ MAIN LAYOUT ═══ -->
+  <div class="main-layout">
+
+    <!-- ── Left sidebar: AI Ops health monitor ── -->
+    <div class="sidebar-left">
+      <div class="sidebar-label">SYSTEM HEALTH</div>
+
+      <div class="screenshot-frame ai-ops-frame">
+        <img src="screenshots/ai-ops.png" alt="AI Operations Center — Worry Gauge and Model Status" />
+      </div>
+
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-value">99.7%</div>
+        <div class="sidebar-stat-label">UPTIME</div>
+      </div>
+
+      <div class="live-indicator">
+        <div class="live-dot"></div>
+        <div class="live-text">MONITORING</div>
+      </div>
+
+      <div class="sidebar-stat" style="margin-top: 16px;">
+        <div class="sidebar-stat-value" style="font-size: 16px; color: #00e5ff;">5</div>
+        <div class="sidebar-stat-label">AI MODELS ACTIVE</div>
+      </div>
+    </div>
+
+    <!-- ── Center: Pipeline ── -->
+    <div class="pipeline-area">
+      <!-- Backbone line -->
+      <div class="pipeline-backbone">
+        <div class="flow-dot"></div>
+        <div class="flow-dot"></div>
+        <div class="flow-dot"></div>
+        <div class="flow-dot"></div>
+        <div class="flow-dot"></div>
+        <div class="flow-dot green-dot"></div>
+        <div class="flow-dot green-dot"></div>
+      </div>
+
+      <div class="pipeline-steps">
+
+        <!-- ── STEP 1: EVENT CAPTURE ── -->
+        <div class="step">
+          <div class="step-num-col">
+            <div class="step-num completed">1</div>
+            <div class="step-connector"></div>
+          </div>
+          <div class="step-card">
+            <div class="step-card-header">
+              <div class="step-name">EVENT CAPTURE</div>
+              <div class="step-time">&lt; 1ms</div>
+            </div>
+            <div class="step-detail">Windows EvtSubscribe hooks deliver raw events to the EventBus</div>
+            <div class="step-screenshot-inset">
+              <img src="screenshots/cmd-center.png" alt="Command Center SIGINT Feed — Live events" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: 50 RULES EVALUATE ── -->
+        <div class="step">
+          <div class="step-num-col">
+            <div class="step-num completed">2</div>
+            <div class="step-connector"></div>
+          </div>
+          <div class="step-card">
+            <div class="step-card-header">
+              <div class="step-name">50 RULES EVALUATE</div>
+              <div class="step-time">&lt; 10ms</div>
+            </div>
+            <div class="step-detail">Parallel rule engine scores each event against behavioral + signature rules</div>
+            <div class="rule-progress-row">
+              <div class="rule-progress-bar">
+                <div class="rule-progress-fill"></div>
+              </div>
+              <div class="rule-count">50 / 50</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 3: BOND CORRELATES ── -->
+        <div class="step">
+          <div class="step-num-col">
+            <div class="step-num completed">3</div>
+            <div class="step-connector"></div>
+          </div>
+          <div class="step-card">
+            <div class="step-card-header">
+              <div class="step-name">BOND CORRELATES</div>
+              <div class="step-time">&lt; 100ms</div>
+            </div>
+            <div class="step-detail">Commander Bond cross-references threat intel, behavioral baseline, and ensemble AI</div>
+            <div class="baseline-callout">
+              <div class="baseline-callout-icon">&gt;_</div>
+              <div class="baseline-callout-text">BEHAVIORAL BASELINE: <span>DEVIATION DETECTED</span> // CONFIDENCE 0.97</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 4: SWORD EXECUTES ── -->
+        <div class="step">
+          <div class="step-num-col">
+            <div class="step-num completed">4</div>
+            <div class="step-connector"></div>
+          </div>
+          <div class="step-card">
+            <div class="step-card-header">
+              <div class="step-name">SWORD EXECUTES</div>
+              <div class="step-time">&lt; 500ms</div>
+            </div>
+            <div class="step-detail">Sword Protocol matches escalation policy and initiates autonomous remediation</div>
+            <div class="sword-visual">
+              <div class="sword-strike">
+                <div class="sword-line"></div>
+                <div class="sword-sparks"></div>
+              </div>
+              <div class="sword-protocol-label">ARMED</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 5: THREAT NEUTRALIZED ── -->
+        <div class="step final">
+          <div class="step-num-col">
+            <div class="step-num completed" style="font-size: 0;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0a0e14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-card-header">
+              <div class="step-name">THREAT NEUTRALIZED</div>
+              <div class="step-time">&lt; 1s TOTAL</div>
+            </div>
+            <div class="neutralized-row">
+              <div class="neutralized-check">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0a0e14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="neutralized-stamp">NEUTRALIZED</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /pipeline-steps -->
+    </div><!-- /pipeline-area -->
+
+  </div><!-- /main-layout -->
+
+  <!-- ═══ BOTTOM BAR ═══ -->
+  <div class="bottom-bar">
+    <div class="bottom-text">Total human intervention: <strong>ZERO</strong></div>
+  </div>
+
   <div class="handle">@cereberus.security</div>
-</div>
+
+</div><!-- /post -->
 
 </body>
 </html>

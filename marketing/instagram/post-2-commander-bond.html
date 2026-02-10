@@ -16,7 +16,7 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'JetBrains Mono', monospace;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -24,192 +24,484 @@
   .post {
     width: 1080px;
     height: 1080px;
-    background: #060a10;
+    background: #0a0e14;
     position: relative;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     flex-shrink: 0;
   }
 
-  /* Background grid overlay */
+  /* ── Background layers ─────────────────────────────── */
+
   .bg-grid {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
+      linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
+    background-size: 54px 54px;
   }
 
-  /* Radial glow from top center */
   .bg-radial {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 229, 255, 0.06) 0%, transparent 60%);
+    background: radial-gradient(ellipse 90% 60% at 50% 40%, rgba(0, 229, 255, 0.04) 0%, transparent 70%);
   }
 
-  /* Vignette effect */
   .bg-vignette {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
   }
 
-  /* Content layer */
+  /* Subtle scanlines */
+  .bg-scanlines {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+  }
+
+  /* ── Corner brackets (classified document feel) ───── */
+
+  .corner-bracket {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .corner-bracket::before,
+  .corner-bracket::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 193, 7, 0.3);
+  }
+  .corner-tl { top: 24px; left: 24px; }
+  .corner-tl::before { top: 0; left: 0; width: 32px; height: 2px; }
+  .corner-tl::after  { top: 0; left: 0; width: 2px; height: 32px; }
+
+  .corner-tr { top: 24px; right: 24px; }
+  .corner-tr::before { top: 0; right: 0; width: 32px; height: 2px; }
+  .corner-tr::after  { top: 0; right: 0; width: 2px; height: 32px; }
+
+  .corner-bl { bottom: 24px; left: 24px; }
+  .corner-bl::before { bottom: 0; left: 0; width: 32px; height: 2px; }
+  .corner-bl::after  { bottom: 0; left: 0; width: 2px; height: 32px; }
+
+  .corner-br { bottom: 24px; right: 24px; }
+  .corner-br::before { bottom: 0; right: 0; width: 32px; height: 2px; }
+  .corner-br::after  { bottom: 0; right: 0; width: 2px; height: 32px; }
+
+  /* ── Classification banner (top) ───────────────────── */
+
+  .classified-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    height: 36px;
+    background: linear-gradient(90deg, #ff1744 0%, #d50000 40%, #b71c1c 60%, #d50000 80%, #ff1744 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    box-shadow: 0 2px 16px rgba(255, 23, 68, 0.3);
+  }
+
+  .classified-banner span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+  }
+
+  .classified-sep {
+    color: rgba(255, 255, 255, 0.4) !important;
+    letter-spacing: 2px !important;
+  }
+
+  /* ── Redaction marks ───────────────────────────────── */
+
+  .redaction-mark {
+    position: absolute;
+    z-index: 2;
+    pointer-events: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: rgba(255, 193, 7, 0.15);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .redaction-left {
+    top: 520px;
+    left: 18px;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .redaction-right {
+    top: 340px;
+    right: 18px;
+    writing-mode: vertical-rl;
+  }
+
+  /* ── Content ───────────────────────────────────────── */
+
   .content {
     position: relative;
-    z-index: 1;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    padding-top: 52px;
   }
 
-  /* 1. Classification stamp */
-  .classification {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    color: #ff1744;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    border: 1px solid rgba(255, 23, 68, 0.3);
-    padding: 6px 16px;
-    opacity: 0.5;
-    margin-bottom: 32px;
-  }
-
-  /* 2. Feature spotlight label */
-  .spotlight-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+  /* Dossier ID line */
+  .dossier-id {
+    font-size: 9px;
     font-weight: 400;
-    color: #00e5ff;
+    color: rgba(255, 193, 7, 0.5);
     letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
 
-  /* 3. Title */
-  .title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 48px;
+  /* Title block */
+  .title-block {
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .title-main {
+    font-size: 44px;
     font-weight: 800;
     color: #f0f2f5;
-    letter-spacing: 8px;
+    letter-spacing: 10px;
     text-transform: uppercase;
     line-height: 1;
-    text-align: center;
+    text-shadow:
+      0 0 40px rgba(0, 229, 255, 0.35),
+      0 0 80px rgba(0, 229, 255, 0.15),
+      0 0 2px rgba(0, 229, 255, 0.6);
   }
 
-  /* 4. Subtitle */
-  .subtitle {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+  .title-sub {
+    font-size: 11px;
     font-weight: 400;
-    color: #4a5568;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-top: 12px;
+    color: #00e5ff;
+    letter-spacing: 6px;
+    margin-top: 10px;
+    opacity: 0.8;
   }
 
-  /* 5. Cyan gradient divider */
-  .divider {
-    width: 48px;
-    height: 2px;
-    background: linear-gradient(90deg, #00e5ff, #0077ff);
-    margin: 28px auto;
-    border-radius: 1px;
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4), 0 0 24px rgba(0, 229, 255, 0.15);
+  /* Thin divider */
+  .divider-thin {
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #00e5ff, transparent);
+    margin: 12px auto 14px auto;
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
   }
 
-  /* 6. Terminal card */
-  .terminal {
-    max-width: 720px;
-    width: 720px;
-    background: rgba(12, 18, 24, 0.9);
-    border: 1px solid #1e2d3d;
-    border-radius: 10px;
-    overflow: hidden;
+  /* ── Monitor / screenshot container ────────────────── */
+
+  .monitor-frame {
+    position: relative;
+    width: 920px;
+    margin: 0 auto;
   }
 
-  .terminal-chrome {
+  /* Screen bezel */
+  .monitor-bezel {
+    background: #0d1117;
+    border: 2px solid #1a2332;
+    border-radius: 8px;
+    padding: 6px;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(0, 229, 255, 0.08),
+      0 4px 32px rgba(0, 0, 0, 0.5),
+      inset 0 0 30px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Status bar at top of monitor */
+  .monitor-status-bar {
     display: flex;
     align-items: center;
-    gap: 7px;
-    background: rgba(30, 45, 61, 0.5);
-    padding: 10px 14px;
-    border-bottom: 1px solid #1e2d3d;
+    justify-content: space-between;
+    padding: 5px 12px;
+    background: rgba(26, 35, 50, 0.6);
+    border-radius: 4px 4px 0 0;
+    border-bottom: 1px solid #1a2332;
   }
 
-  .terminal-dot {
-    width: 10px;
-    height: 10px;
+  .monitor-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .monitor-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
   }
+  .monitor-dot.r { background: #ff5f57; }
+  .monitor-dot.y { background: #febc2e; }
+  .monitor-dot.g { background: #28c840; }
 
-  .terminal-dot.red { background: #ff5f57; }
-  .terminal-dot.yellow { background: #febc2e; }
-  .terminal-dot.green { background: #28c840; }
-
-  .terminal-body {
-    padding: 20px 24px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    line-height: 2.0;
-  }
-
-  .terminal-prompt {
-    color: #00e676;
-  }
-
-  .terminal-command {
-    color: #f0f2f5;
-  }
-
-  .terminal-label {
+  .monitor-title {
+    font-size: 9px;
     color: #4a5568;
+    letter-spacing: 3px;
   }
 
-  .terminal-value-cyan {
+  .monitor-signal {
+    font-size: 9px;
+    color: #00e676;
+    letter-spacing: 2px;
+    animation: pulse-signal 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-signal {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* The screenshot itself */
+  .monitor-screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0 0 4px 4px;
+    line-height: 0;
+  }
+
+  .monitor-screen img {
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: brightness(1.02) contrast(1.02);
+  }
+
+  /* CRT glare / reflection overlay */
+  .screen-glare {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.015) 100%
+    );
+    border-radius: 0 0 4px 4px;
+  }
+
+  /* Subtle pulsing glow on the "STANDING BY" area (top-center of screenshot) */
+  .standing-by-pulse {
+    position: absolute;
+    top: 6%;
+    left: 30%;
+    width: 40%;
+    height: 12%;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0, 229, 255, 0.08) 0%, transparent 70%);
+    animation: pulse-standby 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-standby {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+
+  /* ── Callout lines ─────────────────────────────────── */
+
+  .callouts {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  .callout {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .callout-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #ffc107;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: rgba(10, 14, 20, 0.85);
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 2px;
+  }
+
+  .callout-line {
+    height: 1px;
+    background: rgba(255, 193, 7, 0.4);
+    flex-shrink: 0;
+  }
+
+  .callout-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffc107;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(255, 193, 7, 0.5);
+  }
+
+  /* Callout 1: ADAPTIVE SCANNING — left side, pointing to scan stats */
+  .callout-scanning {
+    top: 398px;
+    left: 24px;
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .callout-scanning .callout-label {
+    margin-right: 8px;
+  }
+
+  .callout-scanning .callout-line {
+    width: 30px;
+  }
+
+  /* Callout 2: 7 OPERATIONAL MODULES — right side, pointing to tabs */
+  .callout-modules {
+    top: 460px;
+    right: 24px;
+    flex-direction: row-reverse;
+    gap: 0;
+  }
+
+  .callout-modules .callout-label {
+    margin-left: 8px;
+  }
+
+  .callout-modules .callout-line {
+    width: 30px;
+  }
+
+  /* Callout 3: REAL-TIME REPORTING — left side, pointing to Bond Report */
+  .callout-reporting {
+    top: 600px;
+    left: 24px;
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .callout-reporting .callout-label {
+    margin-right: 8px;
+  }
+
+  .callout-reporting .callout-line {
+    width: 50px;
+  }
+
+  /* ── Tagline ───────────────────────────────────────── */
+
+  .tagline-section {
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: 5;
+  }
+
+  .tagline-text {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    color: #c8cdd4;
+    letter-spacing: 1px;
+  }
+
+  .tagline-text em {
+    font-style: normal;
     color: #00e5ff;
   }
 
-  .terminal-value-green {
-    color: #00e676;
+  /* ── Hashtags / bottom strip ───────────────────────── */
+
+  .bottom-strip {
+    position: absolute;
+    bottom: 28px;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
   }
 
-  /* 7. Bottom text */
-  .bottom-text {
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 16px;
-    font-weight: 400;
-    color: #a0a8b4;
-    margin-top: 28px;
-  }
-
-  /* 8. Handle */
-  .handle {
+  .hashtag {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 400;
     color: #4a5568;
-    letter-spacing: 2px;
-    position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1;
+    letter-spacing: 1px;
   }
+
+  .bottom-sep {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #2a3545;
+  }
+
+  /* ── Document serial number (bottom-left) ──────────── */
+
+  .doc-serial {
+    position: absolute;
+    bottom: 50px;
+    left: 32px;
+    z-index: 5;
+    font-size: 8px;
+    color: rgba(255, 193, 7, 0.2);
+    letter-spacing: 2px;
+  }
+
+  /* ── Classification footer ─────────────────────────── */
+
+  .classified-footer {
+    position: absolute;
+    bottom: 50px;
+    right: 32px;
+    z-index: 5;
+    font-size: 8px;
+    color: rgba(255, 23, 68, 0.25);
+    letter-spacing: 3px;
+  }
+
 </style>
 </head>
 <body>
@@ -218,49 +510,109 @@
   <!-- Background layers -->
   <div class="bg-grid"></div>
   <div class="bg-radial"></div>
+  <div class="bg-scanlines"></div>
   <div class="bg-vignette"></div>
 
-  <!-- Main content -->
-  <div class="content">
-    <!-- 1. Classification stamp -->
-    <div class="classification">TOP SECRET // CEREBERUS</div>
+  <!-- Corner brackets -->
+  <div class="corner-bracket corner-tl"></div>
+  <div class="corner-bracket corner-tr"></div>
+  <div class="corner-bracket corner-bl"></div>
+  <div class="corner-bracket corner-br"></div>
 
-    <!-- 2. Feature spotlight label -->
-    <div class="spotlight-label">FEATURE SPOTLIGHT</div>
+  <!-- Redaction marks (vertical text on edges) -->
+  <div class="redaction-mark redaction-left">CEREBERUS // DOSSIER // BOND-007 // CLASSIFIED</div>
+  <div class="redaction-mark redaction-right">SECTION 9 // AUTONOMOUS SYSTEMS DIVISION // EYES ONLY</div>
 
-    <!-- 3. Title -->
-    <div class="title">COMMANDER BOND</div>
-
-    <!-- 4. Subtitle -->
-    <div class="subtitle">THE AUTONOMOUS INTELLIGENCE ENGINE</div>
-
-    <!-- 5. Cyan gradient divider -->
-    <div class="divider"></div>
-
-    <!-- 6. Terminal card -->
-    <div class="terminal">
-      <div class="terminal-chrome">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-      </div>
-      <div class="terminal-body">
-        <div><span class="terminal-prompt">$</span> <span class="terminal-command">bond status</span></div>
-        <div><span class="terminal-label">  State ................ </span><span class="terminal-value-cyan">SCANNING</span></div>
-        <div><span class="terminal-label">  Threats Found ........ </span><span class="terminal-value-green">847</span></div>
-        <div><span class="terminal-label">  Scan Interval ........ </span><span class="terminal-value-cyan">ADAPTIVE</span></div>
-        <div><span class="terminal-label">  Behavioral Baseline .. </span><span class="terminal-value-cyan">LEARNING</span></div>
-        <div><span class="terminal-label">  Guardian Protocol .... </span><span class="terminal-value-cyan">DEFCON 5</span></div>
-        <div><span class="terminal-label">  Last Decision ........ </span><span class="terminal-value-cyan">NEUTRALIZE</span></div>
-      </div>
-    </div>
-
-    <!-- 7. Bottom text -->
-    <div class="bottom-text">No human in the loop required.</div>
+  <!-- Classification banner -->
+  <div class="classified-banner">
+    <span>CLASSIFIED</span>
+    <span class="classified-sep">//</span>
+    <span>EYES ONLY</span>
+    <span class="classified-sep">//</span>
+    <span>CEREBERUS DIVISION</span>
   </div>
 
-  <!-- 8. Handle -->
-  <div class="handle">@cereberus.security</div>
+  <!-- Content -->
+  <div class="content">
+    <!-- Dossier identifier -->
+    <div class="dossier-id">DOSSIER CB-007 // AUTONOMOUS INTELLIGENCE</div>
+
+    <!-- Title -->
+    <div class="title-block">
+      <div class="title-main">COMMANDER BOND</div>
+      <div class="title-sub">AUTONOMOUS INTELLIGENCE ENGINE</div>
+    </div>
+
+    <div class="divider-thin"></div>
+
+    <!-- Monitor with screenshot -->
+    <div class="monitor-frame">
+      <div class="monitor-bezel">
+        <div class="monitor-status-bar">
+          <div class="monitor-dots">
+            <div class="monitor-dot r"></div>
+            <div class="monitor-dot y"></div>
+            <div class="monitor-dot g"></div>
+          </div>
+          <div class="monitor-title">CEREBERUS COMMAND INTERFACE</div>
+          <div class="monitor-signal">LIVE</div>
+        </div>
+        <div class="monitor-screen">
+          <img src="screenshots/commander-bond.png" alt="Commander Bond - Autonomous Intelligence Engine">
+          <div class="screen-glare"></div>
+          <div class="standing-by-pulse"></div>
+        </div>
+      </div>
+
+      <!-- Callout overlays -->
+      <div class="callouts">
+        <!-- Callout: ADAPTIVE SCANNING (left, points to scan stats area) -->
+        <div class="callout callout-scanning">
+          <div class="callout-label">ADAPTIVE SCANNING</div>
+          <div class="callout-line"></div>
+          <div class="callout-dot"></div>
+        </div>
+
+        <!-- Callout: 7 OPERATIONAL MODULES (right, points to tabs) -->
+        <div class="callout callout-modules">
+          <div class="callout-label">7 OPERATIONAL MODULES</div>
+          <div class="callout-line"></div>
+          <div class="callout-dot"></div>
+        </div>
+
+        <!-- Callout: REAL-TIME REPORTING (left, points to Bond Report) -->
+        <div class="callout callout-reporting">
+          <div class="callout-label">REAL-TIME REPORTING</div>
+          <div class="callout-line"></div>
+          <div class="callout-dot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tagline -->
+  <div class="tagline-section">
+    <div class="tagline-text"><em>Evaluates.</em> &nbsp; <em>Decides.</em> &nbsp; <em>Acts.</em> &nbsp; No human in the loop.</div>
+  </div>
+
+  <!-- Document serial -->
+  <div class="doc-serial">SER. NO. CB-2026-007-AUT</div>
+
+  <!-- Classification footer -->
+  <div class="classified-footer">TOP SECRET</div>
+
+  <!-- Bottom strip: hashtags -->
+  <div class="bottom-strip">
+    <span class="hashtag">#Cereberus</span>
+    <span class="bottom-sep"></span>
+    <span class="hashtag">#AutonomousSecurity</span>
+    <span class="bottom-sep"></span>
+    <span class="hashtag">#CommanderBond</span>
+    <span class="bottom-sep"></span>
+    <span class="hashtag">#CyberDefense</span>
+    <span class="bottom-sep"></span>
+    <span class="hashtag">#AI</span>
+  </div>
 </div>
 
 </body>
