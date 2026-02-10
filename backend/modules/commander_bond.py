@@ -308,7 +308,12 @@ class CommanderBond(BaseModule):
         self.health_status = "running"
         self.logger.info("commander_bond_starting", status="Bond is in the field...")
 
+        import ssl
+        import certifi
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        connector = aiohttp.TCPConnector(ssl=ssl_ctx)
         self._http_session = aiohttp.ClientSession(
+            connector=connector,
             timeout=aiohttp.ClientTimeout(total=30),
             headers={"User-Agent": "Cereberus-CommanderBond/1.0"},
         )
@@ -332,6 +337,14 @@ class CommanderBond(BaseModule):
                 await self._sword.load_policies(self._db_session_factory)
             except Exception as e:
                 self.logger.error("sword_policy_load_failed", error=str(e))
+
+        # Init dry-run from config (default safe)
+        from ..dependencies import get_app_config
+        try:
+            cfg = get_app_config()
+            self._sword.set_dry_run(cfg.sword_dry_run)
+        except Exception:
+            self._sword.set_dry_run(True)
 
         # Phase 15: Subscribe to EventBus for Sword Protocol evaluation
         if self._event_bus:
@@ -428,6 +441,12 @@ class CommanderBond(BaseModule):
 
     def sword_test_policy(self, policy_id: int, test_event: dict) -> dict:
         return self._sword.test_policy(policy_id, test_event)
+
+    def sword_set_dry_run(self, enabled: bool) -> None:
+        self._sword.set_dry_run(enabled)
+
+    def sword_is_dry_run(self) -> bool:
+        return self._sword.is_dry_run()
 
     async def sword_reload_policies(self) -> None:
         """Reload Sword policies from DB."""
@@ -1452,6 +1471,7 @@ class SwordProtocol:
         self._rate_limiter: dict[int, deque] = {}  # policy_id -> timestamps
         self._enabled: bool = True
         self._global_lockout: bool = False
+        self._dry_run: bool = False
         self._stats: dict = {
             "total_evaluations": 0,
             "total_strikes": 0,
@@ -1484,12 +1504,22 @@ class SwordProtocol:
         self._enabled = True
         self._logger.info("sword_lockout_cleared", status="Lockout cleared.")
 
+    def set_dry_run(self, enabled: bool) -> None:
+        """Enable or disable dry-run mode (audit only, no execution)."""
+        self._dry_run = enabled
+        self._logger.info("sword_dry_run_toggled", dry_run=enabled)
+
+    def is_dry_run(self) -> bool:
+        """Return whether dry-run mode is active."""
+        return self._dry_run
+
     def get_stats(self) -> dict:
         """Return Sword Protocol statistics."""
         return {
             **self._stats,
             "enabled": self._enabled,
             "lockout": self._global_lockout,
+            "dry_run": self._dry_run,
             "policies_loaded": len(self._policies),
             "recent_executions": list(self._execution_log)[:20],
         }
@@ -1628,6 +1658,11 @@ class SwordProtocol:
 
             result = {"action": action_type, "target": target, "status": "skipped"}
 
+            if self._dry_run:
+                result["status"] = "dry_run"
+                actions_results.append(result)
+                continue
+
             if remediation_engine and target:
                 try:
                     if action_type == "kill_process":
@@ -1689,6 +1724,7 @@ class SwordProtocol:
                         result=overall,
                         escalation_level=escalation_level,
                         duration_ms=duration_ms,
+                        dry_run=self._dry_run,
                     )
                     session.add(db_log)
                     # Update policy execution count

@@ -146,6 +146,7 @@ class CereberusConfig(BaseSettings):
 
     # Sword Protocol (Phase 15)
     sword_protocol_enabled: bool = True
+    sword_dry_run: bool = True
     sword_max_rate: int = 20
     sword_rate_window: int = 300
 

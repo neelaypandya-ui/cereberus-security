@@ -181,6 +181,50 @@ class AnomalyDetector:
             "samples": len(connection_snapshots),
         }
 
+    async def train_from_features(self, feature_matrix: np.ndarray, epochs: int = 50, lr: float = 0.001) -> dict:
+        """Train the autoencoder on a pre-built feature matrix.
+
+        Args:
+            feature_matrix: 2D numpy array (n_samples x n_features).
+            epochs: Training epochs.
+            lr: Learning rate.
+
+        Returns:
+            Training stats dict.
+        """
+        if not self.initialized:
+            await self.initialize()
+
+        # Compute normalization stats
+        self._feature_mean = feature_matrix.mean(axis=0)
+        self._feature_std = feature_matrix.std(axis=0)
+
+        # Normalize
+        std_safe = np.where(self._feature_std == 0, 1.0, self._feature_std)
+        normalized = (feature_matrix - self._feature_mean) / std_safe
+        tensor_data = torch.FloatTensor(normalized)
+
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        criterion = nn.MSELoss()
+
+        losses = []
+        for epoch in range(epochs):
+            optimizer.zero_grad()
+            output = self.model(tensor_data)
+            loss = criterion(output, tensor_data)
+            loss.backward()
+            optimizer.step()
+            losses.append(loss.item())
+
+        self.model.eval()
+
+        return {
+            "epochs": epochs,
+            "final_loss": losses[-1],
+            "samples": len(feature_matrix),
+        }
+
     async def predict(self, features: np.ndarray | list[float]) -> dict:
         """Run anomaly detection on a feature vector.
 

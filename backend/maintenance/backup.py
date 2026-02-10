@@ -91,6 +91,51 @@ class BackupManager:
 
         return backups
 
+    def verify_backup(self, backup_name: str) -> dict:
+        """Verify a backup's integrity using SQLite PRAGMA integrity_check.
+
+        Args:
+            backup_name: Filename of the backup (e.g. 'cereberus-20260207-120000.db')
+
+        Returns:
+            dict with keys: valid, integrity_check, table_count, table_names
+        """
+        backup_path = os.path.join(self._backup_dir, backup_name)
+
+        if not os.path.exists(backup_path):
+            raise FileNotFoundError(f"Backup not found: {backup_path}")
+
+        conn = sqlite3.connect(backup_path)
+        try:
+            # Run integrity check
+            cursor = conn.execute("PRAGMA integrity_check")
+            integrity_result = cursor.fetchone()[0]
+
+            # Count and list tables
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            )
+            table_names = [row[0] for row in cursor.fetchall()]
+            table_count = len(table_names)
+
+            valid = integrity_result == "ok"
+
+            logger.info(
+                "backup_verified",
+                backup=backup_name,
+                valid=valid,
+                table_count=table_count,
+            )
+
+            return {
+                "valid": valid,
+                "integrity_check": integrity_result,
+                "table_count": table_count,
+                "table_names": table_names,
+            }
+        finally:
+            conn.close()
+
     def restore_from_backup(self, backup_name: str) -> dict:
         """Restore the database from a named backup file.
 

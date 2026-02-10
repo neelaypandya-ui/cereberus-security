@@ -66,6 +66,27 @@ async def list_backups(
     return {"backups": backups, "count": len(backups)}
 
 
+@router.post("/backups/{name}/verify")
+async def verify_backup(
+    name: str,
+    current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),
+):
+    """Verify a backup's integrity (admin only)."""
+    manager = _get_backup_manager()
+    try:
+        result = manager.verify_backup(name)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {
+        "backup_name": name,
+        "valid": result["valid"],
+        "integrity_check": result["integrity_check"],
+        "table_count": result["table_count"],
+        "table_names": result["table_names"],
+    }
+
+
 @router.post("/cleanup")
 async def trigger_cleanup(
     current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),

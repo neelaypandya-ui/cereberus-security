@@ -236,10 +236,31 @@ async def get_sword_logs(
             "escalation_level": l.escalation_level,
             "executed_at": l.executed_at.isoformat() if l.executed_at else None,
             "duration_ms": l.duration_ms,
+            "dry_run": getattr(l, "dry_run", False),
         }
         for l in logs
     ]
     return data
+
+
+@router.post("/dry-run")
+async def set_sword_dry_run(
+    enabled: bool = Query(...),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_SETTINGS)),
+):
+    """Toggle Sword Protocol dry-run mode (audit only, no execution)."""
+    bond = get_commander_bond()
+    bond.sword_set_dry_run(enabled)
+    return {"dry_run": enabled, "message": f"Dry-run {'enabled' if enabled else 'disabled'}."}
+
+
+@router.get("/dry-run")
+async def get_sword_dry_run(
+    current_user: dict = Depends(require_permission(PERM_VIEW_DASHBOARD)),
+):
+    """Get Sword Protocol dry-run status."""
+    bond = get_commander_bond()
+    return {"dry_run": bond.sword_is_dry_run()}
 
 
 @router.get("/stats")

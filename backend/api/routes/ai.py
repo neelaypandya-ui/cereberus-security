@@ -50,14 +50,9 @@ async def train_anomaly_models(
 
     results = {}
 
-    # 1. Train autoencoder
+    # 1. Train autoencoder on real feature matrix
     try:
-        snapshots = [[{
-            "local_port": 80, "remote_addr": "1.2.3.4", "remote_port": 443,
-            "protocol": "tcp", "status": "established", "suspicious": False,
-        }] for _ in range(n_samples)]
-        # Use actual feature matrix for direct training
-        ae_stats = await anomaly_detector.train(snapshots, epochs=epochs)
+        ae_stats = await anomaly_detector.train_from_features(feature_matrix, epochs=epochs)
         await anomaly_detector.save_model()
         results["autoencoder"] = ae_stats
 
