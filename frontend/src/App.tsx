@@ -3,8 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
-import { api } from './services/api';
-import { setCsrfToken } from './services/api';
+import { api, setCsrfToken, getCsrfToken } from './services/api';
 import { ToastProvider } from './hooks/useToast';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -42,12 +41,48 @@ function AuthGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
 
   useEffect(() => {
+    // If CSRF token exists in memory, we just logged in — skip the round trip
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      setStatus('authenticated');
+      return;
+    }
     api.getMe()
       .then(() => setStatus('authenticated'))
       .catch(() => setStatus('unauthenticated'));
   }, []);
 
-  if (status === 'checking') return null;
+  if (status === 'checking') {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary, #0a0a0a)',
+        fontFamily: 'var(--font-mono, monospace)',
+      }}>
+        <div style={{
+          fontSize: '28px',
+          fontWeight: 700,
+          letterSpacing: '8px',
+          color: 'var(--status-online, #00e676)',
+          marginBottom: '16px',
+        }}>
+          CEREBERUS
+        </div>
+        <div style={{
+          fontSize: '14px',
+          letterSpacing: '4px',
+          color: 'var(--cyan-primary, #00e5ff)',
+          animation: 'pulse 1.5s ease-in-out infinite',
+        }}>
+          INITIALIZING SECURE SESSION
+        </div>
+      </div>
+    );
+  }
   if (status === 'unauthenticated') return <Navigate to="/login" />;
   return <>{children}</>;
 }

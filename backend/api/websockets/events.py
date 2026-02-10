@@ -156,6 +156,12 @@ async def websocket_events(websocket: WebSocket):
     if not connected:
         return
 
+    # Send immediate ack so frontend shows LIVE before data collection
+    await websocket.send_text(json.dumps({
+        "type": "connected",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }))
+
     # Register with alert manager for broadcasting
     alert_mgr = get_alert_manager()
     alert_mgr.register_ws(websocket)

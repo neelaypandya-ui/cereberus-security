@@ -1,7 +1,9 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
 function Login() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,9 +26,9 @@ function Login() {
     try {
       const data = await api.login(username, password);
       if (data.must_change_password) {
-        window.location.href = '/change-password';
+        navigate('/change-password', { replace: true });
       } else {
-        window.location.href = '/dashboard';
+        navigate('/dashboard', { replace: true });
       }
     } catch {
       setError('AUTHENTICATION FAILED — INVALID CREDENTIALS');
