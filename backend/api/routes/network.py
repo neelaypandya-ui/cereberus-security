@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD
-from ...bridge import validate_and_log, NetworkConnectionResponse
 from ...dependencies import get_db, get_network_sentinel
 from ...models.blocked_ip import BlockedIP
 from ...models.settings import NetworkTraffic
@@ -78,7 +77,7 @@ async def get_connections(
 ):
     """Get live network connections from Network Sentinel."""
     sentinel = get_network_sentinel()
-    return validate_and_log(sentinel.get_live_connections(), NetworkConnectionResponse, "GET /network/connections")
+    return sentinel.get_live_connections()
 
 
 @router.get("/stats")
@@ -96,7 +95,7 @@ async def get_flagged_connections(
 ):
     """Get flagged (suspicious) connections."""
     sentinel = get_network_sentinel()
-    return validate_and_log(sentinel.get_flagged_connections(), NetworkConnectionResponse, "GET /network/flagged")
+    return sentinel.get_flagged_connections()
 
 
 @router.get("/anomaly")

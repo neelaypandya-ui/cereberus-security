@@ -3,10 +3,21 @@ import { api } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
 import { CsvExportButton } from './ui/CsvExportButton';
-import type { AlertResponse } from '../bridge';
-
-// Local alias extending bridge contract with legacy fields
-type Alert = AlertResponse & { vpn_status?: string | null };
+interface Alert {
+  id: number;
+  timestamp: string;
+  severity: string;
+  module_source: string;
+  title: string;
+  description: string;
+  vpn_status_at_event: string | null;
+  acknowledged: boolean;
+  resolved_at: string | null;
+  dismissed: boolean;
+  snoozed_until: string | null;
+  escalated_to_incident_id: number | null;
+  vpn_status?: string | null;
+}
 
 const SEVERITY_LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'info'];
 

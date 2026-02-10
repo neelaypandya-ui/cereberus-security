@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
-from ...bridge import validate_and_log, SwordPolicyResponse, SwordLogResponse
 from ...dependencies import get_commander_bond, get_db
 
 router = APIRouter(prefix="/bond/sword", tags=["sword"])
@@ -79,7 +78,7 @@ async def list_sword_policies(
         }
         for p in policies
     ]
-    return validate_and_log(data, SwordPolicyResponse, "GET /bond/sword/policies")
+    return data
 
 
 @router.post("/policies")
@@ -240,7 +239,7 @@ async def get_sword_logs(
         }
         for l in logs
     ]
-    return validate_and_log(data, SwordLogResponse, "GET /bond/sword/logs")
+    return data
 
 
 @router.get("/stats")

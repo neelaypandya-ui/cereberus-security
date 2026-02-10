@@ -4,7 +4,15 @@ import { useToast } from '../hooks/useToast';
 import { IntelCard } from './ui/IntelCard';
 import { PanelSkeleton } from './ui/PanelSkeleton';
 import { CopyButton } from './ui/CopyButton';
-import type { MemoryScanResultResponse } from '../bridge';
+interface MemoryScanResultResponse {
+  id: number;
+  pid: number;
+  process_name: string;
+  finding_type: string;
+  severity: string;
+  details: Record<string, unknown>;
+  scanned_at: string | null;
+}
 
 interface MemoryStatus {
   status: string;

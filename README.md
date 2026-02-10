@@ -74,7 +74,7 @@ Cereberus is a real-time security monitoring and automated defense platform that
 - **Data retention** &mdash; Automatic cleanup of aged records with configurable policies
 
 ### Command Center
-- **36 automated verification checks** across 7 categories (Situation Room, Shield, Sword, Threat Assessment, AI Warfare, Incident Response, Combat Readiness)
+- **35 automated verification checks** across 7 categories (Situation Room, Shield, Sword, Threat Assessment, AI Warfare, Incident Response, Combat Readiness)
 - **Bulk alert management** &mdash; dismiss-all, acknowledge-all, one-click triage
 - **Parallelized report generation** &mdash; all module health checks run concurrently with 5-second timeouts
 - **Auto-port cleanup** &mdash; stale backend processes killed automatically on startup
@@ -193,7 +193,6 @@ cereberus/
 │   ├── alerting/           # Alert manager
 │   ├── api/routes/         # 42 route files, 200+ endpoints
 │   ├── auth/               # RBAC system (4 roles, 13 permissions)
-│   ├── bridge/             # Pydantic↔TypeScript contract validation (22 models)
 │   ├── engine/             # Remediation, incidents, playbooks
 │   ├── intel/              # Threat feeds, IOC matcher, YARA scanner
 │   ├── maintenance/        # Retention cleanup, backup/restore
@@ -204,7 +203,6 @@ cereberus/
 │   └── main.py             # FastAPI app + lifespan
 ├── frontend/
 │   ├── src/components/     # 25 dashboard panels
-│   ├── src/bridge/         # TypeScript contract interfaces
 │   ├── src/hooks/          # WebSocket, permissions, keyboard shortcuts
 │   ├── src/pages/          # Dashboard, Login, ChangePassword
 │   └── src/services/       # API client
@@ -250,7 +248,7 @@ All endpoints are under `/api/v1/`. Authentication is required via httpOnly sess
 | Memory | 5 | Process scan, results, anomalies |
 | Commander Bond | 16 | OSINT, Sword policies, Overwatch |
 | Reports | 1 | Full system report with parallel health checks |
-| Checklists | 1 | 36-item automated verification across 7 categories |
+| Checklists | 1 | 35-item automated verification across 7 categories |
 | Search | 1 | Global cross-module search |
 
 See the [full API reference](docs/index.html#api-reference) in the documentation.

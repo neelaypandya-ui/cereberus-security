@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
-from ...bridge import validate_and_log, MemoryScanResultResponse
 from ...dependencies import get_memory_scanner, get_db
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -46,7 +45,7 @@ async def get_memory_results(
         }
         for r in results
     ]
-    return validate_and_log(data, MemoryScanResultResponse, "GET /memory/results")
+    return data
 
 
 @router.post("/scan")

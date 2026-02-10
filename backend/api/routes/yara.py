@@ -10,7 +10,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_VIEW_DASHBOARD, PERM_MANAGE_SETTINGS
-from ...bridge import validate_and_log, YaraRuleResponse, YaraScanResultResponse
 from ...dependencies import get_yara_scanner, get_db
 from ...utils.input_validators import validate_file_path
 
@@ -69,7 +68,7 @@ async def list_yara_rules(
         }
         for r in rules
     ]
-    return validate_and_log(data, YaraRuleResponse, "GET /yara/rules")
+    return data
 
 
 @router.post("/rules")
@@ -269,7 +268,7 @@ async def get_scan_results(
         }
         for r in results
     ]
-    return validate_and_log(data, YaraScanResultResponse, "GET /yara/results")
+    return data
 
 
 @router.get("/stats")

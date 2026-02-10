@@ -8,7 +8,6 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth.rbac import require_permission, PERM_MANAGE_ALERTS, PERM_VIEW_DASHBOARD
-from ...bridge import validate_and_log, AlertResponse
 from ...dependencies import get_db, get_incident_manager
 from ...models.alert import Alert
 
@@ -60,7 +59,7 @@ async def get_alerts(
         }
         for r in rows
     ]
-    return validate_and_log(data, AlertResponse, "GET /alerts")
+    return data
 
 
 class AlertIdsRequest(BaseModel):
