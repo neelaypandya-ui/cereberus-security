@@ -1183,8 +1183,78 @@ async def health():
     return await _health_cache.get_or_compute("health", _compute, ttl=15.0)
 
 
+def _ensure_port_available(host: str, port: int) -> None:
+    """Kill any existing process holding our port before binding.
+
+    Prevents [Errno 10048] on Windows when restarting the server.
+    """
+    import socket
+    import subprocess
+    import sys
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.settimeout(1)
+        result = sock.connect_ex((host, port))
+        if result != 0:
+            return  # Port is free — nothing to do
+    finally:
+        sock.close()
+
+    # Port is occupied — find and kill the holder
+    logger.warning("port_occupied", host=host, port=port)
+    if sys.platform == "win32":
+        try:
+            out = subprocess.check_output(
+                ["netstat", "-aon"],
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            for line in out.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.split()
+                    pid = int(parts[-1])
+                    if pid > 0:
+                        logger.info("killing_stale_process", pid=pid, port=port)
+                        subprocess.run(
+                            ["taskkill", "/F", "/PID", str(pid)],
+                            capture_output=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                        )
+                        # Wait for port to release
+                        import time
+                        for _ in range(10):
+                            time.sleep(0.5)
+                            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            try:
+                                if s.connect_ex((host, port)) != 0:
+                                    logger.info("port_released", port=port)
+                                    return
+                            finally:
+                                s.close()
+                    break
+        except Exception as e:
+            logger.warning("port_cleanup_failed", error=str(e))
+    else:
+        # Unix: use lsof
+        try:
+            out = subprocess.check_output(
+                ["lsof", "-ti", f":{port}"],
+                text=True,
+            ).strip()
+            if out:
+                for pid_str in out.splitlines():
+                    pid = int(pid_str)
+                    logger.info("killing_stale_process", pid=pid, port=port)
+                    import signal
+                    os.kill(pid, signal.SIGTERM)
+        except Exception as e:
+            logger.warning("port_cleanup_failed", error=str(e))
+
+
 def main():
     """Run the Cereberus server."""
+    _ensure_port_available(config.host, config.port)
     uvicorn.run(
         "backend.main:app",
         host=config.host,

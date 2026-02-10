@@ -199,6 +199,8 @@ export const api = {
   dismissAlert: (id: number) => request(`/alerts/${id}/dismiss`, { method: 'POST' }),
   dismissAlerts: (alertIds: number[]) =>
     request('/alerts/dismiss', { method: 'POST', body: JSON.stringify({ alert_ids: alertIds }) }),
+  dismissAllAlerts: () => request('/alerts/dismiss-all', { method: 'POST' }),
+  acknowledgeAllAlerts: () => request('/alerts/acknowledge-all', { method: 'POST' }),
   escalateAlert: (id: number) => request(`/alerts/${id}/escalate`, { method: 'POST' }),
   snoozeAlert: (id: number, hours: number = 1) =>
     request(`/alerts/${id}/snooze?hours=${hours}`, { method: 'POST' }),

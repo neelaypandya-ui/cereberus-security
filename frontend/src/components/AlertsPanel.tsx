@@ -52,24 +52,59 @@ export function AlertsPanel() {
   };
 
   const handleDismiss = async (id: number) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: true } : a));
+    // Remove from list immediately if dismissed alerts are hidden
+    if (!showDismissed) {
+      setAlerts(prev => prev.filter(a => a.id !== id));
+    } else {
+      setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: true } : a));
+    }
     try {
       await api.dismissAlert(id);
       showToast('success', 'Alert dismissed');
     } catch (e: unknown) {
-      setAlerts(prev => prev.map(a => a.id === id ? { ...a, dismissed: false } : a));
+      load(); // Revert by reloading
       showToast('error', 'Failed to dismiss alert', (e as Error).message);
     }
   };
 
   const handleBulkDismiss = async (ids: number[]) => {
-    setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: true } : a));
+    // Remove from list immediately if dismissed alerts are hidden
+    if (!showDismissed) {
+      setAlerts(prev => prev.filter(a => !ids.includes(a.id)));
+    } else {
+      setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: true } : a));
+    }
     try {
       await api.dismissAlerts(ids);
       showToast('success', `${ids.length} alert(s) dismissed`);
     } catch (e: unknown) {
-      setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, dismissed: false } : a));
+      load(); // Revert by reloading
       showToast('error', 'Failed to dismiss alerts', (e as Error).message);
+    }
+  };
+
+  const handleDismissAll = async () => {
+    // Wipe ALL alerts from DB (not just visible 100) — clear board instantly
+    setAlerts([]);
+    try {
+      const result = await api.dismissAllAlerts() as { dismissed_count: number };
+      showToast('success', `${result.dismissed_count} alert(s) dismissed`);
+      // Reload to get fresh state (will be empty if all dismissed)
+      setTimeout(load, 500);
+    } catch (e: unknown) {
+      load(); // Revert by reloading
+      showToast('error', 'Failed to dismiss all alerts', (e as Error).message);
+    }
+  };
+
+  const handleAcknowledgeAll = async () => {
+    setAlerts(prev => prev.map(a => ({ ...a, acknowledged: true })));
+    try {
+      const result = await api.acknowledgeAllAlerts() as { acknowledged_count: number };
+      showToast('success', `${result.acknowledged_count} alert(s) acknowledged`);
+    } catch (e: unknown) {
+      load();
+      showToast('error', 'Failed to acknowledge all alerts', (e as Error).message);
     }
   };
 
@@ -157,11 +192,11 @@ export function AlertsPanel() {
       </div>
 
       {/* Bulk Operations */}
-      {(alerts.some((a) => !a.acknowledged) || alerts.some((a) => !a.dismissed)) && (
+      {alerts.length > 0 && (
         <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
           {alerts.some((a) => !a.acknowledged) && (
             <button
-              onClick={() => handleAcknowledge(alerts.filter((a) => !a.acknowledged).map((a) => a.id))}
+              onClick={handleAcknowledgeAll}
               style={{
                 padding: '5px 14px',
                 fontSize: '16px',
@@ -175,28 +210,27 @@ export function AlertsPanel() {
                 textTransform: 'uppercase',
               }}
             >
-              ACKNOWLEDGE ALL VISIBLE
+              ACKNOWLEDGE ALL
             </button>
           )}
-          {alerts.some((a) => !a.dismissed) && (
-            <button
-              onClick={() => handleBulkDismiss(alerts.filter((a) => !a.dismissed).map((a) => a.id))}
-              style={{
-                padding: '5px 14px',
-                fontSize: '16px',
-                fontFamily: 'var(--font-mono)',
-                letterSpacing: '1px',
-                background: 'var(--bg-tertiary)',
-                color: 'var(--severity-medium)',
-                border: '1px solid var(--severity-medium)',
-                borderRadius: '2px',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-              }}
-            >
-              DISMISS ALL VISIBLE
-            </button>
-          )}
+          <button
+            onClick={handleDismissAll}
+            style={{
+              padding: '5px 14px',
+              fontSize: '16px',
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '1px',
+              background: 'var(--severity-critical)',
+              color: '#fff',
+              border: '1px solid var(--severity-critical)',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+            }}
+          >
+            DISMISS ALL
+          </button>
         </div>
       )}
 

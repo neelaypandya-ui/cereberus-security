@@ -557,22 +557,44 @@ class CommanderBond(BaseModule):
         # Phase 14: Update threat velocity and adaptive interval
         self._brain.update_threat_velocity(report["threat_count"])
 
-        # Create alerts for critical threats
-        if self._alert_manager:
+        # Create alerts for critical threats (skip duplicates already in DB)
+        if self._alert_manager and self._db_session_factory:
+            # Collect existing Bond alert titles to avoid duplicates on restart
+            existing_titles: set[str] = set()
+            try:
+                from ..models.alert import Alert as AlertModel
+                from sqlalchemy import select
+                async with self._db_session_factory() as session:
+                    result = await session.execute(
+                        select(AlertModel.title).where(
+                            AlertModel.module_source == "commander_bond",
+                        )
+                    )
+                    existing_titles = {row[0] for row in result.fetchall()}
+            except Exception as exc:
+                self.logger.debug("commander_bond_dedup_query_failed", error=str(exc))
+
+            new_alert_count = 0
             for threat in report["threats"]:
                 if threat["severity"] == "critical":
+                    title = f"BOND INTELLIGENCE: {threat['name']}"
+                    if title in existing_titles:
+                        continue  # Already in DB — skip
                     try:
                         await self._alert_manager.create_alert(
                             severity="critical",
                             module_source="commander_bond",
-                            title=f"BOND INTELLIGENCE: {threat['name']}",
+                            title=title,
                             description=threat["bond_assessment"][:500],
                             details=threat,
                         )
+                        new_alert_count += 1
                     except Exception as exc:
                         self.logger.error(
                             "commander_bond_alert_error", error=str(exc),
                         )
+            if new_alert_count > 0:
+                self.logger.info("commander_bond_new_alerts", count=new_alert_count)
 
         self._scanning = False
         level = "all_clear" if report["all_clear"] else f"{report['threat_count']} threats"

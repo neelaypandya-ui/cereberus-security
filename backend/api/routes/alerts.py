@@ -99,6 +99,38 @@ async def dismiss_alerts(
     return {"dismissed": body.alert_ids}
 
 
+@router.post("/dismiss-all")
+async def dismiss_all_alerts(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
+):
+    """Dismiss every undismissed alert in the database."""
+    result = await db.execute(
+        update(Alert)
+        .where(Alert.dismissed == False)
+        .values(dismissed=True)
+    )
+    await db.commit()
+    count = result.rowcount  # type: ignore[union-attr]
+    return {"dismissed_count": count}
+
+
+@router.post("/acknowledge-all")
+async def acknowledge_all_alerts(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(PERM_MANAGE_ALERTS)),
+):
+    """Acknowledge every unacknowledged alert in the database."""
+    result = await db.execute(
+        update(Alert)
+        .where(Alert.acknowledged == False)
+        .values(acknowledged=True)
+    )
+    await db.commit()
+    count = result.rowcount  # type: ignore[union-attr]
+    return {"acknowledged_count": count}
+
+
 @router.get("/{alert_id}")
 async def get_alert(
     alert_id: int,

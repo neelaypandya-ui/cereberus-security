@@ -73,13 +73,14 @@ async def get_dashboard_summary(
     """Get dashboard summary with key metrics."""
 
     async def _compute():
-        # Count alerts by severity
+        # Count alerts by severity (exclude dismissed alerts from "open" count)
         alert_counts = {}
         for severity in ["critical", "high", "medium", "low", "info"]:
             result = await db.execute(
                 select(func.count(Alert.id)).where(
                     Alert.severity == severity,
                     Alert.acknowledged == False,
+                    Alert.dismissed == False,
                 )
             )
             alert_counts[severity] = result.scalar() or 0
