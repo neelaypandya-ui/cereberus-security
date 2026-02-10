@@ -28,7 +28,6 @@ from .middleware.request_id import RequestIDMiddleware
 from .middleware.security_headers import ShieldWallMiddleware
 from .middleware.rate_limit import GatekeeperMiddleware
 from .dependencies import (
-    get_agent_smith,
     get_alert_manager,
     get_anomaly_detector,
     get_behavioral_baseline,
@@ -704,22 +703,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error("ransomware_detector_launch_failed", error=str(e))
 
-    # Initialize Agent Smith (Phase 12) — manual activation only (must be before Bond for Guardian wiring)
-    agent_smith = None
-    if config.module_agent_smith:
-        agent_smith = get_agent_smith()
-        agent_smith._alert_manager = alert_manager
-        agent_smith._process_analyzer = process_analyzer
-        agent_smith._network_sentinel = network_sentinel
-        agent_smith._rule_engine = rule_engine
-        agent_smith._ransomware_detector = ransomware_detector
-        agent_smith._incident_manager = get_incident_manager()
-        try:
-            _register_task("agent_smith", lambda: agent_smith.start())
-            logger.info("agent_smith_initialized")
-        except Exception as e:
-            logger.error("agent_smith_init_failed", error=str(e))
-
     # --- Phase 15: Initialize EventBus + YARA + Memory Scanner ---
 
     # EventBus — Bond's ears
@@ -768,10 +751,6 @@ async def lifespan(app: FastAPI):
     if config.module_commander_bond:
         commander_bond = get_commander_bond()
         commander_bond.set_alert_manager(alert_manager)
-        # Phase 14: Wire Smith to Bond for Guardian oversight
-        if agent_smith is not None:
-            commander_bond.set_agent_smith(agent_smith)
-            logger.info("guardian_protocol_wired", smith="attached")
         # Phase 15: Wire Sword Protocol dependencies
         commander_bond.set_db_session_factory(factory)
         commander_bond.set_remediation_engine(remediation_engine)
@@ -1005,7 +984,6 @@ async def lifespan(app: FastAPI):
         (ransomware_detector, "ransomware_detector"),
         (memory_scanner, "memory_scanner"),
         (commander_bond, "commander_bond"),
-        (agent_smith, "agent_smith"),
         (threat_intelligence, "threat_intelligence"),
     ]:
         if module is not None:
@@ -1170,10 +1148,6 @@ async def health():
         if config.module_commander_bond:
             bond = get_commander_bond()
             modules["commander_bond"] = await bond.health_check()
-
-        if config.module_agent_smith:
-            smith = get_agent_smith()
-            modules["agent_smith"] = await smith.health_check()
 
         return {
             "status": "healthy",

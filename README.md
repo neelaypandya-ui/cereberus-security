@@ -11,13 +11,13 @@
 
 **AI-Powered Cybersecurity Defense System for Windows**
 
-Cereberus is a real-time security monitoring and automated defense platform that combines 16 specialized detection modules, ensemble AI anomaly detection, YARA scanning, memory forensics, and autonomous response into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and automated threat neutralization.
+Cereberus is a real-time security monitoring and automated defense platform that combines 15 specialized detection modules, ensemble AI anomaly detection, YARA scanning, memory forensics, and autonomous response into a single intelligence-agency-styled dashboard. Built for Windows environments, it provides continuous network surveillance, vulnerability assessment, threat correlation, and automated threat neutralization.
 
 ---
 
 ## Features
 
-### 16 Security Modules
+### 15 Security Modules
 | Module | Description |
 |--------|-------------|
 | **VPN Guardian** | VPN connection monitoring, kill switch, DNS/IP/IPv6 leak detection |
@@ -33,7 +33,6 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | **Event Log Monitor** | Windows Event Log + Sysmon (17 event types), EvtSubscribe push-based |
 | **Ransomware Detector** | Canary files, entropy analysis, extension monitoring |
 | **Commander Bond** | OSINT feeds, YARA scanning, Sword Protocol, Overwatch integrity |
-| **Agent Smith** | Adversary simulation, 50+ unique attack patterns |
 | **Memory Scanner** | RWX regions, injected DLLs, shellcode detection, YARA memory scan |
 | **Disk Analyzer** | Disk usage analysis and monitoring |
 
@@ -81,7 +80,7 @@ Cereberus is a real-time security monitoring and automated defense platform that
 - **Auto-port cleanup** &mdash; stale backend processes killed automatically on startup
 
 ### Dashboard
-26 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
+25 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
 
 ---
 
@@ -192,19 +191,19 @@ cereberus/
 ├── backend/
 │   ├── ai/                 # 10 AI classes (anomaly, ensemble, LSTM, rules, correlation)
 │   ├── alerting/           # Alert manager
-│   ├── api/routes/         # 43 route files, 200+ endpoints
+│   ├── api/routes/         # 42 route files, 200+ endpoints
 │   ├── auth/               # RBAC system (4 roles, 13 permissions)
 │   ├── bridge/             # Pydantic↔TypeScript contract validation (22 models)
 │   ├── engine/             # Remediation, incidents, playbooks
 │   ├── intel/              # Threat feeds, IOC matcher, YARA scanner
 │   ├── maintenance/        # Retention cleanup, backup/restore
 │   ├── models/             # 37 SQLAlchemy tables
-│   ├── modules/            # 16 security modules
+│   ├── modules/            # 15 security modules
 │   ├── notifications/      # Webhook + SMTP dispatchers
 │   ├── service/            # Windows Service wrapper
 │   └── main.py             # FastAPI app + lifespan
 ├── frontend/
-│   ├── src/components/     # 26 dashboard panels
+│   ├── src/components/     # 25 dashboard panels
 │   ├── src/bridge/         # TypeScript contract interfaces
 │   ├── src/hooks/          # WebSocket, permissions, keyboard shortcuts
 │   ├── src/pages/          # Dashboard, Login, ChangePassword
@@ -227,7 +226,7 @@ All endpoints are under `/api/v1/`. Authentication is required via httpOnly sess
 | Category | Endpoints | Description |
 |----------|-----------|-------------|
 | Auth | 6 | Login, register, refresh, logout, change-password, profile |
-| Modules | 4 | Start/stop/health for all 16 modules |
+| Modules | 4 | Start/stop/health for all 15 modules |
 | Network | 5 | Live connections, stats, flagged, anomalies |
 | Processes | 4 | Process list, suspicious, tree, kill |
 | Integrity | 4 | File baseline, changes, scan, IOC matches |
@@ -250,7 +249,6 @@ All endpoints are under `/api/v1/`. Authentication is required via httpOnly sess
 | YARA | 11 | Rule CRUD, file/dir/memory scan |
 | Memory | 5 | Process scan, results, anomalies |
 | Commander Bond | 16 | OSINT, Sword policies, Overwatch |
-| Agent Smith | 6 | Start/stop simulation, results |
 | Reports | 1 | Full system report with parallel health checks |
 | Checklists | 1 | 36-item automated verification across 7 categories |
 | Search | 1 | Global cross-module search |

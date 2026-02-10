@@ -128,9 +128,6 @@ class CereberusConfig(BaseSettings):
     module_commander_bond: bool = True
     bond_scan_interval: int = 21600  # 6 hours
 
-    # Agent Smith (Phase 12)
-    module_agent_smith: bool = True
-
     # YARA Scanner (Phase 15)
     yara_rules_dir: str = "yara_rules"
     yara_scan_timeout: int = 120

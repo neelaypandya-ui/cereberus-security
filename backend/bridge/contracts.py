@@ -5,64 +5,6 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-# ── Agent Smith ──
-class SmithDetection(BaseModel):
-    detected: bool
-    rule_matches: list[dict] = []
-    alert_matches: list[dict] = []
-    match_count: int = 0
-    commentary: str = ""
-
-class SmithAttackEvent(BaseModel):
-    attack_id: str
-    timestamp: str
-    category: str
-    description: str
-    detection: SmithDetection
-    pending: Optional[bool] = None
-
-class SmithStatusResponse(BaseModel):
-    state: str
-    active: bool
-    session_id: Optional[str] = None
-    intensity: Optional[int] = None
-    categories: list[str] = []
-    events_injected: int = 0
-    elapsed_seconds: Optional[float] = None
-    duration_seconds: int = 0
-    attacks_launched: int = 0
-    attacks_detected: int = 0
-    attacks_missed: int = 0
-    attacks_pending: int = 0
-    sessions_completed: int = 0
-    unique_attacks_generated: int = 0
-    name: Optional[str] = None
-    enabled: Optional[bool] = None
-    running: Optional[bool] = None
-    health_status: Optional[str] = None
-    last_heartbeat: Optional[str] = None
-    max_duration: Optional[int] = None
-    attack_log_size: Optional[int] = None
-    guardian_lockdown: Optional[bool] = None
-    guardian_lockdown_reason: Optional[str] = None
-
-class SmithSessionResult(BaseModel):
-    session_id: str
-    timestamp: str
-    intensity: int
-    duration_seconds: Optional[float] = None
-    total_attacks: int
-    detected_count: int
-    missed_count: int
-    detection_rate: float
-    verdict: dict
-    category_results: dict = {}
-    categories_tested: list[str] = []
-    weak_categories: list[str] = []
-    blind_spots: list[str] = []
-    recommendations: list[str] = []
-
-
 # ── Commander Bond ──
 class BondIntelligence(BaseModel):
     generation: int = 0

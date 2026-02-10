@@ -31,7 +31,6 @@ import { UserManagementPanel } from '../components/UserManagementPanel';
 import { DiskCleanupPanel } from '../components/DiskCleanupPanel';
 import { DetectionRulesPanel } from '../components/DetectionRulesPanel';
 import { CommanderBondPanel } from '../components/CommanderBondPanel';
-import { AgentSmithPanel } from '../components/AgentSmithPanel';
 import { MemoryScannerPanel } from '../components/MemoryScannerPanel';
 import { SecurityProtocolPanel } from '../components/SecurityProtocolPanel';
 import { SearchBar } from '../components/SearchBar';
@@ -73,7 +72,6 @@ const NAV_ITEMS = [
   { id: 'disk', label: 'DISK SANIT', icon: '\u{1F9F9}', fullLabel: 'Disk Sanitation' },
   { id: 'rules', label: 'DETECT RULES', icon: '\u{1F6E1}', fullLabel: 'Detection Rules' },
   { id: 'bond', label: 'CMDR BOND', icon: '\u{1F575}', fullLabel: 'Commander Bond' },
-  { id: 'smith', label: 'AGENT SMITH', icon: '\u{1F916}', fullLabel: 'Agent Smith' },
   { id: 'memory', label: 'MEM RECON', icon: '\u{1F9EC}', fullLabel: 'Memory Reconnaissance' },
   { id: 'protocol', label: 'SEC PROTOCOL', icon: '\u{1F4CB}', fullLabel: 'Security Protocol' },
   { id: 'modules', label: 'OPS BOARD', icon: '\u2630', fullLabel: 'Operations Board' },
@@ -83,7 +81,7 @@ const NAV_ITEMS = [
 const NAV_GROUPS = {
   COMMAND: { label: 'COMMAND', icon: '\u25C6', items: ['overview', 'alerts', 'analytics'] },
   INTELLIGENCE: { label: 'INTELLIGENCE', icon: '\u26A1', items: ['network', 'threats', 'email', 'rules', 'bond', 'memory'] },
-  DEFENSE: { label: 'DEFENSE', icon: '\u{1F6E1}', items: ['incidents', 'playbooks', 'smith'] },
+  DEFENSE: { label: 'DEFENSE', icon: '\u{1F6E1}', items: ['incidents', 'playbooks'] },
   OPERATIONS: { label: 'OPERATIONS', icon: '\u2699', items: ['processes', 'vulnerabilities', 'resources', 'persistence', 'vpn', 'aiops', 'disk', 'modules'] },
   ADMIN: { label: 'ADMIN', icon: '\u{1F512}', items: ['audit', 'integrations', 'personnel', 'protocol', 'settings'] },
 } as const;
@@ -117,7 +115,6 @@ const PANEL_CODES: Record<string, string> = {
   disk: 'DSK-20',
   rules: 'DET-21',
   bond: 'BND-22',
-  smith: 'SMH-23',
   memory: 'MEM-25',
   protocol: 'CMD-26',
   modules: 'MOD-13',
@@ -755,7 +752,6 @@ function Dashboard() {
           {activeNav === 'disk' && <PanelErrorBoundary panelName="DISK SANITATION"><DiskCleanupPanel /></PanelErrorBoundary>}
           {activeNav === 'rules' && <PanelErrorBoundary panelName="DETECTION RULES"><DetectionRulesPanel /></PanelErrorBoundary>}
           {activeNav === 'bond' && <PanelErrorBoundary panelName="COMMANDER BOND"><CommanderBondPanel /></PanelErrorBoundary>}
-          {activeNav === 'smith' && <PanelErrorBoundary panelName="AGENT SMITH"><AgentSmithPanel /></PanelErrorBoundary>}
           {activeNav === 'memory' && <PanelErrorBoundary panelName="MEM RECON"><MemoryScannerPanel /></PanelErrorBoundary>}
           {activeNav === 'protocol' && <PanelErrorBoundary panelName="SEC PROTOCOL"><SecurityProtocolPanel /></PanelErrorBoundary>}
           {activeNav === 'modules' && <PanelErrorBoundary panelName="OPS BOARD"><ModulesPanel /></PanelErrorBoundary>}

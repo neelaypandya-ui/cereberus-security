@@ -68,12 +68,12 @@ describe('Bridge contracts', () => {
     console.warn = (msg: string) => warns.push(msg);
 
     validateResponse(
-      [{ state: 'idle', active: false }],
-      'SmithStatusResponse',
-      ['state', 'active', 'events_injected'],
+      [{ state: 'idle', threat_count: 0 }],
+      'BondStatusResponse',
+      ['state', 'threat_count', 'scan_interval_seconds'],
     );
     expect(warns.length).toBe(1);
-    expect(warns[0]).toContain('events_injected');
+    expect(warns[0]).toContain('scan_interval_seconds');
 
     console.warn = originalWarn;
   });

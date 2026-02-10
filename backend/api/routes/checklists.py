@@ -22,7 +22,6 @@ from ...dependencies import (
     get_behavioral_baseline,
     get_threat_forecaster,
     get_vuln_scanner,
-    get_agent_smith,
     get_memory_scanner,
 )
 from ...utils.logging import get_logger
@@ -204,7 +203,6 @@ async def verify_shield(db: AsyncSession) -> dict:
             ("Anomaly Detector", get_anomaly_detector),
             ("Behavioral Baseline", get_behavioral_baseline),
             ("Threat Forecaster", get_threat_forecaster),
-            ("Agent Smith", get_agent_smith),
         ]
         total_count = len(module_checks)
         healthy_count = 0
@@ -841,39 +839,7 @@ async def verify_combat_readiness(db: AsyncSession) -> dict:
         items.append(_item("combat.vuln_scan", "Vulnerability scan completed today",
                            "Vuln scan ran within 24h", False, f"Check error: {e}"))
 
-    # 2 — Agent Smith test completed today
-    try:
-        smith = _safe_module(get_agent_smith)
-        if smith is None:
-            items.append(_item("combat.smith_test", "Agent Smith test completed today",
-                               "Smith session completed today", False, "Module not initialized"))
-        else:
-            status_data = smith.get_status() if hasattr(smith, "get_status") else {}
-            last_session = status_data.get("last_session_completed") if isinstance(status_data, dict) else None
-            if last_session:
-                if isinstance(last_session, str):
-                    try:
-                        last_session = datetime.fromisoformat(last_session.replace("Z", "+00:00"))
-                    except ValueError:
-                        last_session = None
-                if last_session and hasattr(last_session, "timestamp"):
-                    age = (now - last_session).total_seconds() / 3600
-                    items.append(_item("combat.smith_test", "Agent Smith test completed today",
-                                       "Smith session completed today", age < 24, f"{age:.1f}h ago"))
-                else:
-                    items.append(_item("combat.smith_test", "Agent Smith test completed today",
-                                       "Smith session completed today", False, "Timestamp unavailable"))
-            else:
-                sessions = status_data.get("sessions_completed", 0) if isinstance(status_data, dict) else 0
-                items.append(_item("combat.smith_test", "Agent Smith test completed today",
-                                   "Smith session completed today", sessions > 0,
-                                   f"{sessions} session(s) completed" if sessions else "No sessions"))
-    except Exception as e:
-        logger.debug("check_failed", check="smith_test", error=str(e))
-        items.append(_item("combat.smith_test", "Agent Smith test completed today",
-                           "Smith session completed today", False, f"Check error: {e}"))
-
-    # 3 — Memory scan completed today
+    # 2 — Memory scan completed today
     try:
         ms = _safe_module(get_memory_scanner)
         if ms is None:

@@ -25,7 +25,6 @@ from ...dependencies import (
     get_event_log_monitor,
     get_ransomware_detector,
     get_commander_bond,
-    get_agent_smith,
     get_memory_scanner,
     get_disk_analyzer,
     get_anomaly_detector,
@@ -115,7 +114,6 @@ async def generate_report(
         ("event_log_monitor", get_event_log_monitor, config.module_event_log_monitor),
         ("ransomware_detector", get_ransomware_detector, config.module_ransomware_detector),
         ("commander_bond", get_commander_bond, config.module_commander_bond),
-        ("agent_smith", get_agent_smith, config.module_agent_smith),
         ("memory_scanner", get_memory_scanner, config.module_memory_scanner),
         ("disk_analyzer", get_disk_analyzer, True),
     ]

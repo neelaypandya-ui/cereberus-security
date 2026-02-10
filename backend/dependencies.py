@@ -562,8 +562,6 @@ def get_rule_engine():
 
 _ransomware_detector = None
 _commander_bond = None
-_agent_smith = None
-
 
 def get_ransomware_detector():
     """Get the Ransomware Detector module singleton."""
@@ -589,14 +587,6 @@ def get_commander_bond():
         })
     return _commander_bond
 
-
-def get_agent_smith():
-    """Get the Agent Smith module singleton."""
-    global _agent_smith
-    if _agent_smith is None:
-        from .modules.agent_smith import AgentSmith
-        _agent_smith = AgentSmith(config={})
-    return _agent_smith
 
 
 # --- Disk Sanitation ---

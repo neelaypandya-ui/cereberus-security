@@ -66,7 +66,6 @@ async function _refreshAndRetry<T>(path: string, options: RequestInit): Promise<
 
 // Bridge validation registry: path pattern → [contractName, requiredKeys]
 const _bridgeValidationMap: Record<string, [string, string[]]> = {
-  '/smith/status': ['SmithStatusResponse', ['state', 'active', 'events_injected']],
   '/bond/status': ['BondStatusResponse', ['state', 'threat_count', 'scan_interval_seconds']],
   '/bond/guardian': ['GuardianStatusResponse', ['containment_level', 'level_name', 'lockdown_active']],
   '/bond/overwatch/status': ['OverwatchStatus', ['status', 'files_baselined', 'tamper_count']],
@@ -618,19 +617,6 @@ export const api = {
   getBondCorrelations: () => request('/bond/correlations'),
   getGuardianStatus: () => request('/bond/guardian'),
   clearGuardianLockdown: () => request('/bond/guardian/clear', { method: 'POST' }),
-
-  // === Phase 12: Agent Smith ===
-  getSmithStatus: () => request('/smith/status'),
-  engageSmith: (data: { intensity?: number; categories?: string[]; duration?: number }) =>
-    request('/smith/engage', { method: 'POST', body: JSON.stringify(data) }),
-  disengageSmith: () => request('/smith/disengage', { method: 'POST' }),
-  getSmithResults: (limit?: number) => {
-    const query = limit ? `?limit=${limit}` : '';
-    return request(`/smith/results${query}`);
-  },
-  getSmithResult: (sessionId: string) => request(`/smith/results/${sessionId}`),
-  getSmithAttacks: () => request('/smith/attacks'),
-  getSmithCategories: () => request('/smith/categories'),
 
   // === Phase 12: Network Beaconing ===
   getBeaconingDetections: () => request('/network/beaconing'),

@@ -252,16 +252,14 @@ class CommanderBond(BaseModule):
         # Phase 14: IntelligenceBrain — adaptive learning
         self._brain = IntelligenceBrain()
 
-        # Phase 14: Guardian protocol — overseer for Agent Smith
+        # Phase 14: Guardian protocol — containment status
         self._guardian_task: Optional[asyncio.Task] = None
-        self._agent_smith = None  # Set externally via set_agent_smith()
         self._containment_level: int = 0  # 0=GREEN, 1=YELLOW, 2=ORANGE, 3=RED
         self._containment_names = {0: "GREEN", 1: "YELLOW", 2: "ORANGE", 3: "RED"}
         self._stability_score: float = 100.0
         self._guardian_interventions: deque[dict] = deque(maxlen=50)
         self._lockdown_at: Optional[str] = None
         self._last_guardian_check: Optional[str] = None
-        self._smith_prev_stats: Optional[dict] = None  # Previous Smith stats for delta tracking
 
         # Feed limits — configurable via CereberusConfig
         try:
@@ -304,11 +302,6 @@ class CommanderBond(BaseModule):
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def set_agent_smith(self, smith) -> None:
-        """Attach Agent Smith reference for Guardian oversight."""
-        self._agent_smith = smith
-        self.logger.info("commander_bond_guardian_attached")
-
     async def start(self) -> None:
         """Start the intelligence gathering loop."""
         self.running = True
@@ -325,11 +318,6 @@ class CommanderBond(BaseModule):
 
         # Start the recurring scan loop
         self._scan_task = asyncio.create_task(self._scan_loop())
-
-        # Start Guardian oversight loop if Smith is attached
-        if self._agent_smith is not None:
-            self._guardian_task = asyncio.create_task(self._guardian_loop())
-            self.logger.info("guardian_loop_started")
 
         # Phase 15: Compute Overwatch baselines
         try:
@@ -1409,16 +1397,16 @@ class CommanderBond(BaseModule):
                 await asyncio.sleep(self._overwatch._check_interval)
 
     # ------------------------------------------------------------------
-    # Phase 14 Track 3: Guardian Protocol — Bond watches over Smith
+    # Phase 14 Track 3: Guardian Protocol — containment status
     # ------------------------------------------------------------------
 
     def get_guardian_status(self) -> dict:
-        """Return Guardian oversight status."""
+        """Return Guardian containment status."""
         return {
             "containment_level": self._containment_level,
             "level_name": self._containment_names.get(self._containment_level, "UNKNOWN"),
             "lockdown_active": self._containment_level >= 3,
-            "lockdown_reason": self._agent_smith._guardian_lockdown_reason if self._agent_smith and self._agent_smith._guardian_lockdown else "",
+            "lockdown_reason": "",
             "lockdown_at": self._lockdown_at,
             "stability_score": round(self._stability_score, 1),
             "interventions": list(self._guardian_interventions),
@@ -1426,16 +1414,11 @@ class CommanderBond(BaseModule):
         }
 
     async def guardian_clear(self) -> dict:
-        """Clear guardian lockdown — re-enable Smith."""
-        if self._agent_smith is None:
-            return {"status": "error", "message": "Smith not attached"}
-
-        self._agent_smith._guardian_clear()
+        """Clear guardian lockdown."""
         prev_level = self._containment_level
         self._containment_level = 0
         self._stability_score = 100.0
         self._lockdown_at = None
-        self._smith_prev_stats = None
 
         self._guardian_interventions.appendleft({
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1449,149 +1432,8 @@ class CommanderBond(BaseModule):
         return {
             "status": "cleared",
             "previous_level": self._containment_names.get(prev_level, "?"),
-            "message": "Guardian lockdown cleared. Smith is free to operate.",
+            "message": "Guardian lockdown cleared.",
         }
-
-    async def _guardian_loop(self) -> None:
-        """Monitor Agent Smith every 10 seconds when active."""
-        await asyncio.sleep(5)  # Initial delay
-        while self.running:
-            try:
-                await asyncio.sleep(10)
-                if not self.running or self._agent_smith is None:
-                    continue
-                await self._guardian_check()
-            except asyncio.CancelledError:
-                break
-            except Exception as exc:
-                self.logger.error("guardian_loop_error", error=str(exc))
-                await asyncio.sleep(10)
-
-    async def _guardian_check(self) -> None:
-        """Evaluate Smith's stability and escalate containment if needed."""
-        smith = self._agent_smith
-        if smith is None:
-            return
-
-        now = datetime.now(timezone.utc)
-        self._last_guardian_check = now.isoformat()
-
-        # Collect Smith stats
-        stats = {
-            "active": smith._active,
-            "events_injected": smith._events_injected,
-            "attack_log_size": len(smith._attack_log),
-            "sessions_completed": len(smith._results),
-            "lockdown": smith._guardian_lockdown,
-        }
-
-        # Compute detection rate from recent attacks
-        recent_attacks = list(smith._attack_log)[:20]
-        total = len(recent_attacks)
-        detected = sum(1 for a in recent_attacks if a.get("detection", {}).get("detected", False))
-        detection_rate = detected / total if total > 0 else 1.0
-
-        # -- Instability checks --
-        problems: list[str] = []
-        severity = 0  # 0=fine, 1=yellow, 2=orange, 3=red
-
-        # 1) Detection rate collapse (below 10% with enough data)
-        if total >= 5 and detection_rate < 0.10:
-            problems.append(f"Detection rate collapsed: {detection_rate:.0%} ({detected}/{total})")
-            severity = max(severity, 2)
-
-        # 2) Runaway event injection (more than 2 events/sec)
-        if self._smith_prev_stats and smith._active:
-            prev_events = self._smith_prev_stats.get("events_injected", 0)
-            delta_events = stats["events_injected"] - prev_events
-            if delta_events > 20:  # 20 events in 10 seconds = 2/sec
-                problems.append(f"Runaway injection: {delta_events} events in 10s")
-                severity = max(severity, 3)
-
-        # 3) Too many sessions too quickly
-        if self._smith_prev_stats:
-            prev_sessions = self._smith_prev_stats.get("sessions_completed", 0)
-            if stats["sessions_completed"] - prev_sessions >= 3:
-                problems.append(f"Session frequency abuse: {stats['sessions_completed'] - prev_sessions} sessions in 10s")
-                severity = max(severity, 2)
-
-        # 4) Consecutive missed attacks (10+)
-        if total >= 10:
-            consecutive_missed = 0
-            for a in recent_attacks:
-                if not a.get("detection", {}).get("detected", False):
-                    consecutive_missed += 1
-                else:
-                    break
-            if consecutive_missed >= 10:
-                problems.append(f"Consecutive missed attacks: {consecutive_missed}")
-                severity = max(severity, 2)
-
-        # Save for next delta check
-        self._smith_prev_stats = stats
-
-        # -- Stability score update --
-        if not problems:
-            # Recover stability slowly
-            self._stability_score = min(100.0, self._stability_score + 2.0)
-        else:
-            # Degrade based on severity
-            penalty = {1: 5.0, 2: 15.0, 3: 30.0}.get(severity, 0.0)
-            self._stability_score = max(0.0, self._stability_score - penalty)
-
-        # -- Containment level update --
-        new_level = self._containment_level
-        if self._stability_score >= 80:
-            new_level = 0
-        elif self._stability_score >= 50:
-            new_level = 1
-        elif self._stability_score >= 20:
-            new_level = 2
-        else:
-            new_level = 3
-
-        # Never go down automatically — only manual clear lowers level
-        new_level = max(new_level, self._containment_level) if severity > 0 else new_level
-
-        # -- Take action on escalation --
-        if new_level > self._containment_level:
-            old_name = self._containment_names.get(self._containment_level, "?")
-            new_name = self._containment_names.get(new_level, "?")
-            action = ""
-
-            if new_level >= 3:
-                # RED — force lockdown
-                if smith._active:
-                    await smith._emergency_disengage(f"Guardian RED: {'; '.join(problems)}")
-                    action = "Emergency disengage + lockdown"
-                else:
-                    smith._guardian_lockdown = True
-                    smith._guardian_lockdown_reason = f"Guardian RED: {'; '.join(problems)}"
-                    action = "Lockdown engaged"
-                self._lockdown_at = now.isoformat()
-            elif new_level >= 2:
-                # ORANGE — cap intensity
-                action = "Intensity cap advisory (level 1 max)"
-            else:
-                action = "Warning logged"
-
-            intervention = {
-                "timestamp": now.isoformat(),
-                "level": new_name,
-                "reason": "; ".join(problems),
-                "stability_score": round(self._stability_score, 1),
-                "action_taken": f"Escalated {old_name} -> {new_name}: {action}",
-            }
-            self._guardian_interventions.appendleft(intervention)
-            self._containment_level = new_level
-
-            self.logger.warning(
-                "guardian_escalation",
-                from_level=old_name, to_level=new_name,
-                stability=round(self._stability_score, 1),
-                problems=problems,
-                action=action,
-            )
 
 # ---------------------------------------------------------------------------
 # Phase 15 Track 4: Sword Protocol — Bond's autonomous response engine
