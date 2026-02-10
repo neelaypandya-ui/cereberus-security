@@ -24,7 +24,7 @@ Cereberus is a real-time security monitoring and automated defense platform that
 | **Network Sentinel** | Live connection monitoring, suspicious port detection, IOC matching |
 | **Brute Force Shield** | Windows Event Log monitoring, auto-block via firewall rules |
 | **File Integrity** | SHA-256 baseline hashing, change detection, IOC hash checking |
-| **Process Analyzer** | Process enumeration, unsigned/hidden/injected process detection |
+| **Process Analyzer** | Process enumeration, unsigned/hidden/injected process detection, dynamic CPU thresholds |
 | **Vulnerability Scanner** | Port scanning, weak config detection, one-click remediation |
 | **Email Analyzer** | NLP-based phishing detection, URL extraction, threat scoring |
 | **Resource Monitor** | CPU/memory/disk/network metrics, threshold alerting |
@@ -74,8 +74,14 @@ Cereberus is a real-time security monitoring and automated defense platform that
 - **Forced password change** on initial login
 - **Data retention** &mdash; Automatic cleanup of aged records with configurable policies
 
+### Command Center
+- **36 automated verification checks** across 7 categories (Situation Room, Shield, Sword, Threat Assessment, AI Warfare, Incident Response, Combat Readiness)
+- **Bulk alert management** &mdash; dismiss-all, acknowledge-all, one-click triage
+- **Parallelized report generation** &mdash; all module health checks run concurrently with 5-second timeouts
+- **Auto-port cleanup** &mdash; stale backend processes killed automatically on startup
+
 ### Dashboard
-25 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
+26 real-time panels with an intelligence-agency aesthetic, WebSocket live updates, keyboard shortcuts, and DEFCON-style threat level indicators.
 
 ---
 
@@ -142,14 +148,17 @@ Start the backend and frontend in separate terminals:
 
 ```bash
 # Terminal 1 — Backend (run as Administrator)
-python -B -m uvicorn cereberus.backend.main:app --host 127.0.0.1 --port 8000
+cd cereberus
+python -c "from backend.main import main; main()"
 
-# Terminal 2 — Frontend
-cd frontend
+# Terminal 2 — Frontend (development only)
+cd cereberus/frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser. The first user registered becomes admin. You will be prompted to change the default password on first login.
+Open **http://localhost:5173** in your browser (development) or **https://localhost** (production with nginx). The first user registered becomes admin. You will be prompted to change the default password on first login.
+
+> **Note:** In production, the backend serves the frontend SPA directly — no separate frontend server needed. The two-server setup is for development only (Vite provides hot module reload).
 
 ### Docker Deployment
 
@@ -183,7 +192,7 @@ cereberus/
 ├── backend/
 │   ├── ai/                 # 10 AI classes (anomaly, ensemble, LSTM, rules, correlation)
 │   ├── alerting/           # Alert manager
-│   ├── api/routes/         # 42 route files, 200+ endpoints
+│   ├── api/routes/         # 43 route files, 200+ endpoints
 │   ├── auth/               # RBAC system (4 roles, 13 permissions)
 │   ├── bridge/             # Pydantic↔TypeScript contract validation (22 models)
 │   ├── engine/             # Remediation, incidents, playbooks
@@ -195,7 +204,7 @@ cereberus/
 │   ├── service/            # Windows Service wrapper
 │   └── main.py             # FastAPI app + lifespan
 ├── frontend/
-│   ├── src/components/     # 25 dashboard panels
+│   ├── src/components/     # 26 dashboard panels
 │   ├── src/bridge/         # TypeScript contract interfaces
 │   ├── src/hooks/          # WebSocket, permissions, keyboard shortcuts
 │   ├── src/pages/          # Dashboard, Login, ChangePassword
@@ -224,7 +233,7 @@ All endpoints are under `/api/v1/`. Authentication is required via httpOnly sess
 | Integrity | 4 | File baseline, changes, scan, IOC matches |
 | Vulnerabilities | 5 | Scan, findings, remediate |
 | VPN | 6 | Status, leak check, kill switch, config audit |
-| Alerts | 6 | List, create, acknowledge, resolve |
+| Alerts | 8 | List, create, acknowledge, resolve, bulk dismiss, bulk acknowledge |
 | Threats | 5 | Events, correlations, threat level, forecast |
 | AI | 8 | Model status, retrain, predictions, explainability |
 | Detection Rules | 5 | List, toggle, create, stats |
@@ -242,6 +251,8 @@ All endpoints are under `/api/v1/`. Authentication is required via httpOnly sess
 | Memory | 5 | Process scan, results, anomalies |
 | Commander Bond | 16 | OSINT, Sword policies, Overwatch |
 | Agent Smith | 6 | Start/stop simulation, results |
+| Reports | 1 | Full system report with parallel health checks |
+| Checklists | 1 | 36-item automated verification across 7 categories |
 | Search | 1 | Global cross-module search |
 
 See the [full API reference](docs/index.html#api-reference) in the documentation.
