@@ -199,10 +199,20 @@ class ProcessAnalyzer(BaseModule):
                         # to reduce false positives for user apps
 
                 # Check for high resource usage
-                if cpu > 80:
+                # Thresholds account for multi-core CPUs: psutil reports
+                # cumulative % across all cores (24 cores = max 2400%).
+                # Trusted apps (from Program Files, Windows) get generous
+                # thresholds; untrusted apps get stricter ones.
+                is_trusted = exe and any(
+                    exe.lower().startswith(d.lower()) for d in TRUSTED_DIRS if d
+                )
+                max_cpu = psutil.cpu_count(logical=True) * 100
+                cpu_thresh = max_cpu * 0.95 if is_trusted else max_cpu * 0.25
+                mem_thresh = 80 if is_trusted else 50
+                if cpu > cpu_thresh:
                     suspicious_reasons.append(f"high_cpu:{cpu:.1f}%")
                     suspicious = True
-                if mem > 50:
+                if mem > mem_thresh:
                     suspicious_reasons.append(f"high_memory:{mem:.1f}%")
                     suspicious = True
 

@@ -100,8 +100,7 @@ async def generate_report(
     except Exception:
         pass
 
-    # --- Module health (all 16) ---
-    modules = []
+    # --- Module health (all 16) — parallelised for speed ---
     module_checks = [
         ("vpn_guardian", get_vpn_guardian, True),
         ("network_sentinel", get_network_sentinel, config.module_network_sentinel),
@@ -120,16 +119,20 @@ async def generate_report(
         ("memory_scanner", get_memory_scanner, config.module_memory_scanner),
         ("disk_analyzer", get_disk_analyzer, True),
     ]
-    for name, getter, enabled in module_checks:
+
+    async def _check_module(name, getter, enabled):
         try:
             m = getter()
             if hasattr(m, "health_check"):
-                health = await m.health_check()
-                modules.append({"name": name, "enabled": enabled, "health": health.get("status", "unknown")})
-            else:
-                modules.append({"name": name, "enabled": enabled, "health": "available"})
+                health = await asyncio.wait_for(m.health_check(), timeout=5.0)
+                return {"name": name, "enabled": enabled, "health": health.get("status", "unknown")}
+            return {"name": name, "enabled": enabled, "health": "available"}
         except Exception:
-            modules.append({"name": name, "enabled": enabled, "health": "error"})
+            return {"name": name, "enabled": enabled, "health": "error"}
+
+    modules = list(await asyncio.gather(
+        *(_check_module(n, g, e) for n, g, e in module_checks)
+    ))
 
     # --- Resources ---
     resources = {}
@@ -139,38 +142,50 @@ async def generate_report(
     except Exception:
         pass
 
-    # --- Verification scorecard (7 categories, 36 items) ---
-    checklist_categories = []
-    checklist_completion = 0.0
-    checklist_total_passed = 0
-    checklist_total_items = 0
-    try:
-        categories = await asyncio.gather(
-            verify_situation_room(db),
-            verify_shield(db),
-            verify_sword(db),
-            verify_threat_assessment(db),
-            verify_ai_warfare(db),
-            verify_incident_response(db),
-            verify_combat_readiness(db),
-        )
-        checklist_categories = list(categories)
-        checklist_total_passed = sum(c["passed_count"] for c in checklist_categories)
-        checklist_total_items = sum(c["total_count"] for c in checklist_categories)
-        checklist_completion = round(
-            (checklist_total_passed / checklist_total_items * 100), 1
-        ) if checklist_total_items > 0 else 0.0
-    except Exception:
-        pass
+    # --- Run checklist + incident stats in parallel (both need await) ---
+    async def _get_checklists():
+        try:
+            cats = await asyncio.gather(
+                verify_situation_room(db),
+                verify_shield(db),
+                verify_sword(db),
+                verify_threat_assessment(db),
+                verify_ai_warfare(db),
+                verify_incident_response(db),
+                verify_combat_readiness(db),
+            )
+            return list(cats)
+        except Exception:
+            return []
 
-    # --- AI warfare status ---
+    async def _get_incidents():
+        try:
+            im = _safe_get(get_incident_manager)
+            if im:
+                return await im.get_stats()
+        except Exception:
+            pass
+        return {
+            "total": 0,
+            "by_status": {"open": 0, "investigating": 0, "contained": 0, "resolved": 0, "closed": 0},
+            "by_severity": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+        }
+
+    checklist_categories, incident_stats = await asyncio.gather(
+        _get_checklists(), _get_incidents()
+    )
+
+    checklist_total_passed = sum(c["passed_count"] for c in checklist_categories)
+    checklist_total_items = sum(c["total_count"] for c in checklist_categories)
+    checklist_completion = round(
+        (checklist_total_passed / checklist_total_items * 100), 1
+    ) if checklist_total_items > 0 else 0.0
+
+    # --- AI warfare, detection, bond status (all sync — fast) ---
     ai_status = {
-        "ensemble_initialized": False,
-        "drift_score": 0.0,
-        "lstm_initialized": False,
-        "lstm_has_model": False,
-        "baseline_coverage": 0,
-        "baseline_samples": 0,
+        "ensemble_initialized": False, "drift_score": 0.0,
+        "lstm_initialized": False, "lstm_has_model": False,
+        "baseline_coverage": 0, "baseline_samples": 0,
     }
     try:
         ad = _safe_get(get_anomaly_detector)
@@ -199,7 +214,6 @@ async def generate_report(
     except Exception:
         pass
 
-    # --- Detection engine status ---
     detection_status = {
         "rule_engine": {"rules_enabled": 0, "rules_total": 0, "total_matches": 0, "by_severity": {}, "by_category": {}},
         "yara": {"rules_loaded": 0, "compiled": False, "total_scans": 0, "total_matches": 0, "files_scanned": 0, "yara_available": False},
@@ -217,7 +231,6 @@ async def generate_report(
     except Exception:
         pass
 
-    # --- Bond operations ---
     bond_status = {
         "sword": {"enabled": False, "lockout": False, "policies_loaded": 0},
         "overwatch": {"status": "offline", "tamper_count": 0, "files_baselined": 0},
@@ -250,19 +263,6 @@ async def generate_report(
                         "level_name": gs.get("level_name", "unknown"),
                         "lockdown_active": gs.get("lockdown_active", False),
                     }
-    except Exception:
-        pass
-
-    # --- Incident response stats ---
-    incident_stats = {
-        "total": 0,
-        "by_status": {"open": 0, "investigating": 0, "contained": 0, "resolved": 0, "closed": 0},
-        "by_severity": {"critical": 0, "high": 0, "medium": 0, "low": 0},
-    }
-    try:
-        im = _safe_get(get_incident_manager)
-        if im:
-            incident_stats = await im.get_stats()
     except Exception:
         pass
 
