@@ -17,7 +17,7 @@ from .base_module import BaseModule
 # Event ID -> (channel, description, default severity)
 SECURITY_EVENT_IDS = {
     4688: ("Security", "Process Creation", "low"),
-    4672: ("Security", "Privilege Escalation", "critical"),
+    4672: ("Security", "Privilege Escalation", "low"),
     4624: ("Security", "Logon Success", "low"),
     4625: ("Security", "Logon Failure", "medium"),
     4720: ("Security", "Account Created", "high"),
@@ -376,8 +376,16 @@ class EventLogMonitor(BaseModule):
         severity = base_severity
         message_lower = message.lower()
 
-        # 4672 — Special privileges assigned: always critical
+        # 4672 — Special privileges assigned: critical only for non-routine accounts.
+        # SYSTEM (S-1-5-18), LOCAL SERVICE (S-1-5-19), NETWORK SERVICE (S-1-5-20)
+        # receive these privileges on every logon — that's normal Windows behaviour.
         if event_id == 4672:
+            sid = details.get("Security ID", "")
+            account = details.get("Account Name", "").upper()
+            routine_sids = ("S-1-5-18", "S-1-5-19", "S-1-5-20")
+            routine_accounts = ("SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE")
+            if sid in routine_sids or account in routine_accounts:
+                return "low"
             return "critical"
 
         # 7045 — New service installed: elevate to critical if suspicious

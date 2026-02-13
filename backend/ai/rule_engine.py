@@ -424,13 +424,26 @@ def _r028_uac_bypass_eventvwr(event: dict) -> bool:
 def _r029_token_manipulation(event: dict) -> bool:
     """Detect token impersonation / manipulation."""
     cmdline = (event.get("cmdline") or "").lower()
-    details = (event.get("details") or "").lower()
+    raw_details = event.get("details") or ""
+    details_str = str(raw_details).lower() if not isinstance(raw_details, str) else raw_details.lower()
     event_id = event.get("event_id")
     if event_id == 4672:
+        # Skip routine service accounts — SYSTEM, LOCAL SERVICE, NETWORK SERVICE
+        # always receive special privileges on logon.
+        if isinstance(raw_details, dict):
+            sid = raw_details.get("Security ID", "")
+            account = raw_details.get("Account Name", "").upper()
+        else:
+            sid = ""
+            account = ""
+        routine_sids = ("S-1-5-18", "S-1-5-19", "S-1-5-20")
+        routine_accounts = ("SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE")
+        if sid in routine_sids or account in routine_accounts:
+            return False
         return True
     indicators = ("impersonateloggedonuser", "duplicatetokenex", "setthreadtoken",
                   "adjusttokenprivileges", "sedebugprivilege", "seimpersonateprivilege")
-    combined = cmdline + " " + details
+    combined = cmdline + " " + details_str
     return any(i in combined for i in indicators)
 
 
@@ -1261,7 +1274,7 @@ _EXPLANATIONS: dict[str, Callable[[dict], str]] = {
     # Privilege Escalation
     "R027": lambda e: f"UAC bypass via fodhelper: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
     "R028": lambda e: f"UAC bypass via eventvwr: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
-    "R029": lambda e: f"Token manipulation: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
+    "R029": lambda e: f"Token manipulation: '{(e.get('cmdline') or str(e.get('details') or ''))[:120]}'",
     "R030": lambda e: f"Runas with saved creds: '{(e.get('cmdline') or '')[:120]}'",
     # Reconnaissance
     "R031": lambda e: f"User/group enumeration: '{(e.get('cmdline') or '')[:120]}'",
