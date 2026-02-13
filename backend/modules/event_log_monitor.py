@@ -67,6 +67,25 @@ SUSPICIOUS_SERVICE_KEYWORDS = {
     "temp", "appdata", "downloads",
 }
 
+# Known safe vendors/paths for 7045 — these install legitimate drivers
+# and services as part of normal hardware or system operation.
+SAFE_SERVICE_VENDORS = (
+    # Hardware / OEM
+    "\\msi\\", "\\asus\\", "\\gigabyte\\", "\\dell\\", "\\hp\\",
+    "\\lenovo\\", "\\acer\\", "\\razer\\", "\\corsair\\", "\\nzxt\\",
+    "\\steelseries\\", "\\logitech\\", "\\hyperx\\",
+    # GPU / display
+    "\\nvidia", "\\amd\\", "\\intel\\", "\\realtek\\",
+    # System / AV / runtime
+    "\\windows\\system32\\", "\\windows\\syswow64\\",
+    "\\windows defender\\", "\\microsoft\\",
+    "\\crowdstrike\\", "\\sentinelone\\", "\\carbon black\\",
+    "\\malwarebytes\\", "\\norton\\", "\\kaspersky\\", "\\eset\\",
+    "\\bitdefender\\", "\\mcafee\\", "\\sophos\\", "\\avg\\",
+    # Virtualisation / dev tools
+    "\\vmware\\", "\\virtualbox\\", "\\docker\\", "\\wsl\\",
+)
+
 
 class EventLogMonitor(BaseModule):
     """Monitors Windows Event Logs for security-relevant events."""
@@ -388,11 +407,14 @@ class EventLogMonitor(BaseModule):
                 return "low"
             return "critical"
 
-        # 7045 — New service installed: elevate to critical if suspicious
+        # 7045 — New service installed: check whitelist, then suspicious keywords
         if event_id == 7045:
             service_name = details.get("Service Name", "").lower()
             image_path = details.get("Service File Name", "").lower()
             combined = service_name + " " + image_path
+            # Known safe vendors — downgrade to low
+            if any(vendor in image_path for vendor in SAFE_SERVICE_VENDORS):
+                return "low"
             for keyword in SUSPICIOUS_SERVICE_KEYWORDS:
                 if keyword in combined:
                     return "critical"
