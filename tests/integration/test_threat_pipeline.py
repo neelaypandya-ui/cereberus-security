@@ -42,7 +42,7 @@ class TestNewAttackPatterns:
             assert name in names, f"Missing pattern: {name}"
 
     def test_total_pattern_count(self):
-        assert len(ATTACK_PATTERNS) == 10
+        assert len(ATTACK_PATTERNS) == 14
 
 
 class TestNewEventTypes:

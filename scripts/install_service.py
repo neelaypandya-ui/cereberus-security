@@ -12,42 +12,46 @@ Usage:
 
 import subprocess
 import sys
+from pathlib import Path
 
 
 SERVICE_NAME = "CereberusDefense"
 DISPLAY_NAME = "CEREBERUS Defense System"
 
 
+def _get_service_module_path() -> str:
+    """Return the absolute path to cereberus_service.py."""
+    return str(Path(__file__).resolve().parent.parent / "backend" / "service" / "cereberus_service.py")
+
+
 def install_service():
-    """Install the Windows Service."""
-    try:
-        from backend.service.cereberus_service import CereberusService
-        import win32serviceutil
-        win32serviceutil.InstallService(
-            CereberusService._svc_reg_class_,
-            SERVICE_NAME,
-            DISPLAY_NAME,
-            startType=2,  # SERVICE_AUTO_START
-            description="AI-Powered Cybersecurity Defense System",
-        )
+    """Install the Windows Service via HandleCommandLine."""
+    svc_path = _get_service_module_path()
+    result = subprocess.run(
+        [sys.executable, svc_path, "--startup", "auto", "install"],
+        capture_output=True, text=True,
+    )
+    print(result.stdout.strip() if result.stdout.strip() else result.stderr.strip())
+    if result.returncode == 0:
         print(f"[+] Service '{SERVICE_NAME}' installed successfully.")
         configure_recovery()
-    except ImportError:
-        print("[-] pywin32 is required. Install with: pip install pywin32")
-        sys.exit(1)
-    except Exception as e:
-        print(f"[-] Installation failed: {e}")
+    else:
+        print(f"[-] Installation failed (exit code {result.returncode}).")
         sys.exit(1)
 
 
 def remove_service():
     """Remove the Windows Service."""
-    try:
-        import win32serviceutil
-        win32serviceutil.RemoveService(SERVICE_NAME)
+    svc_path = _get_service_module_path()
+    result = subprocess.run(
+        [sys.executable, svc_path, "remove"],
+        capture_output=True, text=True,
+    )
+    print(result.stdout.strip() if result.stdout.strip() else result.stderr.strip())
+    if result.returncode == 0:
         print(f"[+] Service '{SERVICE_NAME}' removed successfully.")
-    except Exception as e:
-        print(f"[-] Removal failed: {e}")
+    else:
+        print(f"[-] Removal failed (exit code {result.returncode}).")
         sys.exit(1)
 
 
@@ -57,6 +61,9 @@ def start_service():
         import win32serviceutil
         win32serviceutil.StartService(SERVICE_NAME)
         print(f"[+] Service '{SERVICE_NAME}' started.")
+    except ImportError:
+        print("[-] pywin32 is required. Install with: pip install pywin32")
+        sys.exit(1)
     except Exception as e:
         print(f"[-] Start failed: {e}")
         sys.exit(1)
@@ -68,6 +75,9 @@ def stop_service():
         import win32serviceutil
         win32serviceutil.StopService(SERVICE_NAME)
         print(f"[+] Service '{SERVICE_NAME}' stopped.")
+    except ImportError:
+        print("[-] pywin32 is required. Install with: pip install pywin32")
+        sys.exit(1)
     except Exception as e:
         print(f"[-] Stop failed: {e}")
         sys.exit(1)
@@ -79,6 +89,9 @@ def restart_service():
         import win32serviceutil
         win32serviceutil.RestartService(SERVICE_NAME)
         print(f"[+] Service '{SERVICE_NAME}' restarted.")
+    except ImportError:
+        print("[-] pywin32 is required. Install with: pip install pywin32")
+        sys.exit(1)
     except Exception as e:
         print(f"[-] Restart failed: {e}")
         sys.exit(1)
@@ -100,6 +113,9 @@ def service_status():
         }
         state_name = states.get(status[1], f"UNKNOWN ({status[1]})")
         print(f"[*] Service '{SERVICE_NAME}': {state_name}")
+    except ImportError:
+        print("[-] pywin32 is required. Install with: pip install pywin32")
+        sys.exit(1)
     except Exception as e:
         print(f"[-] Status check failed: {e}")
         sys.exit(1)

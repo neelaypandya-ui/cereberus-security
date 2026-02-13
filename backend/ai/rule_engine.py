@@ -722,6 +722,42 @@ def _r050_ntds_access(event: dict) -> bool:
     return False
 
 
+def _r051_notepad_rce(event: dict) -> bool:
+    """Detect CVE-2026-20841: Notepad Markdown handler RCE.
+
+    Modern Notepad (11.0.0-11.2509) can execute arbitrary commands when
+    a user opens a crafted .md file and clicks an embedded link.  Notepad
+    should never spawn child processes — any child of notepad.exe is
+    suspicious, especially shells, scripting engines, or LOLBins.
+    """
+    parent = (event.get("parent_name") or "").lower()
+    if "notepad" not in parent:
+        return False
+
+    name = (event.get("name") or "").lower()
+    exe = (event.get("exe") or "").lower()
+    cmdline = (event.get("cmdline") or "").lower()
+
+    # Shells and scripting engines notepad should never launch
+    suspicious_children = (
+        "cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe",
+        "cscript.exe", "mshta.exe", "bash.exe", "python.exe",
+        "conhost.exe", "rundll32.exe", "regsvr32.exe", "certutil.exe",
+        "bitsadmin.exe", "msiexec.exe",
+    )
+    for child in suspicious_children:
+        if child in name or child in exe:
+            return True
+
+    # Command-line with markdown-exploit indicators
+    md_indicators = ("invoke-expression", "iex ", "downloadstring",
+                     "start-process", "new-object", "shell.application")
+    if any(ind in cmdline for ind in md_indicators):
+        return True
+
+    return False
+
+
 def _r040_known_c2_tools(event: dict) -> bool:
     """Detect known C2 framework and malware family signatures."""
     cmdline = (event.get("cmdline") or "").lower()
@@ -1175,6 +1211,18 @@ _BUILTIN_RULES: list[DetectionRule] = [
         category="credential_access",
         condition=_r050_ntds_access,
     ),
+    DetectionRule(
+        id="R051",
+        name="Notepad Markdown RCE (CVE-2026-20841)",
+        description="Microsoft Notepad Markdown handler RCE detected (CVE-2026-20841). "
+                    "Modern Notepad versions 11.0.0-11.2509 execute commands via crafted "
+                    ".md file links instead of opening a browser. Notepad spawning a child "
+                    "process (shell, scripting engine, or LOLBin) indicates exploitation "
+                    "(T1203 — Exploitation for Client Execution).",
+        severity="critical",
+        category="execution",
+        condition=_r051_notepad_rce,
+    ),
 ]
 
 
@@ -1240,6 +1288,7 @@ _EXPLANATIONS: dict[str, Callable[[dict], str]] = {
     "R048": lambda e: f"DLL side-loading: '{(e.get('details') or e.get('cmdline') or '')[:120]}'",
     "R049": lambda e: f"WMI persistence: '{(e.get('cmdline') or e.get('details') or '')[:120]}'",
     "R050": lambda e: f"NTDS.dit access: '{(e.get('cmdline') or e.get('file_path') or '')[:120]}'",
+    "R051": lambda e: f"Notepad RCE (CVE-2026-20841): notepad spawned '{e.get('name', 'unknown')}' with cmdline '{(e.get('cmdline') or '')[:100]}'",
 }
 
 

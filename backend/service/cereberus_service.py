@@ -58,21 +58,41 @@ if _WIN32SERVICE:
             """Run the Cereberus uvicorn server."""
             import subprocess
 
-            # Determine paths
+            # Determine paths — resolve from this file's location
             base_dir = Path(__file__).resolve().parent.parent.parent
             os.chdir(str(base_dir))
 
-            # Run uvicorn as subprocess
-            self._server_process = subprocess.Popen(
-                [
-                    sys.executable, "-m", "uvicorn",
-                    "backend.main:app",
-                    "--host", "127.0.0.1",
-                    "--port", "8000",
-                    "--log-level", "info",
-                ],
-                cwd=str(base_dir),
-            )
+            # Find the real python.exe — sys.executable is pythonservice.exe
+            # when running as a Windows Service. python.exe lives in the
+            # same directory as pythonservice.exe.
+            svc_dir = Path(sys.executable).parent
+            candidate = svc_dir / "python.exe"
+            python_exe = str(candidate) if candidate.exists() else sys.executable
+
+            # Build env with correct paths — LocalSystem won't inherit
+            # user PATH, so we need to set it explicitly.
+            env = os.environ.copy()
+            env["PATH"] = str(svc_dir) + os.pathsep + env.get("PATH", "")
+
+            log_dir = base_dir / "logs"
+            log_dir.mkdir(exist_ok=True)
+            log_file = log_dir / "service_stdout.log"
+
+            # Run uvicorn as subprocess, redirect output to log file
+            with open(log_file, "a") as lf:
+                self._server_process = subprocess.Popen(
+                    [
+                        python_exe, "-m", "uvicorn",
+                        "backend.main:app",
+                        "--host", "127.0.0.1",
+                        "--port", "8000",
+                        "--log-level", "info",
+                    ],
+                    cwd=str(base_dir),
+                    env=env,
+                    stdout=lf,
+                    stderr=subprocess.STDOUT,
+                )
 
             # Wait for stop signal
             win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
@@ -81,3 +101,7 @@ if _WIN32SERVICE:
 def is_service_available() -> bool:
     """Check if Windows Service functionality is available."""
     return _WIN32SERVICE
+
+
+if __name__ == "__main__" and _WIN32SERVICE:
+    win32serviceutil.HandleCommandLine(CereberusService)
